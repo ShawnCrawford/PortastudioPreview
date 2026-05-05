@@ -4,7 +4,7 @@
 
 This is a separate macOS SwiftUI app repo for a read-only TASCAM DP-32SD preview prototype. Keep reverse-engineering evidence in the sibling research repo at `/Users/shawn/Projects/SwiftUI/PortastudioResearch`; do not copy large project samples or derived binary dumps into this app repo unless there is a deliberate fixture need.
 
-The current Xcode scaffold contains the app target in `PortastudioPreview/`, Swift Testing coverage in `PortastudioPreviewTests/`, and UI tests in `PortastudioPreviewUITests/`. As the prototype grows, split source by responsibility: `Models/` for parsed project and track value types, `Services/` for folder loading, `song.sys`, `edltable.sys`, and audio-preview code, `Views/` for SwiftUI surfaces, and `Support/` for byte, pan, and level mapping helpers.
+The app target lives in `PortastudioPreview/`, Swift Testing coverage in `PortastudioPreviewTests/`, and UI tests in `PortastudioPreviewUITests/`. Keep source split by responsibility: `App/` for the `@main` entry point and app commands, `Models/` for parsed project and track value types, `Services/` for folder loading, `song.sys`, `edltable.sys`, WAV inventory, and audio-preview code, `Views/` for SwiftUI surfaces, and `Support/` for byte, pan, and level mapping helpers.
 
 ## Research References
 
@@ -27,6 +27,8 @@ Run targeted tests by adding `-only-testing:PortastudioPreviewTests/<TestType>/<
 ## Coding Style & Naming Conventions
 
 Use SwiftUI for app structure and AVFoundation for audio preview playback. Keep parsers read-only and deterministic: accept `URL` or `Data`, return typed models, and avoid UI dependencies in parser services. Keep byte offsets hexadecimal in comments and test names when they refer to research findings, such as `0x00C4` for the track 1 level-like byte.
+
+The approximate stereo preview is intentionally conservative. Track-to-WAV assignment remains `Hypothesis`, and `StereoPreviewEngine` currently treats raw level byte `0x00` as unity gain because populated MVP folders use `0x00` on audible tracks and the real level scale is not confirmed.
 
 ## Testing Guidelines
 

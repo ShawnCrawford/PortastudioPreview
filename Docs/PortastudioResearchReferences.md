@@ -48,9 +48,22 @@ Likely track table pattern for the first prototype:
 
 - Level low bank: `0x00C4 + trackIndex * 0x14`
 - Pan low bank: `0x00C6 + trackIndex * 0x14`
-- Mirrored bank starts at `0x081C` and `0x081E`
+- Mirrored bank starts at `0x081C` and `0x081E`, but current app validation only compares mirrors for the evidence-backed first repeated level/pan block visible in `MVP-MIXMAP` -> `MVP-MIXMAP-001`.
+
+Do not extend mirror mismatch warnings across all 32 rows. `MVP-PAN-001` shows false warnings if the mirror stride is extrapolated into unsupported offsets such as track 19 pan (`0x022E` vs `0x0986`). Rows outside the evidence-backed mirror block may still display primary low-bank bytes, but should be treated as `Hypothesis` unless the research repo adds stronger evidence.
 
 Track-to-WAV assignment is still a hypothesis. The populated MVP sample contains `ZZ0000_1.wav`, `ZZ0001_1.wav`, `ZZ0002_1.wav`, `ZZ0003_1.wav`, and `ZZ0003_2.wav`, but the binary structure has not yet fully confirmed physical track mapping.
+
+## Preview Playback Notes
+
+The stereo preview is approximate and read-only. It opens candidate WAV files with AVFoundation and applies provisional mute, pan, and level handling without modifying source files or metadata.
+
+Current playback assumptions:
+
+- Candidate WAV mapping is `Hypothesis`.
+- Track 1 mute byte `0x0268` is treated as a correlated mute-like flag; other mute rows are not inferred.
+- Pan byte `0x40` is treated as center-like for approximate playback.
+- Raw level byte `0x00` is treated as unity/default gain, not silence. This matches audible populated MVP folders and avoids muting all preview audio while the true level scale remains unconfirmed.
 
 ## Implementation Boundary
 
