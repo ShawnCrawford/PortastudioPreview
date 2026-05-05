@@ -1,0 +1,578 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		296FC8D02FAA848F002D28A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 296FC8B82FAA848D002D28A1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 296FC8BF2FAA848D002D28A1;
+			remoteInfo = PortastudioPreview;
+		};
+		296FC8DA2FAA848F002D28A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 296FC8B82FAA848D002D28A1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 296FC8BF2FAA848D002D28A1;
+			remoteInfo = PortastudioPreview;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		296FC8C02FAA848D002D28A1 /* PortastudioPreview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PortastudioPreview.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		296FC8CF2FAA848F002D28A1 /* PortastudioPreviewTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PortastudioPreviewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		296FC8D92FAA848F002D28A1 /* PortastudioPreviewUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PortastudioPreviewUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		296FC8C22FAA848D002D28A1 /* PortastudioPreview */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PortastudioPreview;
+			sourceTree = "<group>";
+		};
+		296FC8D22FAA848F002D28A1 /* PortastudioPreviewTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PortastudioPreviewTests;
+			sourceTree = "<group>";
+		};
+		296FC8DC2FAA848F002D28A1 /* PortastudioPreviewUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PortastudioPreviewUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		296FC8BD2FAA848D002D28A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		296FC8CC2FAA848F002D28A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		296FC8D62FAA848F002D28A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		296FC8B72FAA848D002D28A1 = {
+			isa = PBXGroup;
+			children = (
+				296FC8C22FAA848D002D28A1 /* PortastudioPreview */,
+				296FC8D22FAA848F002D28A1 /* PortastudioPreviewTests */,
+				296FC8DC2FAA848F002D28A1 /* PortastudioPreviewUITests */,
+				296FC8C12FAA848D002D28A1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		296FC8C12FAA848D002D28A1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				296FC8C02FAA848D002D28A1 /* PortastudioPreview.app */,
+				296FC8CF2FAA848F002D28A1 /* PortastudioPreviewTests.xctest */,
+				296FC8D92FAA848F002D28A1 /* PortastudioPreviewUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		296FC8BF2FAA848D002D28A1 /* PortastudioPreview */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 296FC8E32FAA848F002D28A1 /* Build configuration list for PBXNativeTarget "PortastudioPreview" */;
+			buildPhases = (
+				296FC8BC2FAA848D002D28A1 /* Sources */,
+				296FC8BD2FAA848D002D28A1 /* Frameworks */,
+				296FC8BE2FAA848D002D28A1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				296FC8C22FAA848D002D28A1 /* PortastudioPreview */,
+			);
+			name = PortastudioPreview;
+			packageProductDependencies = (
+			);
+			productName = PortastudioPreview;
+			productReference = 296FC8C02FAA848D002D28A1 /* PortastudioPreview.app */;
+			productType = "com.apple.product-type.application";
+		};
+		296FC8CE2FAA848F002D28A1 /* PortastudioPreviewTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 296FC8E62FAA848F002D28A1 /* Build configuration list for PBXNativeTarget "PortastudioPreviewTests" */;
+			buildPhases = (
+				296FC8CB2FAA848F002D28A1 /* Sources */,
+				296FC8CC2FAA848F002D28A1 /* Frameworks */,
+				296FC8CD2FAA848F002D28A1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				296FC8D12FAA848F002D28A1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				296FC8D22FAA848F002D28A1 /* PortastudioPreviewTests */,
+			);
+			name = PortastudioPreviewTests;
+			packageProductDependencies = (
+			);
+			productName = PortastudioPreviewTests;
+			productReference = 296FC8CF2FAA848F002D28A1 /* PortastudioPreviewTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		296FC8D82FAA848F002D28A1 /* PortastudioPreviewUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 296FC8E92FAA848F002D28A1 /* Build configuration list for PBXNativeTarget "PortastudioPreviewUITests" */;
+			buildPhases = (
+				296FC8D52FAA848F002D28A1 /* Sources */,
+				296FC8D62FAA848F002D28A1 /* Frameworks */,
+				296FC8D72FAA848F002D28A1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				296FC8DB2FAA848F002D28A1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				296FC8DC2FAA848F002D28A1 /* PortastudioPreviewUITests */,
+			);
+			name = PortastudioPreviewUITests;
+			packageProductDependencies = (
+			);
+			productName = PortastudioPreviewUITests;
+			productReference = 296FC8D92FAA848F002D28A1 /* PortastudioPreviewUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		296FC8B82FAA848D002D28A1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					296FC8BF2FAA848D002D28A1 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					296FC8CE2FAA848F002D28A1 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 296FC8BF2FAA848D002D28A1;
+					};
+					296FC8D82FAA848F002D28A1 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 296FC8BF2FAA848D002D28A1;
+					};
+				};
+			};
+			buildConfigurationList = 296FC8BB2FAA848D002D28A1 /* Build configuration list for PBXProject "PortastudioPreview" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 296FC8B72FAA848D002D28A1;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 296FC8C12FAA848D002D28A1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				296FC8BF2FAA848D002D28A1 /* PortastudioPreview */,
+				296FC8CE2FAA848F002D28A1 /* PortastudioPreviewTests */,
+				296FC8D82FAA848F002D28A1 /* PortastudioPreviewUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		296FC8BE2FAA848D002D28A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		296FC8CD2FAA848F002D28A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		296FC8D72FAA848F002D28A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		296FC8BC2FAA848D002D28A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		296FC8CB2FAA848F002D28A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		296FC8D52FAA848F002D28A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		296FC8D12FAA848F002D28A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 296FC8BF2FAA848D002D28A1 /* PortastudioPreview */;
+			targetProxy = 296FC8D02FAA848F002D28A1 /* PBXContainerItemProxy */;
+		};
+		296FC8DB2FAA848F002D28A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 296FC8BF2FAA848D002D28A1 /* PortastudioPreview */;
+			targetProxy = 296FC8DA2FAA848F002D28A1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		296FC8E12FAA848F002D28A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		296FC8E22FAA848F002D28A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		296FC8E42FAA848F002D28A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bravenewdesign.PortastudioPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		296FC8E52FAA848F002D28A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bravenewdesign.PortastudioPreview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		296FC8E72FAA848F002D28A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bravenewdesign.PortastudioPreviewTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PortastudioPreview.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PortastudioPreview";
+			};
+			name = Debug;
+		};
+		296FC8E82FAA848F002D28A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bravenewdesign.PortastudioPreviewTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PortastudioPreview.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PortastudioPreview";
+			};
+			name = Release;
+		};
+		296FC8EA2FAA848F002D28A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bravenewdesign.PortastudioPreviewUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = PortastudioPreview;
+			};
+			name = Debug;
+		};
+		296FC8EB2FAA848F002D28A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B84R67MX7T;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bravenewdesign.PortastudioPreviewUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = PortastudioPreview;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		296FC8BB2FAA848D002D28A1 /* Build configuration list for PBXProject "PortastudioPreview" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				296FC8E12FAA848F002D28A1 /* Debug */,
+				296FC8E22FAA848F002D28A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		296FC8E32FAA848F002D28A1 /* Build configuration list for PBXNativeTarget "PortastudioPreview" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				296FC8E42FAA848F002D28A1 /* Debug */,
+				296FC8E52FAA848F002D28A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		296FC8E62FAA848F002D28A1 /* Build configuration list for PBXNativeTarget "PortastudioPreviewTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				296FC8E72FAA848F002D28A1 /* Debug */,
+				296FC8E82FAA848F002D28A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		296FC8E92FAA848F002D28A1 /* Build configuration list for PBXNativeTarget "PortastudioPreviewUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				296FC8EA2FAA848F002D28A1 /* Debug */,
+				296FC8EB2FAA848F002D28A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 296FC8B82FAA848D002D28A1 /* Project object */;
+}
