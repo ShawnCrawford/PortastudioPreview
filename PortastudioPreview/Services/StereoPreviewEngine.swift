@@ -42,8 +42,6 @@ final class StereoPreviewEngine {
             onPlaybackCompleted: onPlaybackCompleted
         )
 
-        let normalizedStartSamples = Self.normalizedStartSamples(for: playableRegions)
-
         for region in playableRegions {
             let file = try AVAudioFile(forReading: region.url)
             let playerNode = AVAudioPlayerNode()
@@ -53,9 +51,7 @@ final class StereoPreviewEngine {
             engine.attach(playerNode)
             engine.connect(playerNode, to: engine.mainMixerNode, format: file.processingFormat)
 
-            let normalizedStartSample = normalizedStartSamples[region.key] ?? 0
-
-            if let startTime = Self.absoluteStartTime(startSample: normalizedStartSample, sampleRate: file.processingFormat.sampleRate) {
+            if let startTime = Self.absoluteStartTime(startSample: region.startSample, sampleRate: file.processingFormat.sampleRate) {
                 playerNode.scheduleFile(file, at: startTime) { [weak self] in
                     self?.handlePlaybackNodeCompleted(playbackID: playbackID)
                 }
@@ -127,18 +123,10 @@ final class StereoPreviewEngine {
         return min(max(centered, -1.0), 1.0)
     }
 
-    static func normalizedStartSamples(for tracks: [TrackPreview]) -> [Int: Int] {
-        let rawStarts: [(trackNumber: Int, startSample: Int)] = tracks.map { track in
+    static func timelineStartSamples(for tracks: [TrackPreview]) -> [Int: Int] {
+        Dictionary(uniqueKeysWithValues: tracks.map { track in
             let startSample = max(track.timeline?.regions.first?.startSample ?? 0, 0)
             return (track.trackNumber, startSample)
-        }
-
-        guard let earliestStart = rawStarts.map(\ .startSample).min() else {
-            return [:]
-        }
-
-        return Dictionary(uniqueKeysWithValues: rawStarts.map { entry in
-            (entry.trackNumber, max(entry.startSample - earliestStart, 0))
         })
     }
 
@@ -175,16 +163,6 @@ final class StereoPreviewEngine {
                 pan: Self.approximatePan(for: track)
             )
         }
-    }
-
-    private static func normalizedStartSamples(for regions: [PlayableRegion]) -> [String: Int] {
-        guard let earliestStart = regions.map(\.startSample).min() else {
-            return [:]
-        }
-
-        return Dictionary(uniqueKeysWithValues: regions.map { region in
-            (region.key, max(region.startSample - earliestStart, 0))
-        })
     }
 
     private func handlePlaybackNodeCompleted(playbackID: UUID) {

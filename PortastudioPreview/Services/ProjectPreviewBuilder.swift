@@ -129,11 +129,13 @@ struct ProjectPreviewBuilder {
         edlTableSummary: EdlTableSummary?
     ) -> [TimelineRegion] {
         let orderedWAVs = orderedUnassignedWAVs(wavInventory: wavInventory, edlTableSummary: edlTableSummary)
-        let starts = edlTableSummary?.timelineAnchors.sorted() ?? []
-        let canPairStarts = !starts.isEmpty && starts.count == orderedWAVs.count
+        let startSamples = Self.inferredStartSamples(
+            wavCount: orderedWAVs.count,
+            timelineAnchors: edlTableSummary?.timelineAnchors ?? []
+        )
 
         return orderedWAVs.enumerated().map { index, wav in
-            let startSample = canPairStarts ? starts[index] : 0
+            let startSample = startSamples[index]
             let lengthSample = wavSampleLength(for: wav.url)
 
             return TimelineRegion(
@@ -170,6 +172,24 @@ struct ProjectPreviewBuilder {
         }
 
         return orderedWAVs + remainingWAVs
+    }
+
+    static func inferredStartSamples(wavCount: Int, timelineAnchors: [Int]) -> [Int] {
+        guard wavCount > 0 else {
+            return []
+        }
+
+        let starts = timelineAnchors.map { max($0, 0) }.sorted()
+
+        if starts.count == wavCount {
+            return starts
+        }
+
+        if wavCount > 1, starts.count == wavCount - 1 {
+            return [0] + starts
+        }
+
+        return Array(repeating: 0, count: wavCount)
     }
 
     private func wavSampleLength(for url: URL) -> Int? {

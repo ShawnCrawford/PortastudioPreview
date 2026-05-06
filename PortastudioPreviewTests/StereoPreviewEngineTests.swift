@@ -43,7 +43,7 @@ struct StereoPreviewEngineTests {
         #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0xFF)) == 1.5)
     }
 
-    @Test func normalizedStartSamplesShiftsEarliestTrackToZero() {
+    @Test func timelineStartSamplesPreserveAbsoluteTrackOffsets() {
         let delayedTrack = TrackPreview(
             trackNumber: 5,
             candidateWAV: wavInventoryItem(),
@@ -60,13 +60,13 @@ struct StereoPreviewEngineTests {
             timeline: trackTimeline(trackNumber: 6, startSample: 2_911_520)
         )
 
-        let normalized = StereoPreviewEngine.normalizedStartSamples(for: [delayedTrack, laterTrack])
+        let startSamples = StereoPreviewEngine.timelineStartSamples(for: [delayedTrack, laterTrack])
 
-        #expect(normalized[5] == 0)
-        #expect(normalized[6] == 453_920)
+        #expect(startSamples[5] == 2_457_600)
+        #expect(startSamples[6] == 2_911_520)
     }
 
-    @Test func normalizedStartSamplesKeepsUntimedTracksAtZero() {
+    @Test func timelineStartSamplesKeepUntimedTracksAtZero() {
         let untimedTrack = TrackPreview(
             trackNumber: 1,
             candidateWAV: wavInventoryItem(),
@@ -83,10 +83,10 @@ struct StereoPreviewEngineTests {
             timeline: trackTimeline(trackNumber: 2, startSample: 820_800)
         )
 
-        let normalized = StereoPreviewEngine.normalizedStartSamples(for: [untimedTrack, timedTrack])
+        let startSamples = StereoPreviewEngine.timelineStartSamples(for: [untimedTrack, timedTrack])
 
-        #expect(normalized[1] == 0)
-        #expect(normalized[2] == 820_800)
+        #expect(startSamples[1] == 0)
+        #expect(startSamples[2] == 820_800)
     }
 
     @Test func completionCoordinatorFiresOnceAfterAllTracksComplete() {
