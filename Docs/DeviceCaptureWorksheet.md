@@ -106,6 +106,61 @@ Goal: approximate real song reconstruction with multiple tracks and simple mixer
 | [x] | `SONG_0090` |  | `SONG_0086` | Mute Track 2 only. Save once. |  |
 | [x] | `SONG_0091` |  | `SONG_0086` | Pan Track 1 hard left, Track 2 hard right. Save once. |  |
 
+## Phase 7: Pan and Level Scale Calibration
+
+Goal: establish the byte-to-scale mapping for fader level and pan, and confirm the pan offsets for tracks 3 and 7 which were absent in `DIFF-MVP-MIXMAP-001` (the MIXMAP variant did not change those pans). No audio recording is required; the mixer state change alone is sufficient. Document the exact value shown on the device display for each track before saving.
+
+Copy from `SONG_0059`. Set the mixer as follows, then save once. Write the exact display readout for each entry in the Notes column of the log.
+
+| Parameter | Track 1 | Track 2 | Track 3 | Track 4 | Track 5 | Track 6 | Track 7 | Track 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Fader | –∞ (min) | –20 dB | –10 dB | 0 dB | +6 dB | +10 dB (max if available) | –6 dB | –3 dB |
+| Pan | L (hard left) | L4 | C (center) | R4 | R (hard right) | L2 | C (center) | R2 |
+
+Evidence expected: pan offsets for all 8 tracks including T3 (`0x00EE`) and T7 (`0x013E`) both Observed; byte values at 8 distinct level positions and 7 distinct pan positions establish the scale lookup table.
+
+| Done | Expected song | Actual song | Copy from | Action | Notes |
+| --- | --- | --- | --- | --- | --- |
+| [x] | `SONG_0092` |  | `SONG_0059` | Set T1–T8 fader and pan to the table above. No audio. Save once. Record exact display readout for every track level and pan. | Track 6 unit faders can only go up to +6db, Track 7 I could only get it to stay at -6.4db due to fader sensitivity. |
+
+## Phase 8: All-32-Track Mute Sweep
+
+Goal: confirm the mute byte position for all 32 tracks in a single diff. This fills in all even-track positions (T4, T6, T8) that were absent in `DIFF-MVP-MIXMAP-001`, and extends mute coverage to tracks 10–32 which have never been tested. No audio is required.
+
+| Done | Expected song | Actual song | Copy from | Action | Notes |
+| --- | --- | --- | --- | --- | --- |
+| [x] | `SONG_0093` |  | `SONG_0059` | Press the MUTE button for every track: T1 through T32. Verify all 32 mute indicators are lit. Save once. |  |
+
+Evidence expected: all 32 mute byte positions `0x0268`–`0x0287` and their mirrors `0x0A2D`–`0x0A4C` Observed in one diff. Covers even-track gaps and the entire T10–T32 range.
+
+## Phase 9: EDL Position–to–Track Correlation, Track 3
+
+Goal: confirm that EDL position 2 corresponds to physical track 3. `SONG_0086` already contains audio on tracks 1, 2, and 3 with three EDL entries. Muting track 3 only, while leaving tracks 1 and 2 unmuted, will show which EDL entry disappears from the expected playback set. Combined with the existing Observed evidence that position 0 = track 1 (SONG_0075) and position 1 = track 2 (SONG_0090), confirming position 2 = track 3 establishes the sequential pattern, which can then be extended as a Hypothesis for tracks 4–32.
+
+| Done | Expected song | Actual song | Copy from | Action | Notes |
+| --- | --- | --- | --- | --- | --- |
+| [x] | `SONG_0094` |  | `SONG_0086` | Mute track 3 only. Tracks 1 and 2 must remain unmuted. Save once. |  |
+
+Evidence expected: `song.sys` byte `0x026A` = `0x01` (T3 mute, Observed); the WAV previously at EDL position 2 is absent from playable output (EDL position-to-track correlation Correlated for track 3).
+
+## Phase 10: High-Track Level Stride Probe, Tracks 9–32
+
+Goal: verify that the stride-`0x14` formula holds for the full upper half of the mixer map (tracks 9–32). Setting a distinct, documented level on four widely-spaced tracks is sufficient to confirm or break the stride at the extremes. Also sets pan on track 9 and 10 to probe whether mirror bank entries exist beyond track 8 (`0x081C` bank was only Correlated up to track 8).
+
+Copy from `SONG_0059`. Set the mixer only — no audio required. Document exact display readout for each changed parameter.
+
+| Parameter | Track 9 | Track 16 | Track 24 | Track 32 | Track 9 pan | Track 10 pan |
+| --- | --- | --- | --- | --- | --- | --- |
+| Fader | –∞ (min) | –10 dB | 0 dB | +10 dB (max if available) | L (hard left) | R (hard right) |
+
+| Done | Expected song | Actual song | Copy from | Action | Notes |
+| --- | --- | --- | --- | --- | --- |
+| [x] | `SONG_0095` |  | `SONG_0059` | Set T9, T16, T24, T32 faders to documented positions above. Set T9 pan hard left, T10 pan hard right. Save once. Record exact display readout for each change. | Track 32 Mac fader level is +6db same for all tracks. Each of these tracks share their partnering track. So track 9 shares the same settings as track 10 and 15 shares same fader controls and settings as trade 16 as tracks 8 - 32 are all grouped by two stereo tracks. They can be made mono but that only utilizes tracks 9,11,13,15,17,19,21,23,25,27,29,31 and the second track for each of those groups are basically ignored and the fader is just treating one track not two. So in this I provided the stereo pan and stereo fader changes. Mono should be easy for you to manage and understand. |
+
+Evidence expected: level offsets `0x0154` (T9), `0x01C4` (T16), `0x0244` (T24), `0x0330` (T32) all Observed, stride-`0x14` formula Correlated for full 32-track range; T9/T10 pan offsets `0x0156`/`0x016A` Observed; any change in mirror bank (`0x081C` region) beyond T8 distinguishes Correlated from Hypothesis for high tracks.
+
+---
+
 ## Copy-Off Checklist
 
 After all captures are complete:
