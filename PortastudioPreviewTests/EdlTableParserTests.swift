@@ -50,6 +50,25 @@ struct EdlTableParserTests {
         #expect(summary.timelineAnchors.contains(2_911_520))
     }
 
+    @Test func parsesFileListEntriesBeyondInitialMVPWindow() throws {
+        let fileListOffset = 0x100
+        let fileListText = "File List\0ZZ0000_1.wav\0"
+        let delayedFilename = "ZZ0098_8.WAV"
+        let delayedFilenameOffset = fileListOffset + 0x500
+        let dataSize = max(
+            EdlTableParser.track1ActiveTakeCandidateOffset + 1,
+            delayedFilenameOffset + delayedFilename.utf8.count
+        )
+
+        var data = Data(count: dataSize)
+        data.replaceSubrange(fileListOffset..<(fileListOffset + fileListText.utf8.count), with: fileListText.utf8)
+        data.replaceSubrange(delayedFilenameOffset..<(delayedFilenameOffset + delayedFilename.utf8.count), with: delayedFilename.utf8)
+
+        let summary = try EdlTableParser().parse(data)
+
+        #expect(summary.fileListEntries.map(\.filename) == ["ZZ0000_1.wav", "ZZ0098_8.WAV"])
+    }
+
     @Test func rejectsDataShorterThanActiveTakeCandidateOffset() {
         let data = Data(count: EdlTableParser.track1ActiveTakeCandidateOffset)
 

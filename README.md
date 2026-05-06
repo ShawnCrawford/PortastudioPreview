@@ -59,6 +59,12 @@ Canonical reverse-engineering evidence lives in the sibling repo:
 
 Use `Docs/PortastudioResearchReferences.md` in this repo as the local index.
 
+For a read-only manual audit of current fader bytes, EDL file-list order, and WAV inventory/lengths, run:
+
+```bash
+/Users/shawn/Projects/SwiftUI/PortastudioResearch/Scripts/Prototypes/preview_sample_audit.py --generated-date 2026-05-06
+```
+
 ## Evidence Discipline
 
 Use the evidence labels exactly as defined in the research repo:

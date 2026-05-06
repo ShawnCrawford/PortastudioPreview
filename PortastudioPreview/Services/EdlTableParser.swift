@@ -8,6 +8,7 @@ import Foundation
 struct EdlTableParser {
     static let track1ActiveTakeCandidateOffset = 0x00B01A38
     private static let fileListLabel = "File List"
+    private static let fileListScanLength = 0x2000
     private static let timelineSampleRate = 48_000
     private static let likelyClipLengthTrim = 480
 
@@ -31,16 +32,17 @@ struct EdlTableParser {
             return []
         }
 
-        // The file list payload is compact and close to the label in current captures.
+        // The file list payload is compact and close to the label in current captures,
+        // but multi-take folders can exceed the earlier MVP-sized scan window.
         let start = labelRange.lowerBound
-        let end = min(data.count, start + 0x400)
+        let end = min(data.count, start + fileListScanLength)
         let payload = data[start..<end]
 
         guard !payload.isEmpty else {
             return []
         }
 
-        guard let regex = try? NSRegularExpression(pattern: "ZZ\\d{4}_\\d\\.wav") else {
+        guard let regex = try? NSRegularExpression(pattern: "ZZ\\d{4}_\\d\\.wav", options: [.caseInsensitive]) else {
             return []
         }
 

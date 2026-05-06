@@ -12,6 +12,7 @@ This app repo depends on the sibling research repo for format evidence:
 | MVP review gate and diff index | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/BinaryDiffLog.md` |
 | Controlled capture matrix | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/ControlledTestMatrix.md` |
 | MVP testing plan | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/MVPBinaryTestingPlan.md` |
+| Preview sample audit | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/BinaryDiffs/DP-32SD/AUDIT-PREVIEW-SAMPLE-001/preview-sample-audit.md` |
 | `song.sys` parser evidence | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/song.sys.md` |
 | `edltable.sys` parser evidence | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/edltable.sys.md` |
 | Open claims and hypotheses | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Notes/DiscoveriesAndHypotheses.md` |
@@ -53,6 +54,8 @@ Likely track table pattern for the first prototype:
 Do not extend mirror mismatch warnings across all 32 rows. `MVP-PAN-001` shows false warnings if the mirror stride is extrapolated into unsupported offsets such as track 19 pan (`0x022E` vs `0x0986`). Rows outside the evidence-backed mirror block may still display primary low-bank bytes, but should be treated as `Hypothesis` unless the research repo adds stronger evidence.
 
 Track-to-WAV assignment is still a hypothesis. The populated MVP sample contains `ZZ0000_1.wav`, `ZZ0001_1.wav`, `ZZ0002_1.wav`, `ZZ0003_1.wav`, and `ZZ0003_2.wav`, but the binary structure has not yet fully confirmed physical track mapping.
+
+`AUDIT-PREVIEW-SAMPLE-001` observes that populated samples' `edltable.sys` file-list entries match folder WAV inventory as a set, while the EDL order often differs from filename sort. Treat this as file-list evidence, not physical-track order evidence.
 
 ## Preview Playback Notes
 
