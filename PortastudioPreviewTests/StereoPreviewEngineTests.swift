@@ -24,7 +24,8 @@ struct StereoPreviewEngineTests {
                 pan: setting(name: "Pan", primaryOffset: 0x00DA, primaryByte: 0x40),
                 mute: nil
             ),
-            track1ActiveTakeCandidate: nil
+            track1ActiveTakeCandidate: nil,
+            timeline: nil
         )
 
         #expect(!StereoPreviewEngine.isMuted(track))
@@ -42,6 +43,52 @@ struct StereoPreviewEngineTests {
         #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0xFF)) == 1.5)
     }
 
+    @Test func normalizedStartSamplesShiftsEarliestTrackToZero() {
+        let delayedTrack = TrackPreview(
+            trackNumber: 5,
+            candidateWAV: wavInventoryItem(),
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: trackTimeline(trackNumber: 5, startSample: 2_457_600)
+        )
+
+        let laterTrack = TrackPreview(
+            trackNumber: 6,
+            candidateWAV: wavInventoryItem(),
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: trackTimeline(trackNumber: 6, startSample: 2_911_520)
+        )
+
+        let normalized = StereoPreviewEngine.normalizedStartSamples(for: [delayedTrack, laterTrack])
+
+        #expect(normalized[5] == 0)
+        #expect(normalized[6] == 453_920)
+    }
+
+    @Test func normalizedStartSamplesKeepsUntimedTracksAtZero() {
+        let untimedTrack = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: wavInventoryItem(),
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: nil
+        )
+
+        let timedTrack = TrackPreview(
+            trackNumber: 2,
+            candidateWAV: wavInventoryItem(),
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: trackTimeline(trackNumber: 2, startSample: 820_800)
+        )
+
+        let normalized = StereoPreviewEngine.normalizedStartSamples(for: [untimedTrack, timedTrack])
+
+        #expect(normalized[1] == 0)
+        #expect(normalized[2] == 820_800)
+    }
+
     private func makeTrackPreview(mute: UInt8, pan: UInt8, level: UInt8) -> TrackPreview {
         TrackPreview(
             trackNumber: 1,
@@ -52,7 +99,8 @@ struct StereoPreviewEngineTests {
                 pan: setting(name: "Pan", primaryOffset: 0x00C6, primaryByte: pan),
                 mute: setting(name: "Mute", primaryOffset: 0x0268, primaryByte: mute)
             ),
-            track1ActiveTakeCandidate: nil
+            track1ActiveTakeCandidate: nil,
+            timeline: nil
         )
     }
 
@@ -72,6 +120,23 @@ struct StereoPreviewEngineTests {
             url: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
             rawFilename: "ZZ0000_1.wav",
             byteCount: nil
+        )
+    }
+
+    private func trackTimeline(trackNumber: Int, startSample: Int) -> TrackTimeline {
+        TrackTimeline(
+            trackNumber: trackNumber,
+            regions: [
+                TimelineRegion(
+                    startSample: startSample,
+                    endSample: nil,
+                    lengthSample: nil,
+                    sourceFilename: "ZZ0000_1.wav",
+                    sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                    evidenceLevel: .hypothesis
+                )
+            ],
+            evidenceLevel: .hypothesis
         )
     }
 }

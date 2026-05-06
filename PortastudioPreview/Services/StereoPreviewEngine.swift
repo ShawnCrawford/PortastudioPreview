@@ -9,6 +9,7 @@ import Foundation
 final class StereoPreviewEngine {
     private let engine = AVAudioEngine()
     private var playerNodes: [AVAudioPlayerNode] = []
+    private static let previewSampleRate: Double = 48_000
 
     var isRunning: Bool {
         engine.isRunning
@@ -25,6 +26,8 @@ final class StereoPreviewEngine {
             throw StereoPreviewEngineError.noPlayableTracks
         }
 
+        let normalizedStartSamples = Self.normalizedStartSamples(for: playableTracks)
+
         for track in playableTracks {
             guard let wavURL = track.candidateWAV?.url else {
                 continue
@@ -37,7 +40,15 @@ final class StereoPreviewEngine {
 
             engine.attach(playerNode)
             engine.connect(playerNode, to: engine.mainMixerNode, format: file.processingFormat)
-            playerNode.scheduleFile(file, at: nil)
+
+            let normalizedStartSample = normalizedStartSamples[track.trackNumber] ?? 0
+
+            if let startTime = Self.absoluteStartTime(startSample: normalizedStartSample, sampleRate: file.processingFormat.sampleRate) {
+                playerNode.scheduleFile(file, at: startTime)
+            } else {
+                playerNode.scheduleFile(file, at: nil)
+            }
+
             playerNodes.append(playerNode)
         }
 
@@ -86,6 +97,34 @@ final class StereoPreviewEngine {
 
         let centered = (Float(rawPan) - Float(0x40)) / Float(0x40)
         return min(max(centered, -1.0), 1.0)
+    }
+
+    static func normalizedStartSamples(for tracks: [TrackPreview]) -> [Int: Int] {
+        let rawStarts: [(trackNumber: Int, startSample: Int)] = tracks.map { track in
+            let startSample = max(track.timeline?.regions.first?.startSample ?? 0, 0)
+            return (track.trackNumber, startSample)
+        }
+
+        guard let earliestStart = rawStarts.map(\ .startSample).min() else {
+            return [:]
+        }
+
+        return Dictionary(uniqueKeysWithValues: rawStarts.map { entry in
+            (entry.trackNumber, max(entry.startSample - earliestStart, 0))
+        })
+    }
+
+    private static func absoluteStartTime(startSample: Int, sampleRate: Double) -> AVAudioTime? {
+        guard startSample > 0 else {
+            return nil
+        }
+
+        let clampedSampleRate = sampleRate > 0 ? sampleRate : previewSampleRate
+        let seconds = Double(startSample) / clampedSampleRate
+        let hostDelta = AVAudioTime.hostTime(forSeconds: seconds)
+        let hostNow = mach_absolute_time()
+
+        return AVAudioTime(hostTime: hostNow + hostDelta)
     }
 }
 

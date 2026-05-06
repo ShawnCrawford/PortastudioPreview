@@ -17,6 +17,37 @@ struct EdlTableParserTests {
         #expect(summary.activeTakeCandidateOffset == 0x00B01A38)
         #expect(summary.track1ActiveTakeCandidate == 0x03)
         #expect(summary.evidenceLevel == .correlated)
+        #expect(summary.fileListEntries.isEmpty)
+        #expect(summary.timelineAnchors.isEmpty)
+    }
+
+    @Test func parsesFileListAndTimelineAnchorsWhenPresent() throws {
+        let fileListOffset = 0x00B02580
+        let fileListText = "File List\0ZZ0002_1.wav\0ZZ0003_1.wav\0"
+        let dataSize = max(
+            EdlTableParser.track1ActiveTakeCandidateOffset + 1,
+            max(0x46000, fileListOffset + fileListText.utf8.count)
+        )
+
+        var data = Data(count: dataSize)
+        data[EdlTableParser.track1ActiveTakeCandidateOffset] = 0x01
+        data.replaceSubrange(fileListOffset..<(fileListOffset + fileListText.utf8.count), with: fileListText.utf8)
+
+        writeUInt32LE(820_800, to: &data, at: 0x44C58)
+        writeUInt32LE(820_800, to: &data, at: 0x44C5C)
+        writeUInt32LE(2_457_600, to: &data, at: 0x44C90)
+        writeUInt32LE(2_457_600, to: &data, at: 0x44C94)
+        writeUInt32LE(2_911_520, to: &data, at: 0x44EA0)
+        writeUInt32LE(2_911_520, to: &data, at: 0x44EA4)
+
+        let summary = try EdlTableParser().parse(data)
+
+        #expect(summary.fileListEntries.count == 2)
+        #expect(summary.fileListEntries[0].filename == "ZZ0002_1.wav")
+        #expect(summary.fileListEntries[1].filename == "ZZ0003_1.wav")
+        #expect(summary.timelineAnchors.contains(820_800))
+        #expect(summary.timelineAnchors.contains(2_457_600))
+        #expect(summary.timelineAnchors.contains(2_911_520))
     }
 
     @Test func rejectsDataShorterThanActiveTakeCandidateOffset() {
@@ -29,5 +60,12 @@ struct EdlTableParserTests {
         )) {
             try EdlTableParser().parse(data)
         }
+    }
+
+    private func writeUInt32LE(_ value: UInt32, to data: inout Data, at offset: Int) {
+        data[offset] = UInt8(value & 0xFF)
+        data[offset + 1] = UInt8((value >> 8) & 0xFF)
+        data[offset + 2] = UInt8((value >> 16) & 0xFF)
+        data[offset + 3] = UInt8((value >> 24) & 0xFF)
     }
 }

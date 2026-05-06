@@ -64,6 +64,19 @@ Current playback assumptions:
 - Track 1 mute byte `0x0268` is treated as a correlated mute-like flag; other mute rows are not inferred.
 - Pan byte `0x40` is treated as center-like for approximate playback.
 - Raw level byte `0x00` is treated as unity/default gain, not silence. This matches audible populated MVP folders and avoids muting all preview audio while the true level scale remains unconfirmed.
+- Timeline anchors extracted from `edltable.sys` are `Hypothesis` and may represent delayed placements.
+- Preview scheduling now normalizes the earliest inferred region to playback time zero while preserving per-track relative offsets. This prevents long initial silence when all inferred starts are delayed.
+
+## Playback Troubleshooting
+
+If pressing Play yields no immediate audio:
+
+- Confirm at least one track shows a candidate WAV in the track table.
+- Confirm at least one candidate track is not muted by the interpreted mute byte.
+- Check the project has audible WAV content (some captured takes are near-silent).
+- Wait briefly if a project contains only delayed clips, then verify timeline evidence in `edltable.sys` parsing output.
+
+CoreAudio/HAL log lines such as sandbox lookup warnings or optional factory registration messages can appear during preview startup. Treat these as diagnostics unless playback actually fails.
 
 ## Implementation Boundary
 

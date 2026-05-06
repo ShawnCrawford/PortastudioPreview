@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import AVFoundation
 
 struct ProjectPreviewBuilder {
     func build(folderURL: URL, fileManager: FileManager = .default) throws -> PortastudioProject {
@@ -39,11 +40,19 @@ struct ProjectPreviewBuilder {
         }
 
         let tracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
-            TrackPreview(
+            let candidateWAV = wavInventory.indices.contains(trackIndex) ? wavInventory[trackIndex] : nil
+            let timeline = inferTimeline(
+                for: trackIndex + 1,
+                candidateWAV: candidateWAV,
+                edlTableSummary: edlTableSummary
+            )
+
+            return TrackPreview(
                 trackNumber: trackIndex + 1,
-                candidateWAV: wavInventory.indices.contains(trackIndex) ? wavInventory[trackIndex] : nil,
+                candidateWAV: candidateWAV,
                 mixerSetting: mixerSettings.indices.contains(trackIndex) ? mixerSettings[trackIndex] : nil,
-                track1ActiveTakeCandidate: trackIndex == 0 ? edlTableSummary?.track1ActiveTakeCandidate : nil
+                track1ActiveTakeCandidate: trackIndex == 0 ? edlTableSummary?.track1ActiveTakeCandidate : nil,
+                timeline: timeline
             )
         }
 
@@ -114,5 +123,66 @@ struct ProjectPreviewBuilder {
             )
             return nil
         }
+    }
+
+    private func inferTimeline(
+        for trackNumber: Int,
+        candidateWAV: WAVInventoryItem?,
+        edlTableSummary: EdlTableSummary?
+    ) -> TrackTimeline? {
+        guard let candidateWAV,
+              let summary = edlTableSummary else {
+            return nil
+        }
+
+        let wavLengthSample = wavSampleLength(for: candidateWAV.url)
+        let anchors = summary.timelineAnchors.sorted()
+
+        guard let startSample = preferredStartSample(for: trackNumber, anchors: anchors, wavLengthSample: wavLengthSample) else {
+            return nil
+        }
+
+        let lengthSample = max((wavLengthSample ?? 0) - 480, 0)
+        let region = TimelineRegion(
+            startSample: startSample,
+            endSample: lengthSample > 0 ? (startSample + lengthSample) : nil,
+            lengthSample: lengthSample > 0 ? lengthSample : nil,
+            sourceFilename: candidateWAV.rawFilename,
+            sourceURL: candidateWAV.url,
+            evidenceLevel: .hypothesis
+        )
+
+        return TrackTimeline(
+            trackNumber: trackNumber,
+            regions: [region],
+            evidenceLevel: .hypothesis
+        )
+    }
+
+    private func preferredStartSample(for trackNumber: Int, anchors: [Int], wavLengthSample: Int?) -> Int? {
+        guard !anchors.isEmpty else {
+            return nil
+        }
+
+        // Keep current behavior conservative: use delayed anchors when clearly present,
+        // otherwise fall back to timeline start.
+        if trackNumber > 4, let delayed = anchors.first(where: { $0 >= 48_000 * 5 }) {
+            return delayed
+        }
+
+        if let wavLengthSample,
+           let matched = anchors.first(where: { $0 >= wavLengthSample && $0 <= (wavLengthSample * 2) }) {
+            return matched
+        }
+
+        return anchors.first
+    }
+
+    private func wavSampleLength(for url: URL) -> Int? {
+        guard let audioFile = try? AVAudioFile(forReading: url) else {
+            return nil
+        }
+
+        return Int(audioFile.length)
     }
 }

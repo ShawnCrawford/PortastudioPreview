@@ -10,6 +10,7 @@ struct TrackPreview: Identifiable, Hashable {
     let candidateWAV: WAVInventoryItem?
     let mixerSetting: TrackMixerSetting?
     let track1ActiveTakeCandidate: UInt8?
+    let timeline: TrackTimeline?
 
     var id: Int { trackNumber }
 
