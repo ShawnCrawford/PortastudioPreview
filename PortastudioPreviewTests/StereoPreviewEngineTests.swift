@@ -89,6 +89,40 @@ struct StereoPreviewEngineTests {
         #expect(startSamples[2] == 820_800)
     }
 
+    @Test func unassignedPlaybackKeepsOnlyTrack1ActiveVirtualTakeWhenKnown() {
+        let project = makeProject(
+            activeTakeCandidate: 0x01,
+            regions: [
+                timelineRegion(filename: "ZZ0000_1.wav"),
+                timelineRegion(filename: "ZZ0003_1.wav"),
+                timelineRegion(filename: "ZZ0003_2.wav")
+            ]
+        )
+
+        #expect(StereoPreviewEngine.playableRegionSourceFilenames(for: project) == ["ZZ0000_1.wav", "ZZ0003_2.wav"])
+    }
+
+    @Test func unassignedPlaybackLeavesAmbiguousMultipleTakeGroupsUnfiltered() {
+        let project = makeProject(
+            activeTakeCandidate: 0x01,
+            regions: [
+                timelineRegion(filename: "ZZ0000_1.wav"),
+                timelineRegion(filename: "ZZ0000_2.wav"),
+                timelineRegion(filename: "ZZ0001_1.wav"),
+                timelineRegion(filename: "ZZ0001_2.wav")
+            ]
+        )
+
+        #expect(
+            StereoPreviewEngine.playableRegionSourceFilenames(for: project) == [
+                "ZZ0000_1.wav",
+                "ZZ0000_2.wav",
+                "ZZ0001_1.wav",
+                "ZZ0001_2.wav"
+            ]
+        )
+    }
+
     @Test func completionCoordinatorFiresOnceAfterAllTracksComplete() {
         let coordinator = PlaybackCompletionCoordinator()
         let playbackID = UUID()
@@ -194,6 +228,37 @@ struct StereoPreviewEngineTests {
                     evidenceLevel: .hypothesis
                 )
             ],
+            evidenceLevel: .hypothesis
+        )
+    }
+
+    private func makeProject(activeTakeCandidate: UInt8?, regions: [TimelineRegion]) -> PortastudioProject {
+        PortastudioProject(
+            folderURL: URL(fileURLWithPath: "/tmp/project"),
+            validationIssues: [],
+            wavInventory: [],
+            unassignedAudioRegions: regions,
+            tracks: [],
+            edlTableSummary: activeTakeCandidate.map { activeTakeCandidate in
+                EdlTableSummary(
+                    track1ActiveTakeCandidate: activeTakeCandidate,
+                    activeTakeCandidateOffset: EdlTableParser.track1ActiveTakeCandidateOffset,
+                    evidenceLevel: .correlated,
+                    fileListEntries: [],
+                    timelineAnchors: [],
+                    timelineCandidates: []
+                )
+            }
+        )
+    }
+
+    private func timelineRegion(filename: String) -> TimelineRegion {
+        TimelineRegion(
+            startSample: 0,
+            endSample: nil,
+            lengthSample: nil,
+            sourceFilename: filename,
+            sourceURL: URL(fileURLWithPath: "/tmp/\(filename)"),
             evidenceLevel: .hypothesis
         )
     }

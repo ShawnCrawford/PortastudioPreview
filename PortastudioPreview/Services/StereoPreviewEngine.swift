@@ -21,6 +21,30 @@ final class StereoPreviewEngine {
         let pan: Float
     }
 
+    private struct VirtualTakeFilename {
+        let stem: String
+        let takeNumber: Int
+
+        init?(_ filename: String) {
+            let pattern = #"^(ZZ\d{4})_(\d)\.wav$"#
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+                return nil
+            }
+
+            let nsRange = NSRange(filename.startIndex..<filename.endIndex, in: filename)
+            guard let match = regex.firstMatch(in: filename, range: nsRange),
+                  match.numberOfRanges == 3,
+                  let stemRange = Range(match.range(at: 1), in: filename),
+                  let takeRange = Range(match.range(at: 2), in: filename),
+                  let takeNumber = Int(filename[takeRange]) else {
+                return nil
+            }
+
+            stem = String(filename[stemRange]).uppercased()
+            self.takeNumber = takeNumber
+        }
+    }
+
     var isRunning: Bool {
         engine.isRunning
     }
@@ -130,8 +154,15 @@ final class StereoPreviewEngine {
         })
     }
 
+    static func playableRegionSourceFilenames(for project: PortastudioProject) -> [String] {
+        playableRegions(for: project).map { region in
+            region.url.lastPathComponent
+        }
+    }
+
     private static func playableRegions(for project: PortastudioProject) -> [PlayableRegion] {
-        let unassignedRegions = project.unassignedAudioRegions.compactMap { region -> PlayableRegion? in
+        let selectedUnassignedRegions = activeVirtualTakeFilteredRegions(for: project)
+        let unassignedRegions = selectedUnassignedRegions.compactMap { region -> PlayableRegion? in
             guard let sourceURL = region.sourceURL else {
                 return nil
             }
@@ -162,6 +193,49 @@ final class StereoPreviewEngine {
                 volume: Self.approximateVolume(for: track),
                 pan: Self.approximatePan(for: track)
             )
+        }
+    }
+
+    private static func activeVirtualTakeFilteredRegions(for project: PortastudioProject) -> [TimelineRegion] {
+        let regions = project.unassignedAudioRegions
+        let multiTakeStems = Dictionary(grouping: regions) { region -> String? in
+            guard let sourceFilename = region.sourceFilename,
+                  let parsedFilename = VirtualTakeFilename(sourceFilename) else {
+                return nil
+            }
+
+            return parsedFilename.stem
+        }
+        .compactMapValues { groupedRegions in
+            let takeNumbers = Set(groupedRegions.compactMap { region -> Int? in
+                guard let sourceFilename = region.sourceFilename else {
+                    return nil
+                }
+
+                return VirtualTakeFilename(sourceFilename)?.takeNumber
+            })
+
+            return takeNumbers.count > 1 ? takeNumbers : nil
+        }
+
+        guard multiTakeStems.count == 1,
+              let activeTakeByte = project.edlTableSummary?.track1ActiveTakeCandidate else {
+            return regions
+        }
+
+        let activeTakeNumber = Int(activeTakeByte) + 1
+        guard multiTakeStems.values.contains(where: { $0.contains(activeTakeNumber) }) else {
+            return regions
+        }
+
+        return regions.filter { region in
+            guard let sourceFilename = region.sourceFilename,
+                  let parsedFilename = VirtualTakeFilename(sourceFilename),
+                  multiTakeStems.keys.contains(parsedFilename.stem) else {
+                return true
+            }
+
+            return parsedFilename.takeNumber == activeTakeNumber
         }
     }
 
