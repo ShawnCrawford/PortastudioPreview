@@ -33,8 +33,8 @@ struct StereoPreviewEngineTests {
 
     @Test func approximatePanMapsCenterAndEdges() {
         #expect(StereoPreviewEngine.approximatePan(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x7F)) == 0.0)
-        #expect(StereoPreviewEngine.approximatePan(for: makeTrackPreview(mute: 0x00, pan: 0x00, level: 0x7F)) == -1.0)
-        #expect(StereoPreviewEngine.approximatePan(for: makeTrackPreview(mute: 0x00, pan: 0x80, level: 0x7F)) == 1.0)
+        #expect(StereoPreviewEngine.approximatePan(for: makeTrackPreview(mute: 0x00, pan: 0x01, level: 0x7F)) == -1.0)
+        #expect(StereoPreviewEngine.approximatePan(for: makeTrackPreview(mute: 0x00, pan: 0x7F, level: 0x7F)) == 1.0)
     }
 
     @Test func approximateVolumeTreatsRawZeroAsUnityUntilScaleIsKnown() {

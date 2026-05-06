@@ -44,9 +44,11 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 
 Preview playback is intentionally conservative.
 
-- Track-to-WAV mapping remains `Hypothesis`.
-- Mute/Pan/Level handling is approximate and evidence-scoped.
-- Timeline offsets inferred from `edltable.sys` are treated as `Hypothesis`.
+- Track-to-WAV mapping remains `Hypothesis`; sorted filename-to-track assignment is `Rejected` as evidence.
+- Track rows show mixer evidence, but WAVs are previewed as unassigned regions unless a future parser has correlated physical-track mapping.
+- Unassigned regions use EDL file-list order when available, neutral center pan, and unity gain.
+- Mute/Pan/Level handling is approximate and evidence-scoped. Track 1 and Track 2 mute bytes are correlated; raw fader `0x00` is not treated as silence.
+- Timeline offsets inferred from `edltable.sys` are treated as `Hypothesis` 44.1k sample-domain candidates.
 - Playback start normalization is applied so the earliest scheduled region starts at preview time zero while preserving relative offsets between tracks.
 
 This avoids long initial silence when inferred anchors are far from zero (for example delayed clips around the 50-second region).

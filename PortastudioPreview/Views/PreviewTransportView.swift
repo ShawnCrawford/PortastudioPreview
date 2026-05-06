@@ -33,7 +33,7 @@ struct PreviewTransportView: View {
                         .foregroundStyle(.red)
                         .lineLimit(1)
                 } else {
-                    Text("Candidate WAV mapping remains Hypothesis.")
+                    Text("WAV regions are unassigned until track mapping is correlated.")
                         .foregroundStyle(.secondary)
                 }
             }

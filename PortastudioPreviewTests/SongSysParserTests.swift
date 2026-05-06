@@ -34,10 +34,12 @@ struct SongSysParserTests {
         #expect(tracks[0].pan.mirrorByte == 0x40)
     }
 
-    @Test func track1MuteReadsPrimaryAndMirrorOffsetsOnly() throws {
+    @Test func track1AndTrack2MuteReadPrimaryAndMirrorOffsetsOnly() throws {
         var data = makeMinimumSongSysData()
         data[0x0268] = 0x01
         data[0x0A2D] = 0x01
+        data[0x0269] = 0x01
+        data[0x0A2E] = 0x01
 
         let tracks = try SongSysParser().parse(data)
 
@@ -45,7 +47,11 @@ struct SongSysParserTests {
         #expect(tracks[0].mute?.primaryByte == 0x01)
         #expect(tracks[0].mute?.mirrorOffset == 0x0A2D)
         #expect(tracks[0].mute?.mirrorByte == 0x01)
-        #expect(tracks[1].mute == nil)
+        #expect(tracks[1].mute?.primaryOffset == 0x0269)
+        #expect(tracks[1].mute?.primaryByte == 0x01)
+        #expect(tracks[1].mute?.mirrorOffset == 0x0A2E)
+        #expect(tracks[1].mute?.mirrorByte == 0x01)
+        #expect(tracks[2].mute == nil)
     }
 
     @Test func trackIndexOffsetCalculationUsesCorrelatedStride() throws {

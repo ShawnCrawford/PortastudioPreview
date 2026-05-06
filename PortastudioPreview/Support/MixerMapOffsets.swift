@@ -17,12 +17,14 @@ enum MixerMapOffsets {
 
     static let track1Mute = 0x0268
     static let track1MuteMirror = 0x0A2D
+    static let track2Mute = 0x0269
+    static let track2MuteMirror = 0x0A2E
 
     static var minimumSongSysLength: Int {
         max(
             panOffset(trackIndex: trackCount - 1),
             panMirrorOffset(trackIndex: correlatedLevelPanTrackCount - 1),
-            track1MuteMirror
+            track2MuteMirror
         ) + 1
     }
 

@@ -15,8 +15,8 @@ struct TrackTableView: View {
             }
             .width(48)
 
-            TableColumn("Candidate WAV") { track in
-                Text(track.candidateWAV?.rawFilename ?? "No candidate")
+            TableColumn("Mapped WAV") { track in
+                Text(track.candidateWAV?.rawFilename ?? "Unassigned")
                     .foregroundStyle(track.candidateWAV == nil ? .secondary : .primary)
             }
             .width(min: 150, ideal: 220)

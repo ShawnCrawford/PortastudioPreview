@@ -11,4 +11,5 @@ struct EdlTableSummary: Equatable, Sendable {
     let evidenceLevel: EvidenceLevel
     let fileListEntries: [EdlFileListEntry]
     let timelineAnchors: [Int]
+    let timelineCandidates: [EdlTimelineCandidate]
 }

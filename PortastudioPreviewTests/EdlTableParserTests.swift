@@ -19,6 +19,7 @@ struct EdlTableParserTests {
         #expect(summary.evidenceLevel == .correlated)
         #expect(summary.fileListEntries.isEmpty)
         #expect(summary.timelineAnchors.isEmpty)
+        #expect(summary.timelineCandidates.isEmpty)
     }
 
     @Test func parsesFileListAndTimelineAnchorsWhenPresent() throws {
@@ -33,21 +34,21 @@ struct EdlTableParserTests {
         data[EdlTableParser.track1ActiveTakeCandidateOffset] = 0x01
         data.replaceSubrange(fileListOffset..<(fileListOffset + fileListText.utf8.count), with: fileListText.utf8)
 
-        writeUInt32LE(820_800, to: &data, at: 0x44C58)
-        writeUInt32LE(820_800, to: &data, at: 0x44C5C)
-        writeUInt32LE(2_457_600, to: &data, at: 0x44C90)
-        writeUInt32LE(2_457_600, to: &data, at: 0x44C94)
-        writeUInt32LE(2_911_520, to: &data, at: 0x44EA0)
-        writeUInt32LE(2_911_520, to: &data, at: 0x44EA4)
+        writeUInt32LE(440_999, to: &data, at: 0x41858)
+        writeUInt32LE(441_000, to: &data, at: 0x4185C)
+        writeUInt32LE(441_600, to: &data, at: 0x41890)
+        writeUInt32LE(881_999, to: &data, at: 0x41894)
+        writeUInt32LE(882_000, to: &data, at: 0x41EA0)
+        writeUInt32LE(1_096_179, to: &data, at: 0x41EA4)
 
         let summary = try EdlTableParser().parse(data)
 
         #expect(summary.fileListEntries.count == 2)
         #expect(summary.fileListEntries[0].filename == "ZZ0002_1.wav")
         #expect(summary.fileListEntries[1].filename == "ZZ0003_1.wav")
-        #expect(summary.timelineAnchors.contains(820_800))
-        #expect(summary.timelineAnchors.contains(2_457_600))
-        #expect(summary.timelineAnchors.contains(2_911_520))
+        #expect(summary.timelineAnchors == [441_000, 882_000])
+        #expect(summary.timelineCandidates[0].rawSamples == [440_999, 441_000, 441_600])
+        #expect(summary.timelineCandidates[0].evidenceLevel == .hypothesis)
     }
 
     @Test func parsesFileListEntriesBeyondInitialMVPWindow() throws {

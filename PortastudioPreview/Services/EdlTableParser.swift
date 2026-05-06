@@ -9,21 +9,25 @@ struct EdlTableParser {
     static let track1ActiveTakeCandidateOffset = 0x00B01A38
     private static let fileListLabel = "File List"
     private static let fileListScanLength = 0x2000
-    private static let timelineSampleRate = 48_000
-    private static let likelyClipLengthTrim = 480
+    private static let timelineSampleRate = 44_100
+    private static let timelineScanBegin = 0x41600
+    private static let timelineScanEnd = 0x42D00
+    private static let secondBoundaryTolerance = 800
+    private static let duplicateTolerance = 800
 
     func parse(_ data: Data) throws -> EdlTableSummary {
         let reader = ByteReader(data: data)
         let activeTakeCandidate = try reader.readUInt8(at: Self.track1ActiveTakeCandidateOffset)
         let fileListEntries = Self.parseFileListEntries(from: data)
-        let timelineAnchors = Self.extractTimelineAnchors(from: data)
+        let timelineCandidates = Self.extractTimelineCandidates(from: data)
 
         return EdlTableSummary(
             track1ActiveTakeCandidate: activeTakeCandidate,
             activeTakeCandidateOffset: Self.track1ActiveTakeCandidateOffset,
             evidenceLevel: .correlated,
             fileListEntries: fileListEntries,
-            timelineAnchors: timelineAnchors
+            timelineAnchors: timelineCandidates.map(\.representativeSample),
+            timelineCandidates: timelineCandidates
         )
     }
 
@@ -69,44 +73,68 @@ struct EdlTableParser {
         return entries
     }
 
-    private static func extractTimelineAnchors(from data: Data) -> [Int] {
-        // Candidate timeline anchors: values that appear in structured record blocks
-        // and align with the observed 48k sample-domain timing behavior.
+    private static func extractTimelineCandidates(from data: Data) -> [EdlTimelineCandidate] {
+        // Candidate timeline starts: observed delayed captures use 44.1k sample-domain
+        // values in this record window. Keep these as Hypothesis until track mapping is proven.
         let minSample = timelineSampleRate
         let maxSample = timelineSampleRate * 60 * 20
-        let begin = 0x43000
-        let end = min(data.count, 0x46000)
+        let begin = timelineScanBegin
+        let end = min(data.count, timelineScanEnd)
 
         guard end > begin + 4 else {
             return []
         }
 
-        var frequency: [Int: Int] = [:]
+        var rawSamples: [Int] = []
 
         for offset in stride(from: begin, to: end - 3, by: 4) {
             let value = readUInt32LE(data: data, offset: offset)
 
             guard value >= minSample,
-                  value <= maxSample else {
+                  value <= maxSample,
+                  isNearSecondBoundary(value) else {
                 continue
             }
 
-            frequency[value, default: 0] += 1
+            rawSamples.append(value)
         }
 
-        var anchors = frequency
-            .filter { _, count in count >= 2 }
-            .map(\ .key)
-            .sorted()
+        return groupTimelineSamples(rawSamples)
+    }
 
-        // Include known clipped-length style anchors if present nearby.
-        let trimmedLengths = anchors.filter { ($0 % likelyClipLengthTrim) == 0 }
+    private static func isNearSecondBoundary(_ value: Int) -> Bool {
+        let remainder = value % timelineSampleRate
+        return remainder <= secondBoundaryTolerance || (timelineSampleRate - remainder) <= secondBoundaryTolerance
+    }
 
-        if !trimmedLengths.isEmpty {
-            anchors = Array(Set(anchors + trimmedLengths)).sorted()
+    private static func groupTimelineSamples(_ rawSamples: [Int]) -> [EdlTimelineCandidate] {
+        let sortedSamples = rawSamples.sorted()
+
+        guard !sortedSamples.isEmpty else {
+            return []
         }
 
-        return anchors
+        var groups: [[Int]] = []
+
+        for sample in sortedSamples {
+            if let lastGroup = groups.last,
+               let lastSample = lastGroup.last,
+               abs(sample - lastSample) <= duplicateTolerance {
+                groups[groups.count - 1].append(sample)
+            } else {
+                groups.append([sample])
+            }
+        }
+
+        return groups.map { group in
+            let nearestSecond = Int((Double(group[0]) / Double(timelineSampleRate)).rounded()) * timelineSampleRate
+
+            return EdlTimelineCandidate(
+                representativeSample: nearestSecond,
+                rawSamples: Array(Set(group)).sorted(),
+                evidenceLevel: .hypothesis
+            )
+        }
     }
 
     private static func readUInt32LE(data: Data, offset: Int) -> Int {

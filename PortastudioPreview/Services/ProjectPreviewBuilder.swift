@@ -39,20 +39,18 @@ struct ProjectPreviewBuilder {
             }
         }
 
-        let tracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
-            let candidateWAV = wavInventory.indices.contains(trackIndex) ? wavInventory[trackIndex] : nil
-            let timeline = inferTimeline(
-                for: trackIndex + 1,
-                candidateWAV: candidateWAV,
-                edlTableSummary: edlTableSummary
-            )
+        let unassignedAudioRegions = buildUnassignedAudioRegions(
+            wavInventory: wavInventory,
+            edlTableSummary: edlTableSummary
+        )
 
+        let tracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
             return TrackPreview(
                 trackNumber: trackIndex + 1,
-                candidateWAV: candidateWAV,
+                candidateWAV: nil,
                 mixerSetting: mixerSettings.indices.contains(trackIndex) ? mixerSettings[trackIndex] : nil,
                 track1ActiveTakeCandidate: trackIndex == 0 ? edlTableSummary?.track1ActiveTakeCandidate : nil,
-                timeline: timeline
+                timeline: nil
             )
         }
 
@@ -60,6 +58,7 @@ struct ProjectPreviewBuilder {
             folderURL: folderURL,
             validationIssues: validationIssues,
             wavInventory: wavInventory,
+            unassignedAudioRegions: unassignedAudioRegions,
             tracks: tracks,
             edlTableSummary: edlTableSummary
         )
@@ -125,57 +124,52 @@ struct ProjectPreviewBuilder {
         }
     }
 
-    private func inferTimeline(
-        for trackNumber: Int,
-        candidateWAV: WAVInventoryItem?,
+    private func buildUnassignedAudioRegions(
+        wavInventory: [WAVInventoryItem],
         edlTableSummary: EdlTableSummary?
-    ) -> TrackTimeline? {
-        guard let candidateWAV,
-              let summary = edlTableSummary else {
-            return nil
+    ) -> [TimelineRegion] {
+        let orderedWAVs = orderedUnassignedWAVs(wavInventory: wavInventory, edlTableSummary: edlTableSummary)
+        let starts = edlTableSummary?.timelineAnchors.sorted() ?? []
+        let canPairStarts = !starts.isEmpty && starts.count == orderedWAVs.count
+
+        return orderedWAVs.enumerated().map { index, wav in
+            let startSample = canPairStarts ? starts[index] : 0
+            let lengthSample = wavSampleLength(for: wav.url)
+
+            return TimelineRegion(
+                startSample: startSample,
+                endSample: lengthSample.map { startSample + $0 },
+                lengthSample: lengthSample,
+                sourceFilename: wav.rawFilename,
+                sourceURL: wav.url,
+                evidenceLevel: .hypothesis
+            )
         }
-
-        let wavLengthSample = wavSampleLength(for: candidateWAV.url)
-        let anchors = summary.timelineAnchors.sorted()
-
-        guard let startSample = preferredStartSample(for: trackNumber, anchors: anchors, wavLengthSample: wavLengthSample) else {
-            return nil
-        }
-
-        let lengthSample = max((wavLengthSample ?? 0) - 480, 0)
-        let region = TimelineRegion(
-            startSample: startSample,
-            endSample: lengthSample > 0 ? (startSample + lengthSample) : nil,
-            lengthSample: lengthSample > 0 ? lengthSample : nil,
-            sourceFilename: candidateWAV.rawFilename,
-            sourceURL: candidateWAV.url,
-            evidenceLevel: .hypothesis
-        )
-
-        return TrackTimeline(
-            trackNumber: trackNumber,
-            regions: [region],
-            evidenceLevel: .hypothesis
-        )
     }
 
-    private func preferredStartSample(for trackNumber: Int, anchors: [Int], wavLengthSample: Int?) -> Int? {
-        guard !anchors.isEmpty else {
-            return nil
+    private func orderedUnassignedWAVs(
+        wavInventory: [WAVInventoryItem],
+        edlTableSummary: EdlTableSummary?
+    ) -> [WAVInventoryItem] {
+        guard let edlEntries = edlTableSummary?.fileListEntries,
+              !edlEntries.isEmpty else {
+            return wavInventory
         }
 
-        // Keep current behavior conservative: use delayed anchors when clearly present,
-        // otherwise fall back to timeline start.
-        if trackNumber > 4, let delayed = anchors.first(where: { $0 >= 48_000 * 5 }) {
-            return delayed
+        var remainingWAVs = wavInventory
+        var orderedWAVs: [WAVInventoryItem] = []
+
+        for entry in edlEntries {
+            guard let matchIndex = remainingWAVs.firstIndex(where: {
+                $0.rawFilename.localizedCaseInsensitiveCompare(entry.filename) == .orderedSame
+            }) else {
+                continue
+            }
+
+            orderedWAVs.append(remainingWAVs.remove(at: matchIndex))
         }
 
-        if let wavLengthSample,
-           let matched = anchors.first(where: { $0 >= wavLengthSample && $0 <= (wavLengthSample * 2) }) {
-            return matched
-        }
-
-        return anchors.first
+        return orderedWAVs + remainingWAVs
     }
 
     private func wavSampleLength(for url: URL) -> Int? {

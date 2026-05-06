@@ -16,6 +16,7 @@ struct ProjectSummaryView: View {
                 if let project {
                     Label(project.folderName, systemImage: "folder")
                     Label("\(project.wavInventory.count) WAV files", systemImage: "waveform")
+                    Label("\(project.unassignedAudioRegions.count) unassigned regions", systemImage: "list.bullet.rectangle")
                     Label("\(project.validationIssues.count) validation issues", systemImage: "exclamationmark.triangle")
                 } else if isLoading {
                     Label("Loading...", systemImage: "hourglass")

@@ -23,6 +23,12 @@ Copied hardware projects are read-only local development inputs:
 
 `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/TestProjects/DP-32SD`
 
+The DP-32SD capture set from `Docs/DeviceCaptureWorksheet.md` is kept read-only in this app repo:
+
+`/Users/shawn/Projects/SwiftUI/PortastudioPreview/Docs/TEST-SONGS`
+
+All worksheet rows are checked and all `Actual song` cells are blank, so the expected song IDs `SONG_0059`-`SONG_0091` are treated as the actual copied project IDs. No matching capture folders were found under the sibling research repo at the time of the audit.
+
 Useful MVP folders:
 
 - `MVP-BASE-001`: populated baseline with five WAV files.
@@ -57,18 +63,31 @@ Track-to-WAV assignment is still a hypothesis. The populated MVP sample contains
 
 `AUDIT-PREVIEW-SAMPLE-001` observes that populated samples' `edltable.sys` file-list entries match folder WAV inventory as a set, while the EDL order often differs from filename sort. Treat this as file-list evidence, not physical-track order evidence.
 
+`Docs/TEST-SONGS` adds stronger negative evidence for sorted filename-to-track assignment. Single-track captures mostly reused `ZZ0000_1.wav` regardless of physical track, `SONG_0063` unexpectedly contains two WAVs for the Track 4-only action, and `SONG_0084`, `SONG_0085`, `SONG_0086`, `SONG_0090`, and `SONG_0091` show EDL file-list order can differ from sorted filename order. Track-to-WAV mapping remains `Hypothesis`; sorted filename-to-track assignment is `Rejected` as evidence.
+
+Additional capture findings:
+
+- Multiple WAVs / regions are `Observed`: multi-clip and record-over captures create multiple WAVs and matching EDL file-list entries, without proving general physical-track playback assignment.
+- Timeline offsets are `Correlated`: delayed captures expose 44,100 Hz sample-domain values near `0x41898`-`0x42C10`, including about 10 seconds as `441000`/`441600`, 20 seconds as `882000`, and 60 seconds as `2646655`/`2646656`. Region lengths appear trimmed by about `441` samples.
+- Track 1 active virtual take is `Correlated` at `edltable.sys` byte `0x00B01A38`: `0x00` for take 1 active (`SONG_0083`, `SONG_0085`) and `0x01` for take 2 active (`SONG_0084`). Filename-to-active-take mapping remains unconfirmed.
+- Track 1 fader bytes are `Correlated`, while audible gain remains `Hypothesis`: `0x00` min/default, `0x11` about 25%, `0x69` 0 mark, and `0x7F` maximum at `0x00C4`, mirrored to `0x081C`.
+- Pan scale is `Correlated`: Track 1 and Track 2 support `0x01` hard left, `0x40` center, and `0x7F` hard right.
+- Mute behavior is `Correlated` for Tracks 1-2: Track 1 uses `0x0268` / `0x0A2D`; `SONG_0090` supports Track 2 mute at `0x0269` / `0x0A2E`. Nearby `0x0240` / `0x09C0` changes remain only `Observed`.
+- Stereo-pair behavior is `Observed` only: `SONG_0089` created mono `ZZ0000_1.wav` and `ZZ0000_2.wav`, both 10.133s, for track 9/10.
+
 ## Preview Playback Notes
 
 The stereo preview is approximate and read-only. It opens candidate WAV files with AVFoundation and applies provisional mute, pan, and level handling without modifying source files or metadata.
 
 Current playback assumptions:
 
-- Candidate WAV mapping is `Hypothesis`.
+- Physical track-to-WAV mapping is not applied. Unassigned WAV regions are previewed from EDL file-list order when available, with neutral center pan and unity gain.
 - Track 1 mute byte `0x0268` is treated as a correlated mute-like flag; other mute rows are not inferred.
-- Pan byte `0x40` is treated as center-like for approximate playback.
+- Track 2 mute byte `0x0269` is treated as a correlated mute-like flag based on `SONG_0090`; Track 3+ mute rows are not inferred.
+- Pan byte `0x40` is treated as center-like; `0x01` maps hard left and `0x7F` maps hard right for approximate playback.
 - Raw level byte `0x00` is treated as unity/default gain, not silence. This matches audible populated MVP folders and avoids muting all preview audio while the true level scale remains unconfirmed.
-- Timeline anchors extracted from `edltable.sys` are `Hypothesis` and may represent delayed placements.
-- Preview scheduling now normalizes the earliest inferred region to playback time zero while preserving per-track relative offsets. This prevents long initial silence when all inferred starts are delayed.
+- Timeline candidates extracted from `edltable.sys` are `Hypothesis` and may represent delayed placements. Pair starts to unassigned WAV regions only when counts make the pairing unambiguous.
+- Preview scheduling normalizes the earliest inferred region to playback time zero while preserving relative offsets.
 
 ## Playback Troubleshooting
 

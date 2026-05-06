@@ -36,6 +36,13 @@ struct SongSysParser {
                     primaryOffset: MixerMapOffsets.track1Mute,
                     mirrorOffset: MixerMapOffsets.track1MuteMirror
                 )
+            } else if trackIndex == 1 {
+                mute = try readMirroredSetting(
+                    name: "Mute",
+                    reader: reader,
+                    primaryOffset: MixerMapOffsets.track2Mute,
+                    mirrorOffset: MixerMapOffsets.track2MuteMirror
+                )
             } else {
                 mute = nil
             }

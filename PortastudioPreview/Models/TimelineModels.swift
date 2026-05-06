@@ -11,6 +11,12 @@ struct EdlFileListEntry: Equatable, Hashable, Sendable {
     let evidenceLevel: EvidenceLevel
 }
 
+struct EdlTimelineCandidate: Equatable, Hashable, Sendable {
+    let representativeSample: Int
+    let rawSamples: [Int]
+    let evidenceLevel: EvidenceLevel
+}
+
 struct TimelineRegion: Equatable, Hashable, Identifiable, Sendable {
     let startSample: Int
     let endSample: Int?
