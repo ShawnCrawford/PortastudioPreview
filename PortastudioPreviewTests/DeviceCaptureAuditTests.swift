@@ -36,6 +36,56 @@ struct DeviceCaptureAuditTests {
         #expect(try parseEdl(captureRoot.appendingPathComponent("SONG_0085")).track1ActiveTakeCandidate == 0x00)
     }
 
+    @Test func song0084PlayableFilenamesRemainActiveVirtualTake2() throws {
+        let songURL = captureRoot.appendingPathComponent("SONG_0084")
+        guard FileManager.default.fileExists(atPath: songURL.path) else { return }
+
+        let project = try ProjectPreviewBuilder().build(folderURL: songURL)
+        let plan = PreviewPlaybackPlanner.plan(for: project)
+
+        // EDL active-take byte 0x01 selects file-list index 2 (ZZ0002_1.wav).
+        // Evidence: Correlated (0x00B01A38 == 0x01).
+        #expect(plan.playableFilenames == ["ZZ0002_1.wav"])
+    }
+
+    @Test func song0075HasNoPlayableTracksWhenTrack1IsMuted() throws {
+        let songURL = captureRoot.appendingPathComponent("SONG_0075")
+        guard FileManager.default.fileExists(atPath: songURL.path) else { return }
+
+        let project = try ProjectPreviewBuilder().build(folderURL: songURL)
+        let plan = PreviewPlaybackPlanner.plan(for: project)
+
+        // Track 1 mute byte 0x01 at 0x0268; EDL position 0 → Track 1. Evidence: Confirmed.
+        #expect(plan.playableFilenames.isEmpty)
+        #expect(!plan.hasPlayableTracks)
+    }
+
+    @Test func song0086BaselineStillPlaysAllThreeEDLEntries() throws {
+        let songURL = captureRoot.appendingPathComponent("SONG_0086")
+        guard FileManager.default.fileExists(atPath: songURL.path) else { return }
+
+        let project = try ProjectPreviewBuilder().build(folderURL: songURL)
+        let plan = PreviewPlaybackPlanner.plan(for: project)
+
+        // No mutes set; all three EDL entries [ZZ0002_1.wav, ZZ0001_1.wav, ZZ0000_1.wav]
+        // should be playable in EDL order.
+        #expect(plan.playableFilenames == ["ZZ0002_1.wav", "ZZ0001_1.wav", "ZZ0000_1.wav"])
+        #expect(plan.suppressedFilenames.isEmpty)
+    }
+
+    @Test func song0090Track2MuteSuppressesMiddleEDLEntry() throws {
+        let songURL = captureRoot.appendingPathComponent("SONG_0090")
+        guard FileManager.default.fileExists(atPath: songURL.path) else { return }
+
+        let project = try ProjectPreviewBuilder().build(folderURL: songURL)
+        let plan = PreviewPlaybackPlanner.plan(for: project)
+
+        // EDL order: [ZZ0002_1.wav, ZZ0001_1.wav, ZZ0000_1.wav].
+        // Track 2 mute byte 0x01 at 0x0269; EDL position 1 → Track 2. Evidence: Observed.
+        #expect(plan.playableFilenames == ["ZZ0002_1.wav", "ZZ0000_1.wav"])
+        #expect(plan.suppressedFilenames == ["ZZ0001_1.wav"])
+    }
+
     @Test func song0084PreviewKeepsOnlyActiveVirtualTake2() throws {
         let songURL = captureRoot.appendingPathComponent("SONG_0084")
         guard FileManager.default.fileExists(atPath: songURL.path) else {

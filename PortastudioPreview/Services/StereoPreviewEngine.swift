@@ -21,30 +21,6 @@ final class StereoPreviewEngine {
         let pan: Float
     }
 
-    private struct VirtualTakeFilename {
-        let stem: String
-        let takeNumber: Int
-
-        init?(_ filename: String) {
-            let pattern = #"^(ZZ\d{4})_(\d)\.wav$"#
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
-                return nil
-            }
-
-            let nsRange = NSRange(filename.startIndex..<filename.endIndex, in: filename)
-            guard let match = regex.firstMatch(in: filename, range: nsRange),
-                  match.numberOfRanges == 3,
-                  let stemRange = Range(match.range(at: 1), in: filename),
-                  let takeRange = Range(match.range(at: 2), in: filename),
-                  let takeNumber = Int(filename[takeRange]) else {
-                return nil
-            }
-
-            stem = String(filename[stemRange]).uppercased()
-            self.takeNumber = takeNumber
-        }
-    }
-
     var isRunning: Bool {
         engine.isRunning
     }
@@ -118,6 +94,10 @@ final class StereoPreviewEngine {
         !playableRegions(for: project).isEmpty
     }
 
+    static func playableRegionSourceFilenames(for project: PortastudioProject) -> [String] {
+        playableRegions(for: project).map { $0.url.lastPathComponent }
+    }
+
     static func isMuted(_ track: TrackPreview) -> Bool {
         guard let muteByte = track.mixerSetting?.mute?.primaryByte else {
             return false
@@ -154,112 +134,36 @@ final class StereoPreviewEngine {
         })
     }
 
-    static func playableRegionSourceFilenames(for project: PortastudioProject) -> [String] {
-        playableRegions(for: project).map { region in
-            region.url.lastPathComponent
-        }
-    }
-
     private static func playableRegions(for project: PortastudioProject) -> [PlayableRegion] {
-        let selectedUnassignedRegions = activeVirtualTakeFilteredRegions(for: project)
-        let unassignedRegions = selectedUnassignedRegions.compactMap { region -> PlayableRegion? in
-            guard let sourceURL = region.sourceURL else {
-                return nil
-            }
-
-            return PlayableRegion(
-                key: region.id,
-                url: sourceURL,
-                startSample: max(region.startSample, 0),
-                volume: 1.0,
-                pan: 0.0
-            )
-        }
-
-        if !unassignedRegions.isEmpty {
-            return unassignedRegions
-        }
-
-        return project.tracks.compactMap { track in
-            guard let sourceURL = track.candidateWAV?.url,
-                  !Self.isMuted(track) else {
-                return nil
-            }
-
-            return PlayableRegion(
-                key: "track-\(track.trackNumber)",
-                url: sourceURL,
-                startSample: max(track.timeline?.regions.first?.startSample ?? 0, 0),
-                volume: Self.approximateVolume(for: track),
-                pan: Self.approximatePan(for: track)
-            )
-        }
-    }
-
-    private static func activeVirtualTakeFilteredRegions(for project: PortastudioProject) -> [TimelineRegion] {
-        let regions = project.unassignedAudioRegions
-        let multiTakeStems = Dictionary(grouping: regions) { region -> String? in
-            guard let sourceFilename = region.sourceFilename,
-                  let parsedFilename = VirtualTakeFilename(sourceFilename) else {
-                return nil
-            }
-
-            return parsedFilename.stem
-        }
-        .compactMapValues { groupedRegions in
-            let takeNumbers = Set(groupedRegions.compactMap { region -> Int? in
-                guard let sourceFilename = region.sourceFilename else {
+        if project.unassignedAudioRegions.isEmpty {
+            // No unassigned regions — fall back to candidateWAV tracks.
+            return project.tracks.compactMap { track in
+                guard let sourceURL = track.candidateWAV?.url,
+                      !Self.isMuted(track) else {
                     return nil
                 }
 
-                return VirtualTakeFilename(sourceFilename)?.takeNumber
-            })
-
-            return takeNumbers.count > 1 ? takeNumbers : nil
-        }
-
-        guard multiTakeStems.count == 1,
-              let activeTakeByte = project.edlTableSummary?.track1ActiveTakeCandidate else {
-            return capturedTrack1ActiveTakeFilteredRegions(for: project, regions: regions)
-        }
-
-        let activeTakeNumber = Int(activeTakeByte) + 1
-        guard multiTakeStems.values.contains(where: { $0.contains(activeTakeNumber) }) else {
-            return capturedTrack1ActiveTakeFilteredRegions(for: project, regions: regions)
-        }
-
-        return regions.filter { region in
-            guard let sourceFilename = region.sourceFilename,
-                  let parsedFilename = VirtualTakeFilename(sourceFilename),
-                  multiTakeStems.keys.contains(parsedFilename.stem) else {
-                return true
+                return PlayableRegion(
+                    key: "track-\(track.trackNumber)",
+                    url: sourceURL,
+                    startSample: max(track.timeline?.regions.first?.startSample ?? 0, 0),
+                    volume: Self.approximateVolume(for: track),
+                    pan: Self.approximatePan(for: track)
+                )
             }
-
-            return parsedFilename.takeNumber == activeTakeNumber
-        }
-    }
-
-    private static func capturedTrack1ActiveTakeFilteredRegions(
-        for project: PortastudioProject,
-        regions: [TimelineRegion]
-    ) -> [TimelineRegion] {
-        guard let edlTableSummary = project.edlTableSummary,
-              edlTableSummary.track1ActiveTakeCandidate > 0 else {
-            return regions
         }
 
-        let activeTakeIndex = Int(edlTableSummary.track1ActiveTakeCandidate) + 1
-        let fileListEntries = edlTableSummary.fileListEntries
-        guard fileListEntries.indices.contains(activeTakeIndex) else {
-            return regions
+        // Delegate to the planner for all active-take filtering and mute suppression.
+        let plan = PreviewPlaybackPlanner.plan(for: project)
+        return plan.playableRegions.map { scheduled in
+            PlayableRegion(
+                key: scheduled.filename,
+                url: scheduled.url,
+                startSample: scheduled.startSample,
+                volume: scheduled.volume,
+                pan: scheduled.pan
+            )
         }
-
-        let activeFilename = fileListEntries[activeTakeIndex].filename
-        let selectedRegions = regions.filter { region in
-            region.sourceFilename?.localizedCaseInsensitiveCompare(activeFilename) == .orderedSame
-        }
-
-        return selectedRegions.isEmpty ? regions : selectedRegions
     }
 
     private func handlePlaybackNodeCompleted(playbackID: UUID) {
