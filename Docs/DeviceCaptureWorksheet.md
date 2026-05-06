@@ -88,8 +88,10 @@ Goal: identify active take selection so inactive takes do not play.
 | Done | Expected song | Actual song | Copy from | Action | Notes |
 | --- | --- | --- | --- | --- | --- |
 | [x] | `SONG_0083` |  | `SONG_0059` | Track 1 virtual take 1: record "take one". Save once. |  |
-| [x] | `SONG_0084` |  | `SONG_0083` | Track 1 virtual take 2: record "take two"; make take 2 active. Save once. |  |
+| [x] | `SONG_0084` |  | `SONG_0083` | Track 1 virtual take 2: record "take two"; make take 2 active. Save once. | `edltable.sys` active byte `0x00B01A38 == 0x01`; EDL file list `ZZ0001_1.wav`, `ZZ0000_1.wav`, `ZZ0002_1.wav`; preview should play only `ZZ0002_1.wav` for active VT2. |
 | [x] | `SONG_0085` |  | `SONG_0084` | Switch active virtual take back to take 1 only. Save once. |  |
+
+Implementation note: the active virtual-track selection is not reliably encoded by the WAV filename suffix. In `SONG_0084`, all candidate files end in `_1.wav`; the preview uses the correlated Track 1 active-take byte plus the EDL file-list pattern to avoid playing inactive takes.
 
 ## Phase 6: Combined Preview Sanity
 

@@ -36,6 +36,17 @@ struct DeviceCaptureAuditTests {
         #expect(try parseEdl(captureRoot.appendingPathComponent("SONG_0085")).track1ActiveTakeCandidate == 0x00)
     }
 
+    @Test func song0084PreviewKeepsOnlyActiveVirtualTake2() throws {
+        let songURL = captureRoot.appendingPathComponent("SONG_0084")
+        guard FileManager.default.fileExists(atPath: songURL.path) else {
+            return
+        }
+
+        let project = try ProjectPreviewBuilder().build(folderURL: songURL)
+
+        #expect(StereoPreviewEngine.playableRegionSourceFilenames(for: project) == ["ZZ0002_1.wav"])
+    }
+
     @Test func captureMixerBytesMatchCorrelatedTrack1AndTrack2Offsets() throws {
         guard FileManager.default.fileExists(atPath: captureRoot.path) else {
             return

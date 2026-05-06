@@ -220,12 +220,12 @@ final class StereoPreviewEngine {
 
         guard multiTakeStems.count == 1,
               let activeTakeByte = project.edlTableSummary?.track1ActiveTakeCandidate else {
-            return regions
+            return capturedTrack1ActiveTakeFilteredRegions(for: project, regions: regions)
         }
 
         let activeTakeNumber = Int(activeTakeByte) + 1
         guard multiTakeStems.values.contains(where: { $0.contains(activeTakeNumber) }) else {
-            return regions
+            return capturedTrack1ActiveTakeFilteredRegions(for: project, regions: regions)
         }
 
         return regions.filter { region in
@@ -237,6 +237,29 @@ final class StereoPreviewEngine {
 
             return parsedFilename.takeNumber == activeTakeNumber
         }
+    }
+
+    private static func capturedTrack1ActiveTakeFilteredRegions(
+        for project: PortastudioProject,
+        regions: [TimelineRegion]
+    ) -> [TimelineRegion] {
+        guard let edlTableSummary = project.edlTableSummary,
+              edlTableSummary.track1ActiveTakeCandidate > 0 else {
+            return regions
+        }
+
+        let activeTakeIndex = Int(edlTableSummary.track1ActiveTakeCandidate) + 1
+        let fileListEntries = edlTableSummary.fileListEntries
+        guard fileListEntries.indices.contains(activeTakeIndex) else {
+            return regions
+        }
+
+        let activeFilename = fileListEntries[activeTakeIndex].filename
+        let selectedRegions = regions.filter { region in
+            region.sourceFilename?.localizedCaseInsensitiveCompare(activeFilename) == .orderedSame
+        }
+
+        return selectedRegions.isEmpty ? regions : selectedRegions
     }
 
     private func handlePlaybackNodeCompleted(playbackID: UUID) {

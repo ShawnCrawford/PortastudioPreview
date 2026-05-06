@@ -69,7 +69,8 @@ Additional capture findings:
 
 - Multiple WAVs / regions are `Observed`: multi-clip and record-over captures create multiple WAVs and matching EDL file-list entries, without proving general physical-track playback assignment.
 - Timeline offsets are `Correlated`: delayed captures expose 44,100 Hz sample-domain values near `0x41898`-`0x42C10`, including about 10 seconds as `441000`/`441600`, 20 seconds as `882000`, and 60 seconds as `2646655`/`2646656`. Region lengths appear trimmed by about `441` samples.
-- Track 1 active virtual take is `Correlated` at `edltable.sys` byte `0x00B01A38`: `0x00` for take 1 active (`SONG_0083`, `SONG_0085`) and `0x01` for take 2 active (`SONG_0084`). Filename-to-active-take mapping remains unconfirmed.
+- Track 1 active virtual take is `Correlated` at `edltable.sys` byte `0x00B01A38`: `0x00` for take 1 active (`SONG_0083`, `SONG_0085`) and `0x01` for take 2 active (`SONG_0084`).
+- Active-take selection is not encoded reliably by the WAV filename suffix. `SONG_0084` contains `ZZ0000_1.wav`, `ZZ0001_1.wav`, and `ZZ0002_1.wav`; all end in `_1.wav`, but only the newly recorded Track 1 VT2 file `ZZ0002_1.wav` should be audible. In that capture, EDL file-list order is `ZZ0001_1.wav`, `ZZ0000_1.wav`, `ZZ0002_1.wav`, and the current preview uses active byte `0x01` as an index into that list plus one (`0x01 + 1 == 2`) to select `ZZ0002_1.wav`. Treat this as `Correlated` only for the Track 1 VT2 capture pattern, not as a general physical-track mapping.
 - Track 1 fader bytes are `Correlated`, while audible gain remains `Hypothesis`: `0x00` min/default, `0x11` about 25%, `0x69` 0 mark, and `0x7F` maximum at `0x00C4`, mirrored to `0x081C`.
 - Pan scale is `Correlated`: Track 1 and Track 2 support `0x01` hard left, `0x40` center, and `0x7F` hard right.
 - Mute behavior is `Correlated` for Tracks 1-2: Track 1 uses `0x0268` / `0x0A2D`; `SONG_0090` supports Track 2 mute at `0x0269` / `0x0A2E`. Nearby `0x0240` / `0x09C0` changes remain only `Observed`.
@@ -81,7 +82,8 @@ The stereo preview is approximate and read-only. It opens candidate WAV files wi
 
 Current playback assumptions:
 
-- Physical track-to-WAV mapping is not applied. Unassigned WAV regions are previewed from EDL file-list order when available, with neutral center pan and unity gain.
+- Physical track-to-WAV mapping is not applied. Unassigned WAV regions are previewed from EDL file-list order when available, with neutral center pan and unity gain, after evidence-backed active virtual-take filtering.
+- Track 1 active virtual-take filtering is applied in two narrow cases: same-stem filename alternatives such as `ZZ0003_1.wav` / `ZZ0003_2.wav`, and the `SONG_0084`-backed EDL file-list selector where byte `0x00B01A38 == 0x01` selects `ZZ0002_1.wav`. Do not extend this behavior to Track 2+ until more captures identify the selector stride/order.
 - Track 1 mute byte `0x0268` is treated as a correlated mute-like flag; other mute rows are not inferred.
 - Track 2 mute byte `0x0269` is treated as a correlated mute-like flag based on `SONG_0090`; Track 3+ mute rows are not inferred.
 - Pan byte `0x40` is treated as center-like; `0x01` maps hard left and `0x7F` maps hard right for approximate playback.
@@ -93,8 +95,9 @@ Current playback assumptions:
 
 If pressing Play yields no immediate audio:
 
-- Confirm at least one track shows a candidate WAV in the track table.
-- Confirm at least one candidate track is not muted by the interpreted mute byte.
+- Confirm at least one unassigned WAV region is visible in the region table.
+- If testing virtual takes, confirm the active-take byte shown for Track 1 matches the expected capture (`0x00` for `SONG_0083` / `SONG_0085`, `0x01` for `SONG_0084`).
+- Confirm at least one previewed region is not muted by the interpreted mute byte when track mapping is available.
 - Check the project has audible WAV content (some captured takes are near-silent).
 - Wait briefly if a project contains only delayed clips, then verify timeline evidence in `edltable.sys` parsing output.
 
