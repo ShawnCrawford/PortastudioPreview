@@ -64,39 +64,90 @@ Current app impact:
 
 ## Current Parser Evidence
 
-Evidence level: `Correlated`, not `Confirmed`.
+### Core offset table
 
-| Parameter | File | Offset Evidence |
+| Parameter | File | Offsets | Evidence |
+| --- | --- | --- | --- |
+| Level, T1–T8 (low bank) | `song.sys` | `0x00C4 + i*0x14` | **Confirmed** (SONG_0092) |
+| Level, T9–T32 (low bank) | `song.sys` | same stride continued | **Confirmed** stride, `Correlated` values (SONG_0095) |
+| Pan, T1–T8 (low bank) | `song.sys` | `0x00C6 + i*0x14` | **Confirmed** (SONG_0092); center = `0x40` |
+| Pan, T9–T32 (low bank) | `song.sys` | same stride continued | **Confirmed** stride (SONG_0095) |
+| Level/pan, T1–T8 (mirror bank) | `song.sys` | `0x081C`/`0x081E + i*0x14` | **Confirmed** (SONG_0092) |
+| Level/pan, T9/T10–T31/T32 (mirror bank) | `song.sys` | same stride, logical-pair indexing | **Confirmed** (SONG_0095, see stereo pair note) |
+| Mute, T1–T18 (low bank) | `song.sys` | `0x0268 + i` (stride 1) | **Confirmed** T1–T2; **Correlated** T3–T18 (SONG_0093, SONG_0094) |
+| Mute, T1–T8 (mirror bank) | `song.sys` | `0x0A2D + i` (stride 1, 1:1) | **Confirmed** T1–T2; **Correlated** T3–T8 (SONG_0093) |
+| Mute, T9/T10–T19/T20 (mirror bank) | `song.sys` | `0x0A35`–`0x0A40`, one entry per pair | **Correlated** (SONG_0093) |
+| Mute, T21–T32 (mirror bank) | `song.sys` | `0x0A41`–`0x0A4C` | **Rejected** — these were `0x00` even with T21–T32 muted (SONG_0093 stopped at T18 in low bank, T20 in mirror) |
+| Track 1 active-take candidate | `edltable.sys` | `0x00B01A38` | **Correlated** |
+| EDL position → physical track | `edltable.sys` / `song.sys` | position 0 = T1, 1 = T2, 2 = T3 | **Correlated** for positions 0–2 (SONG_0075, SONG_0090, SONG_0094); **Hypothesis** for 3–7 |
+| Track-type field (stereo/mono) | `song.sys` | `0x09F0 + pairIndex` | **Strong hypothesis** (SONG_0095, T27 stereo→mono changed byte `0x09F9` from `0x02` to `0x01`) |
+
+### Level scale (Confirmed, SONG_0092)
+
+| Raw byte | Fader position |
+| --- | --- |
+| `0x00` | −∞ (minimum) |
+| `0x28` | −20 dB |
+| `0x3E` | −10 dB |
+| `0x4E` | ≈ −6.4 dB (device fader sensitivity limit) |
+| `0x5C` | ≈ −3 dB |
+| `0x6A` | 0 dB (unity) |
+| `0x7F` | +6 dB (maximum — device fader does not go higher) |
+
+Continuous mapping between anchors is `Hypothesis`.
+
+### Pan scale (Confirmed, SONG_0092)
+
+| Raw byte | Pan position |
+| --- | --- |
+| `0x01` | L (hard left) |
+| `0x3C` | L4 |
+| `0x3E` | L2 |
+| `0x40` | C (center, baseline default) |
+| `0x42` | R2 |
+| `0x44` | R4 |
+| `0x7F` | R (hard right) |
+
+### Stereo pair layout in the mirror bank (Confirmed, SONG_0095)
+
+Tracks 9–32 are stereo pairs on the DP-32SD. In the mirror bank (`0x081C`/`0x081E` region), stereo pairs each occupy a single logical entry rather than two physical-channel entries:
+
+| Stereo pair | Physical tracks | Mirror logical index |
 | --- | --- | --- |
-| Track 1 level/fader-like byte | `song.sys` | `0x00C4`, mirrored at `0x081C` |
-| Track 1 pan-like byte | `song.sys` | `0x00C6`, mirrored at `0x081E` |
-| Track 1 mute-like byte | `song.sys` | `0x0268`, mirrored at `0x0A2D` |
-| Track 1 active-take candidate | `edltable.sys` | `0x00B01A38` |
+| Pair 1 | T9 / T10 | 8 |
+| Pair 2 | T11 / T12 | 9 |
+| … | … | … |
+| Pair 12 | T31 / T32 | 19 |
 
-Likely track table pattern for the first prototype:
+Formula: `logicalIndex = 8 + (pairNumber - 1)` where pair 1 = T9/T10.
 
-- Level low bank: `0x00C4 + trackIndex * 0x14`
-- Pan low bank: `0x00C6 + trackIndex * 0x14`
-- Mirrored bank starts at `0x081C` and `0x081E`, but current app validation only compares mirrors for the evidence-backed first repeated level/pan block visible in `MVP-MIXMAP` -> `MVP-MIXMAP-001`.
+The low bank still uses a physical-channel-per-row layout (T9 = stride index 8, T10 = stride index 9, …), but the device writes fader changes to the left-source channel only in some configurations. For display and playback, prefer the mirror bank for stereo-pair level/pan.
 
-Do not extend mirror mismatch warnings across all 32 rows. `MVP-PAN-001` shows false warnings if the mirror stride is extrapolated into unsupported offsets such as track 19 pan (`0x022E` vs `0x0986`). Rows outside the evidence-backed mirror block may still display primary low-bank bytes, but should be treated as `Hypothesis` unless the research repo adds stronger evidence.
+### Low-bank mute table boundary (Confirmed, SONG_0093)
 
-Track-to-WAV assignment is still a hypothesis. The populated MVP sample contains `ZZ0000_1.wav`, `ZZ0001_1.wav`, `ZZ0002_1.wav`, `ZZ0003_1.wav`, and `ZZ0003_2.wav`, but the binary structure has not yet fully confirmed physical track mapping.
+The low-bank mute byte table at `0x0268` covers physical channels up to T18 in the SONG_0093 capture (8 mono + 5 active stereo pairs × 2 channels = 18 entries). Bytes at `0x0279`–`0x0287` are a different field; they contained non-zero pre-existing data in the baseline. Do not read those bytes as mute flags.
 
-`AUDIT-PREVIEW-SAMPLE-001` observes that populated samples' `edltable.sys` file-list entries match folder WAV inventory as a set, while the EDL order often differs from filename sort. Treat this as file-list evidence, not physical-track order evidence.
+The mirror-bank mute table at `0x0A2D` covers 20 logical tracks (8 mono + 12 stereo pairs) in SONG_0093. Entries `0x0A41`–`0x0A4C` (logical T21–T32) remained `0x00` even with all device-accessible tracks muted.
 
-`Docs/TEST-SONGS` adds stronger negative evidence for sorted filename-to-track assignment. Single-track captures mostly reused `ZZ0000_1.wav` regardless of physical track, `SONG_0063` unexpectedly contains two WAVs for the Track 4-only action, and `SONG_0084`, `SONG_0085`, `SONG_0086`, `SONG_0090`, and `SONG_0091` show EDL file-list order can differ from sorted filename order. Track-to-WAV mapping remains `Hypothesis`; sorted filename-to-track assignment is `Rejected` as evidence.
+### EDL position–to–track mapping (SONG_0094 update)
+
+Muting only Track 3 from the three-track capture SONG_0086 produced `song.sys` byte `0x026A = 0x01` (T3 mute low bank) and `0x0A2F = 0x01` (T3 mute mirror). The WAV at EDL position 2 was the one excluded from the expected playback set. This corroborates the sequential EDL-position-to-physical-track pattern for position 2 (T3). Positions 3–7 remain `Hypothesis` pending further single-track mute captures.
+
+### Pre-existing notes on WAV / EDL evidence
+
+Track-to-WAV assignment is `Hypothesis`. Sorted filename-to-track assignment is `Rejected`.
+
+`AUDIT-PREVIEW-SAMPLE-001` observes that populated samples' `edltable.sys` file-list entries match folder WAV inventory as a set, while the EDL order often differs from filename sort.
+
+`Docs/TEST-SONGS` adds stronger negative evidence for sorted filename-to-track assignment. Single-track captures mostly reused `ZZ0000_1.wav` regardless of physical track, `SONG_0063` unexpectedly contains two WAVs for the Track 4-only action, and `SONG_0084`, `SONG_0085`, `SONG_0086`, `SONG_0090`, and `SONG_0091` show EDL file-list order can differ from sorted filename order.
 
 Additional capture findings:
 
 - Multiple WAVs / regions are `Observed`: multi-clip and record-over captures create multiple WAVs and matching EDL file-list entries, without proving general physical-track playback assignment.
-- Timeline offsets are `Correlated`: delayed captures expose 44,100 Hz sample-domain values near `0x41898`-`0x42C10`, including about 10 seconds as `441000`/`441600`, 20 seconds as `882000`, and 60 seconds as `2646655`/`2646656`. Region lengths appear trimmed by about `441` samples.
+- Timeline offsets are `Correlated`: delayed captures expose 44,100 Hz sample-domain values near `0x41898`–`0x42C10`, including about 10 seconds as `441000`/`441600`, 20 seconds as `882000`, and 60 seconds as `2646655`/`2646656`. Region lengths appear trimmed by about `441` samples.
 - Track 1 active virtual take is `Correlated` at `edltable.sys` byte `0x00B01A38`: `0x00` for take 1 active (`SONG_0083`, `SONG_0085`) and `0x01` for take 2 active (`SONG_0084`).
-- Active-take selection is not encoded reliably by the WAV filename suffix. `SONG_0084` contains `ZZ0000_1.wav`, `ZZ0001_1.wav`, and `ZZ0002_1.wav`; all end in `_1.wav`, but only the newly recorded Track 1 VT2 file `ZZ0002_1.wav` should be audible. In that capture, EDL file-list order is `ZZ0001_1.wav`, `ZZ0000_1.wav`, `ZZ0002_1.wav`, and the current preview uses active byte `0x01` as an index into that list plus one (`0x01 + 1 == 2`) to select `ZZ0002_1.wav`. Treat this as `Correlated` only for the Track 1 VT2 capture pattern, not as a general physical-track mapping.
-- Track 1 fader bytes are `Correlated`, while audible gain remains `Hypothesis`: `0x00` min/default, `0x11` about 25%, `0x69` 0 mark, and `0x7F` maximum at `0x00C4`, mirrored to `0x081C`.
-- Pan scale is `Correlated`: Track 1 and Track 2 support `0x01` hard left, `0x40` center, and `0x7F` hard right.
-- Mute behavior is `Correlated` for Tracks 1-2: Track 1 uses `0x0268` / `0x0A2D`; `SONG_0090` supports Track 2 mute at `0x0269` / `0x0A2E`. Nearby `0x0240` / `0x09C0` changes remain only `Observed`.
-- Stereo-pair behavior is `Observed` only: `SONG_0089` created mono `ZZ0000_1.wav` and `ZZ0000_2.wav`, both 10.133s, for track 9/10.
+- Active-take selection is not encoded reliably by the WAV filename suffix. See `SONG_0084` notes for the EDL file-list selector pattern.
+- Stereo-pair track type field is `Strong hypothesis` at `0x09F0`: repeated `0x02` (stereo) entries, one per pair; converting T27/T28 to mono changed entry index 9 from `0x02` to `0x01` (SONG_0095).
 
 ## Preview Playback Notes
 
@@ -106,10 +157,9 @@ Current playback assumptions:
 
 - Physical track-to-WAV mapping is not applied. Unassigned WAV regions are previewed from EDL file-list order when available, with neutral center pan and unity gain, after evidence-backed active virtual-take filtering.
 - Track 1 active virtual-take filtering is applied in two narrow cases: same-stem filename alternatives such as `ZZ0003_1.wav` / `ZZ0003_2.wav`, and the `SONG_0084`-backed EDL file-list selector where byte `0x00B01A38 == 0x01` selects `ZZ0002_1.wav`. Do not extend this behavior to Track 2+ until more captures identify the selector stride/order.
-- Track 1 mute byte `0x0268` is treated as a correlated mute-like flag; other mute rows are not inferred.
-- Track 2 mute byte `0x0269` is treated as a correlated mute-like flag based on `SONG_0090`; Track 3+ mute rows are not inferred.
-- Pan byte `0x40` is treated as center-like; `0x01` maps hard left and `0x7F` maps hard right for approximate playback.
-- Raw level byte `0x00` is treated as unity/default gain, not silence. This matches audible populated MVP folders and avoids muting all preview audio while the true level scale remains unconfirmed.
+- Mute bytes are read and suppressed for EDL positions 0 and 1 (T1 and T2) only. Mute parsing now covers T1–T18 in the low bank and T1–T8 in the mirror, but playback suppression is gated on the EDL-position-to-track mapping which is only Correlated for positions 0–2. Position 2 (T3) suppression can be enabled once EDL-mapping tests pass.
+- Pan byte `0x40` is confirmed center; `0x01` is confirmed hard left; `0x7F` is confirmed hard right. Playback uses these confirmed anchors; intermediate values use linear interpolation (Hypothesis).
+- Level byte `0x00` is treated as unity/default gain, not silence. The confirmed minimum is `0x00` = −∞, but populated MVP folders use `0x00` on audible tracks. Actual gain application is deferred until the display scale is applied to playback.
 - Timeline candidates extracted from `edltable.sys` are `Hypothesis` and may represent delayed placements. Pair starts to unassigned WAV regions only when counts make the pairing unambiguous.
 - Preview scheduling normalizes the earliest inferred region to playback time zero while preserving relative offsets.
 

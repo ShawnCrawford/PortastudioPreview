@@ -29,19 +29,18 @@ struct SongSysParser {
             )
 
             let mute: MixerSetting?
-            if trackIndex == 0 {
+            if MixerMapOffsets.hasConfirmedLowBankMute(trackIndex: trackIndex) {
+                // Low-bank mute confirmed for T1–T18 (SONG_0093). Mirror is 1:1 for mono
+                // tracks T1–T8 (indices 0–7) only; stereo-pair tracks T9–T18 use a different
+                // logical-index mapping in the mirror bank and are read without mirror for now.
+                let mirrorOffset = MixerMapOffsets.hasConfirmedMirrorMuteForMonoTrack(trackIndex: trackIndex)
+                    ? MixerMapOffsets.muteMirrorOffsetForMonoTrack(trackIndex: trackIndex)
+                    : nil
                 mute = try readMirroredSetting(
                     name: "Mute",
                     reader: reader,
-                    primaryOffset: MixerMapOffsets.track1Mute,
-                    mirrorOffset: MixerMapOffsets.track1MuteMirror
-                )
-            } else if trackIndex == 1 {
-                mute = try readMirroredSetting(
-                    name: "Mute",
-                    reader: reader,
-                    primaryOffset: MixerMapOffsets.track2Mute,
-                    mirrorOffset: MixerMapOffsets.track2MuteMirror
+                    primaryOffset: MixerMapOffsets.muteOffset(trackIndex: trackIndex),
+                    mirrorOffset: mirrorOffset
                 )
             } else {
                 mute = nil

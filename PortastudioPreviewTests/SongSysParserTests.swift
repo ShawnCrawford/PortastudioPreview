@@ -34,15 +34,20 @@ struct SongSysParserTests {
         #expect(tracks[0].pan.mirrorByte == 0x40)
     }
 
-    @Test func track1AndTrack2MuteReadPrimaryAndMirrorOffsetsOnly() throws {
+    @Test func muteParsedForAllConfirmedLowBankTracks() throws {
         var data = makeMinimumSongSysData()
-        data[0x0268] = 0x01
-        data[0x0A2D] = 0x01
-        data[0x0269] = 0x01
-        data[0x0A2E] = 0x01
+        // Set every confirmed low-bank mute byte (T1–T18, indices 0–17)
+        for i in 0..<MixerMapOffsets.confirmedLowBankMuteCount {
+            data[MixerMapOffsets.muteBase + i] = 0x01
+        }
+        // Set mirror bytes for mono tracks T1–T8 (indices 0–7)
+        for i in 0..<MixerMapOffsets.correlatedLevelPanTrackCount {
+            data[MixerMapOffsets.muteMirrorBase + i] = 0x01
+        }
 
         let tracks = try SongSysParser().parse(data)
 
+        // T1 and T2 retain their confirmed offsets
         #expect(tracks[0].mute?.primaryOffset == 0x0268)
         #expect(tracks[0].mute?.primaryByte == 0x01)
         #expect(tracks[0].mute?.mirrorOffset == 0x0A2D)
@@ -51,7 +56,23 @@ struct SongSysParserTests {
         #expect(tracks[1].mute?.primaryByte == 0x01)
         #expect(tracks[1].mute?.mirrorOffset == 0x0A2E)
         #expect(tracks[1].mute?.mirrorByte == 0x01)
-        #expect(tracks[2].mute == nil)
+
+        // T3–T8: confirmed low-bank + confirmed mirror (1:1 stride-1)
+        #expect(tracks[2].mute?.primaryOffset == 0x026A)
+        #expect(tracks[2].mute?.primaryByte == 0x01)
+        #expect(tracks[2].mute?.mirrorOffset == 0x0A2F)
+        #expect(tracks[7].mute?.primaryOffset == 0x026F)
+        #expect(tracks[7].mute?.mirrorOffset == 0x0A34)
+
+        // T9–T18: confirmed low-bank only; mirror not read (stereo-pair logical mapping)
+        #expect(tracks[8].mute?.primaryOffset == 0x0270)
+        #expect(tracks[8].mute?.primaryByte == 0x01)
+        #expect(tracks[8].mute?.mirrorOffset == nil)
+        #expect(tracks[17].mute?.primaryOffset == 0x0279)
+
+        // T19+: beyond confirmed low-bank range
+        #expect(tracks[18].mute == nil)
+        #expect(tracks[31].mute == nil)
     }
 
     @Test func trackIndexOffsetCalculationUsesCorrelatedStride() throws {
