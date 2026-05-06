@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct TrackPreview: Identifiable, Hashable {
+struct TrackPreview: Identifiable, Hashable, Sendable {
     let trackNumber: Int
     let candidateWAV: WAVInventoryItem?
     let mixerSetting: TrackMixerSetting?

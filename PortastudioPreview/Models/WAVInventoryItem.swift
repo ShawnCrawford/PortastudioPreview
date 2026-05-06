@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct WAVInventoryItem: Identifiable, Hashable {
+struct WAVInventoryItem: Identifiable, Hashable, Sendable {
     let url: URL
     let rawFilename: String
     let byteCount: Int?

@@ -5,13 +5,13 @@
 
 import Foundation
 
-struct EdlFileListEntry: Equatable, Hashable {
+struct EdlFileListEntry: Equatable, Hashable, Sendable {
     let fileID: Int
     let filename: String
     let evidenceLevel: EvidenceLevel
 }
 
-struct TimelineRegion: Equatable, Hashable, Identifiable {
+struct TimelineRegion: Equatable, Hashable, Identifiable, Sendable {
     let startSample: Int
     let endSample: Int?
     let lengthSample: Int?
@@ -37,7 +37,7 @@ struct TimelineRegion: Equatable, Hashable, Identifiable {
     }
 }
 
-struct TrackTimeline: Equatable, Hashable {
+struct TrackTimeline: Equatable, Hashable, Sendable {
     let trackNumber: Int
     let regions: [TimelineRegion]
     let evidenceLevel: EvidenceLevel

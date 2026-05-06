@@ -5,7 +5,12 @@
 
 import Foundation
 
-struct TrackMixerSetting: Identifiable, Hashable {
+struct TrackMixerSetting: Identifiable, Hashable, Sendable {
+    struct WarningIssue: Hashable, Sendable {
+        let idComponent: String
+        let message: String
+    }
+
     let trackNumber: Int
     let level: MixerSetting
     let pan: MixerSetting
@@ -13,14 +18,41 @@ struct TrackMixerSetting: Identifiable, Hashable {
 
     var id: Int { trackNumber }
 
-    var warnings: [String] {
-        [level, pan, mute].compactMap { setting in
-            guard let setting, setting.hasMirrorMismatch else {
-                return nil
-            }
+    var warningIssues: [WarningIssue] {
+        var issues: [WarningIssue] = []
 
-            return "Track \(trackNumber) \(setting.name) mirror mismatch: \(setting.rawBytesDescription)"
+        if level.hasMirrorMismatch {
+            issues.append(
+                WarningIssue(
+                    idComponent: "level.mirrorMismatch",
+                    message: "Track \(trackNumber) \(level.name) mirror mismatch: \(level.rawBytesDescription)"
+                )
+            )
         }
+
+        if pan.hasMirrorMismatch {
+            issues.append(
+                WarningIssue(
+                    idComponent: "pan.mirrorMismatch",
+                    message: "Track \(trackNumber) \(pan.name) mirror mismatch: \(pan.rawBytesDescription)"
+                )
+            )
+        }
+
+        if let mute, mute.hasMirrorMismatch {
+            issues.append(
+                WarningIssue(
+                    idComponent: "mute.mirrorMismatch",
+                    message: "Track \(trackNumber) \(mute.name) mirror mismatch: \(mute.rawBytesDescription)"
+                )
+            )
+        }
+
+        return issues
+    }
+
+    var warnings: [String] {
+        warningIssues.map(\ .message)
     }
 
     var rawBytesDescription: String {

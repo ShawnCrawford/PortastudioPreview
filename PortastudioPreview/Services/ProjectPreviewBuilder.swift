@@ -28,12 +28,12 @@ struct ProjectPreviewBuilder {
         let edlTableSummary = parseEdlTable(at: edlTableURL, fileManager: fileManager, validationIssues: &validationIssues)
 
         for setting in mixerSettings {
-            for warning in setting.warnings {
+            for warning in setting.warningIssues {
                 validationIssues.append(
                     ProjectValidationIssue(
-                        id: "song.track\(setting.trackNumber).\(warning.hashValue)",
+                        id: "song.track\(setting.trackNumber).\(warning.idComponent)",
                         severity: .warning,
-                        message: warning
+                        message: warning.message
                     )
                 )
             }

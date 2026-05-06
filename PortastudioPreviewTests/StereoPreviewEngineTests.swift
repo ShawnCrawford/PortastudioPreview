@@ -89,6 +89,64 @@ struct StereoPreviewEngineTests {
         #expect(normalized[2] == 820_800)
     }
 
+    @Test func completionCoordinatorFiresOnceAfterAllTracksComplete() {
+        let coordinator = PlaybackCompletionCoordinator()
+        let playbackID = UUID()
+        var completionCount = 0
+
+        coordinator.configure(playbackID: playbackID, expectedCompletions: 2) {
+            completionCount += 1
+        }
+
+        let first = coordinator.markCompletion(for: playbackID)
+        let second = coordinator.markCompletion(for: playbackID)
+        let third = coordinator.markCompletion(for: playbackID)
+
+        first?()
+        second?()
+        third?()
+
+        #expect(completionCount == 1)
+    }
+
+    @Test func completionCoordinatorIgnoresCallbacksAfterStopInvalidation() {
+        let coordinator = PlaybackCompletionCoordinator()
+        let playbackID = UUID()
+        var completionCount = 0
+
+        coordinator.configure(playbackID: playbackID, expectedCompletions: 1) {
+            completionCount += 1
+        }
+        coordinator.invalidate(playbackID: playbackID)
+
+        let completion = coordinator.markCompletion(for: playbackID)
+        completion?()
+
+        #expect(completionCount == 0)
+    }
+
+    @Test func completionCoordinatorIgnoresStalePlaybackCallbacks() {
+        let coordinator = PlaybackCompletionCoordinator()
+        let stalePlaybackID = UUID()
+        let activePlaybackID = UUID()
+        var completionCount = 0
+
+        coordinator.configure(playbackID: stalePlaybackID, expectedCompletions: 1) {
+            completionCount += 1
+        }
+        coordinator.configure(playbackID: activePlaybackID, expectedCompletions: 1) {
+            completionCount += 1
+        }
+
+        let stale = coordinator.markCompletion(for: stalePlaybackID)
+        let active = coordinator.markCompletion(for: activePlaybackID)
+
+        stale?()
+        active?()
+
+        #expect(completionCount == 1)
+    }
+
     private func makeTrackPreview(mute: UInt8, pan: UInt8, level: UInt8) -> TrackPreview {
         TrackPreview(
             trackNumber: 1,

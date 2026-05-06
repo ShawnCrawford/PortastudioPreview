@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct PortastudioProject {
+struct PortastudioProject: Sendable {
     let folderURL: URL
     let validationIssues: [ProjectValidationIssue]
     let wavInventory: [WAVInventoryItem]

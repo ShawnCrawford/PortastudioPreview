@@ -9,13 +9,15 @@ import Foundation
 final class StereoPreviewEngine {
     private let engine = AVAudioEngine()
     private var playerNodes: [AVAudioPlayerNode] = []
+    private let completionCoordinator = PlaybackCompletionCoordinator()
+    private var activePlaybackID: UUID?
     private static let previewSampleRate: Double = 48_000
 
     var isRunning: Bool {
         engine.isRunning
     }
 
-    func startPreview(for project: PortastudioProject) throws {
+    func startPreview(for project: PortastudioProject, onPlaybackCompleted: @escaping () -> Void) throws {
         stop()
 
         let playableTracks = project.tracks.filter { track in
@@ -25,6 +27,14 @@ final class StereoPreviewEngine {
         guard !playableTracks.isEmpty else {
             throw StereoPreviewEngineError.noPlayableTracks
         }
+
+        let playbackID = UUID()
+        activePlaybackID = playbackID
+        completionCoordinator.configure(
+            playbackID: playbackID,
+            expectedCompletions: playableTracks.count,
+            onPlaybackCompleted: onPlaybackCompleted
+        )
 
         let normalizedStartSamples = Self.normalizedStartSamples(for: playableTracks)
 
@@ -44,19 +54,35 @@ final class StereoPreviewEngine {
             let normalizedStartSample = normalizedStartSamples[track.trackNumber] ?? 0
 
             if let startTime = Self.absoluteStartTime(startSample: normalizedStartSample, sampleRate: file.processingFormat.sampleRate) {
-                playerNode.scheduleFile(file, at: startTime)
+                playerNode.scheduleFile(file, at: startTime) { [weak self] in
+                    self?.handlePlaybackNodeCompleted(playbackID: playbackID)
+                }
             } else {
-                playerNode.scheduleFile(file, at: nil)
+                playerNode.scheduleFile(file, at: nil) { [weak self] in
+                    self?.handlePlaybackNodeCompleted(playbackID: playbackID)
+                }
             }
 
             playerNodes.append(playerNode)
         }
 
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            activePlaybackID = nil
+            completionCoordinator.invalidate(playbackID: playbackID)
+            throw error
+        }
+
         playerNodes.forEach { $0.play() }
     }
 
     func stop() {
+        if let activePlaybackID {
+            completionCoordinator.invalidate(playbackID: activePlaybackID)
+            self.activePlaybackID = nil
+        }
+
         for playerNode in playerNodes {
             playerNode.stop()
             engine.detach(playerNode)
@@ -114,6 +140,20 @@ final class StereoPreviewEngine {
         })
     }
 
+    private func handlePlaybackNodeCompleted(playbackID: UUID) {
+        guard let completion = completionCoordinator.markCompletion(for: playbackID) else {
+            return
+        }
+
+        if activePlaybackID == playbackID {
+            activePlaybackID = nil
+        }
+
+        DispatchQueue.main.async {
+            completion()
+        }
+    }
+
     private static func absoluteStartTime(startSample: Int, sampleRate: Double) -> AVAudioTime? {
         guard startSample > 0 else {
             return nil
@@ -125,6 +165,60 @@ final class StereoPreviewEngine {
         let hostNow = mach_absolute_time()
 
         return AVAudioTime(hostTime: hostNow + hostDelta)
+    }
+}
+
+final class PlaybackCompletionCoordinator {
+    private let lock = NSLock()
+    private var currentPlaybackID: UUID?
+    private var remainingCompletions = 0
+    private var completionFired = false
+    private var onPlaybackCompleted: (() -> Void)?
+
+    func configure(playbackID: UUID, expectedCompletions: Int, onPlaybackCompleted: @escaping () -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        currentPlaybackID = playbackID
+        remainingCompletions = max(expectedCompletions, 0)
+        completionFired = false
+        self.onPlaybackCompleted = onPlaybackCompleted
+    }
+
+    func invalidate(playbackID: UUID) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard currentPlaybackID == playbackID else {
+            return
+        }
+
+        currentPlaybackID = nil
+        remainingCompletions = 0
+        completionFired = false
+        onPlaybackCompleted = nil
+    }
+
+    func markCompletion(for playbackID: UUID) -> (() -> Void)? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard currentPlaybackID == playbackID,
+              !completionFired,
+              remainingCompletions > 0 else {
+            return nil
+        }
+
+        remainingCompletions -= 1
+
+        guard remainingCompletions == 0 else {
+            return nil
+        }
+
+        completionFired = true
+        let completion = onPlaybackCompleted
+        onPlaybackCompleted = nil
+        return completion
     }
 }
 

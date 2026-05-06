@@ -7,6 +7,7 @@ import Foundation
 import Testing
 @testable import PortastudioPreview
 
+@MainActor
 struct ProjectFolderLoaderTests {
     @Test func missingSongSysProducesExplicitValidationIssue() async throws {
         let folder = try TemporaryFolder()
@@ -49,6 +50,30 @@ struct ProjectFolderLoaderTests {
         let after = try FileReadOnlyGuard.snapshot(of: folder.url)
 
         #expect(after == before)
+    }
+
+    @Test func mirrorMismatchWarningsUseStableSemanticIDs() async throws {
+        let folder = try TemporaryFolder()
+        let songURL = folder.url.appendingPathComponent("song.sys")
+        try writeMinimumSongSys(to: songURL)
+        try writeMinimumEdlTable(to: folder.url.appendingPathComponent("edltable.sys"))
+        try Data([0x01, 0x02, 0x03]).write(to: folder.url.appendingPathComponent("ZZ0000_1.wav"))
+
+        var songData = try Data(contentsOf: songURL)
+        songData[0x00C4] = 0x10
+        songData[0x081C] = 0x11
+        songData[0x00C6] = 0x20
+        songData[0x081E] = 0x21
+        songData[0x0268] = 0x30
+        songData[0x0A2D] = 0x31
+        try songData.write(to: songURL)
+
+        let project = try await ProjectFolderLoader().loadProject(at: folder.url)
+        let issueIDs = Set(project.validationIssues.map(\ .id))
+
+        #expect(issueIDs.contains("song.track1.level.mirrorMismatch"))
+        #expect(issueIDs.contains("song.track1.pan.mirrorMismatch"))
+        #expect(issueIDs.contains("song.track1.mute.mirrorMismatch"))
     }
 
     private func writeMinimumSongSys(to url: URL) throws {

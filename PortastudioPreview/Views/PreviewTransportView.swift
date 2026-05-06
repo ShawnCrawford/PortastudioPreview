@@ -48,7 +48,11 @@ struct PreviewTransportView: View {
 
     private func startPreview() {
         do {
-            try engine.startPreview(for: project)
+            try engine.startPreview(for: project) {
+                Task { @MainActor in
+                    isPlaying = false
+                }
+            }
             isPlaying = true
             playbackError = nil
         } catch {

@@ -7,6 +7,8 @@ import Foundation
 
 struct ProjectFolderLoader {
     func loadProject(at url: URL) async throws -> PortastudioProject {
-        try ProjectPreviewBuilder().build(folderURL: url)
+        try await Task.detached(priority: .userInitiated) {
+            try ProjectPreviewBuilder().build(folderURL: url)
+        }.value
     }
 }

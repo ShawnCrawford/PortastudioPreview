@@ -5,8 +5,8 @@
 
 import Foundation
 
-struct ProjectValidationIssue: Identifiable, Equatable {
-    enum Severity: String {
+struct ProjectValidationIssue: Identifiable, Equatable, Sendable {
+    enum Severity: String, Sendable {
         case warning = "Warning"
         case error = "Error"
     }

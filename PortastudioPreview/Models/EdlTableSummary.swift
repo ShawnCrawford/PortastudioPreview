@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct EdlTableSummary: Equatable {
+struct EdlTableSummary: Equatable, Sendable {
     let track1ActiveTakeCandidate: UInt8
     let activeTakeCandidateOffset: Int
     let evidenceLevel: EvidenceLevel

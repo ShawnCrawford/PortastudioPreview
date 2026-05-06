@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum EvidenceLevel: String, CaseIterable, Identifiable {
+enum EvidenceLevel: String, CaseIterable, Identifiable, Sendable {
     case observed = "Observed"
     case correlated = "Correlated"
     case confirmed = "Confirmed"

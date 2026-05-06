@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct MixerSetting: Hashable {
+struct MixerSetting: Hashable, Sendable {
     let name: String
     let primaryOffset: Int
     let primaryByte: UInt8
