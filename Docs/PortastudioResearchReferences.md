@@ -40,6 +40,28 @@ Useful MVP folders:
 
 Do not compare `MVP-BASE-001` directly to `MVP-MIXMAP-001` as a controlled mixer-only diff. The valid mixmap evidence is `MVP-MIXMAP` -> `MVP-MIXMAP-001`.
 
+## Card-Root Findings
+
+Evidence level: `Observed`.
+
+The SD card root file `/Volumes/DP-32SD/dp-24.sys` was inspected on 2026-05-06. It is a small 2,488-byte card-level file, not a song-folder parser input. Do not copy this live SD-card file into the app repo unless a deliberate small fixture is needed for future SD-root tests.
+
+Observed fields from the inspected card:
+
+| Offset | Value | Notes |
+| --- | --- | --- |
+| `0x0000` | `DP-24   ` | Card-level signature. This matches the manual-derived research note that DP-32SD formatting creates a root `dp-24.sys` file. |
+| `0x0008` | `0x01` | Observed non-zero byte, meaning unknown. |
+| `0x000A` | `0x01` | Observed non-zero byte, meaning unknown. |
+| `0x0428` | `SONG_0046` | Looks like a current or last-loaded song pointer. `/Volumes/DP-32SD/MUSIC/SONG_0046` existed during inspection. |
+| `0x0438` onward | `USER 01` through `USER 10` repeated in several fixed-width groups | Likely global user/preset/default labels, but not decoded. |
+
+Current app impact:
+
+- No current preview parsing should depend on `dp-24.sys`; project reconstruction still comes from each opened song folder's `song.sys`, `edltable.sys`, and WAV inventory.
+- This file could become useful if the app adds an "open SD card root" flow. It may support card validation, device-family identification, and highlighting the current or last-loaded song.
+- Treat the `SONG_0046` interpretation as a hypothesis for future controlled testing, not as confirmed song-selection semantics.
+
 ## Current Parser Evidence
 
 Evidence level: `Correlated`, not `Confirmed`.
