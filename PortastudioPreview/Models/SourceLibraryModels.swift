@@ -11,17 +11,42 @@ enum SourceLibrarySelection: Hashable {
     case missingItem(SourceLibraryMissingItem.ID)
 }
 
+enum SourceKind: Hashable, Sendable {
+    case mediaRoot
+    case backupRoot
+}
+
 struct SourceLibrarySource: Identifiable, Hashable, Sendable {
+    enum LoadState: Hashable, Sendable {
+        case loading
+        case loaded
+        case failed(message: String)
+    }
+
     let id: UUID
+    var folderURL: URL
+    var kind: SourceKind
     var displayName: String
     var songs: [SourceLibrarySong]
     var isExpanded: Bool
+    var loadState: LoadState
 
-    init(id: UUID = UUID(), displayName: String, songs: [SourceLibrarySong] = [], isExpanded: Bool = true) {
+    init(
+        id: UUID = UUID(),
+        folderURL: URL,
+        kind: SourceKind,
+        displayName: String,
+        songs: [SourceLibrarySong] = [],
+        isExpanded: Bool = true,
+        loadState: LoadState = .loaded
+    ) {
         self.id = id
+        self.folderURL = folderURL
+        self.kind = kind
         self.displayName = displayName
         self.songs = songs
         self.isExpanded = isExpanded
+        self.loadState = loadState
     }
 }
 

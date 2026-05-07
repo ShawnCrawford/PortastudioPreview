@@ -25,7 +25,12 @@ struct SourceLibrarySidebarView: View {
                                 }
                             }
                         } label: {
-                            Label(source.displayName, systemImage: "externaldrive")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label(source.displayName, systemImage: sourceIcon(for: source.kind))
+                                Text(sourceSecondaryLabel(for: source))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .tag(SourceLibrarySelection.source(source.id))
                     }
@@ -75,6 +80,26 @@ struct SourceLibrarySidebarView: View {
     private func mutedEmptyRow(_ text: String) -> some View {
         Text(text)
             .foregroundStyle(.secondary)
+    }
+
+    private func sourceIcon(for kind: SourceKind) -> String {
+        switch kind {
+        case .mediaRoot:
+            return "externaldrive"
+        case .backupRoot:
+            return "archivebox"
+        }
+    }
+
+    private func sourceSecondaryLabel(for source: SourceLibrarySource) -> String {
+        let kindName: String
+        switch source.kind {
+        case .mediaRoot:
+            kindName = "SD Card"
+        case .backupRoot:
+            kindName = "Backup"
+        }
+        return "\(kindName) · \(source.folderURL.path)"
     }
 }
 

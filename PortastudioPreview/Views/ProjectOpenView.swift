@@ -7,20 +7,34 @@ import SwiftUI
 
 struct ProjectOpenView: View {
     let openAction: () -> Void
+    let addSourceAction: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "folder.badge.plus")
+        VStack(spacing: 24) {
+            Image(systemName: "music.note.list")
                 .font(.system(size: 44))
                 .foregroundStyle(.secondary)
 
-            Text("Open an individual DP-32SD song folder")
-                .font(.title3)
+            VStack(spacing: 20) {
+                VStack(spacing: 8) {
+                    Button(action: addSourceAction) {
+                        Label("Add SD Card or Backup...", systemImage: "externaldrive.badge.plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Text("Scan a card root or backup folder and browse all its songs.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-            Button(action: openAction) {
-                Label("Open Individual Song...", systemImage: "folder")
+                VStack(spacing: 8) {
+                    Button(action: openAction) {
+                        Label("Open Individual Song...", systemImage: "folder")
+                    }
+                    Text("Load a single DP-32SD song project folder.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()

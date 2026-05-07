@@ -21,6 +21,7 @@ struct PortastudioPreviewApp: App {
 
 struct ProjectCommands: Commands {
     @FocusedValue(\.openProjectAction) private var openProjectAction
+    @FocusedValue(\.addSourceAction) private var addSourceAction
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -29,6 +30,12 @@ struct ProjectCommands: Commands {
             }
             .keyboardShortcut("o", modifiers: [.command])
             .disabled(openProjectAction == nil)
+
+            Button("Add SD Card or Backup...") {
+                addSourceAction?()
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
+            .disabled(addSourceAction == nil)
         }
     }
 }
@@ -37,9 +44,18 @@ private struct OpenProjectActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+private struct AddSourceActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var openProjectAction: (() -> Void)? {
         get { self[OpenProjectActionKey.self] }
         set { self[OpenProjectActionKey.self] = newValue }
+    }
+
+    var addSourceAction: (() -> Void)? {
+        get { self[AddSourceActionKey.self] }
+        set { self[AddSourceActionKey.self] = newValue }
     }
 }
