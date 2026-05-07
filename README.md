@@ -55,8 +55,10 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 
 ### Planned Next: Basic App-Owned Track Labels (Phase 7)
 
-- Phase 7 should add SwiftData annotation entities for track names and song display names, keyed by song fingerprint + track number.
-- The inspector already reserves read-only placeholder rows for future track name and notes fields.
+- Phase 7 has a saved implementation handoff at `Plans/Phase7BasicAppOwnedTrackLabels.md`.
+- The plan adds app-owned SwiftData track labels keyed by song fingerprint + track number, threads selected-song annotation context into the detail view, and makes the Phase 6 inspector the primary edit surface.
+- Song display-name override is optional for this phase and should stay app-owned if included.
+- The inspector already reserves read-only placeholder rows for future track name and notes fields; Phase 7 should replace the track-name placeholder with editable local metadata while leaving notes for a later phase.
 
 ### Song Detail Workspace (Phase 5)
 

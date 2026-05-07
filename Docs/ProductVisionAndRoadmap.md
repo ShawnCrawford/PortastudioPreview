@@ -568,6 +568,10 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - Attach labels to a conservative key such as song fingerprint plus track number.
 - Prefer SwiftData for app-owned persistence if the deployment target supports it cleanly.
 - Keep advanced labels, colors, notes, tags, templates, and ambiguity history for Part 2.
+- Implementation plan created on May 7, 2026: `Plans/Phase7BasicAppOwnedTrackLabels.md`.
+- Planned implementation should add a SwiftData `TrackAnnotationRecord`, a selected-song annotation context threaded from the source-library store into the detail view, and a focused annotation store for track-label load/upsert/delete behavior.
+- Track labels should become editable through the Phase 6 inspector and visible in the track table, while raw parser evidence and `Hypothesis` track-to-WAV status remain visible.
+- Song display-name override is optional for this phase; include it only if it stays a small app-owned field and does not expand Phase 7 into advanced metadata management.
 
 #### Phase 8: First-Round Polish and Validation
 

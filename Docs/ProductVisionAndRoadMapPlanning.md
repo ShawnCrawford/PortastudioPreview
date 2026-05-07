@@ -47,6 +47,8 @@ Status (implemented on May 7, 2026): `TrackTableView` and the unassigned-region 
 
 Add simple local annotations for track names and maybe song display names. Keep storage app-owned and read-only relative to Portastudio files. This can start modestly: track number plus song fingerprint plus label.
 
+Plan status (created on May 7, 2026): detailed implementation handoff saved at `Plans/Phase7BasicAppOwnedTrackLabels.md`. The plan keeps Phase 7 focused on SwiftData-backed app-owned track labels, keyed by song fingerprint plus track number, with optional song display-name override only if it stays low-risk. It explicitly preserves the read-only Portastudio source-folder guarantee and defers colors, notes, tags, templates, ambiguity-resolution history, and copied-song matching to later phases.
+
 ### Phase 8: First-Round Polish and Validation
 
 Add search, toolbar/menu polish, empty states, missing-folder states, accessibility labels, and focused tests for source classification, remembered locations, selected song loading, and annotation persistence.
