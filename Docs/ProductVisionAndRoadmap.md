@@ -486,54 +486,138 @@ Decisions:
 
 ## Suggested Roadmap
 
-### Phase 1: Source Library MVP
+The implementation roadmap is split into two parts. Part 1 is the first shippable product experience and should focus on making the current parser MVP feel like a coherent native macOS app. Part 2 covers pre-release or after-release expansion work that is valuable, but riskier or less feasible under first-round time constraints.
 
-- Add SwiftData models for remembered sources, songs, media assets, fingerprints, snapshots, and user-visible names.
+Each phase should be small enough to become one dedicated implementation plan for an AI agent. Prefer giving an agent enough room to implement a few related features well rather than bundling too many UI, persistence, and file-management concerns into one plan.
+
+### Part 1: First-Round Implementation
+
+Part 1 should result in an app that feels useful even without backup/export: users can add sources, browse songs, reopen remembered items, inspect tracks, preview audio, and add basic local labels.
+
+#### Phase 1: Source Library Shell
+
 - Replace the summary-only sidebar with a source library model.
-- Add manual "Add SD Card or Backup" and "Open Individual Song" actions.
-- Persist remembered locations with security-scoped bookmarks.
-- Scan SD card and backup roots asynchronously from `MUSIC/`, ignoring hidden Apple metadata.
-- Show missing remembered items.
-- Classify `AudioDepot` as a source-level media/exchange inventory when present.
-- Keep current parser/detail views for selected songs.
+- Use `NavigationSplitView`, `List(selection:)`, `Section`, and expandable source rows.
+- Include groups for SD card or backup sources, individual songs, and missing remembered items.
+- Keep selected-song loading wired to the current parser/detail path.
+- Preserve read-only behavior.
 
-### Phase 2: Media Browser and Playback
+#### Phase 2: Manual Add Flows
 
-- Add a source-level `AudioDepot` view.
-- Add song-level Master Mixes and Rendered/Other WAV sections.
-- Play master WAVs, track exports, and depot WAVs directly with AVFoundation.
-- Show WAV metadata: duration, sample rate, bit depth, channels, size, and modified date.
-- Add copy-out actions for master files, depot files, and selected WAVs.
-- Preserve project parser evidence separately from media browsing.
+- Add toolbar/menu actions for "Add SD Card or Backup" and "Open Individual Song".
+- Classify selected folders as media roots, backup roots, or song folders using expected Portastudio files and folders.
+- Recognize root items such as `dp-24.sys`, `MUSIC/`, `AudioDepot/`, and `UTILITY/`.
+- Recognize song folders containing `song.sys` and `edltable.sys`, regardless of folder naming style.
+- Keep this user-driven. Do not auto-scan mounted removable media in Part 1.
 
-### Phase 3: User-Facing Song Detail
+#### Phase 3: Remembered Locations MVP
 
-- Add track selection.
-- Add a track inspector.
-- Show labels, evidence, WAV mapping, mixer values, and notes in a more user-friendly layout.
-- Separate project-region WAVs, rendered/mixdown WAVs, and source-level depot WAVs in the UI.
-- Improve transport controls.
-- Add search/filter.
+- Persist opened sources and songs with display name, source kind, last-known path, and security-scoped bookmark data.
+- Show missing locations as muted rows.
+- Add basic Relocate, Reveal in Finder, and Forget affordances.
+- Do not automatically delete missing remembered items.
+- Keep missing-state language plain and user-facing.
 
-### Phase 4: App Metadata
+#### Phase 4: Source/Song Fingerprint MVP
 
-- Add local annotations for song names, track names, colors, notes, and tags.
-- Store metadata in SwiftData.
-- Match annotations back to songs using conservative identity fingerprints.
-- Add ambiguity handling UI.
+- Create lightweight fingerprints for source roots and songs.
+- Use folder names, root structure, `dp-24.sys` metadata/hash, `song.sys`, `edltable.sys`, and normalized WAV inventory metadata.
+- Ignore hidden Apple metadata such as `.Spotlight-V100`, `.fseventsd`, and AppleDouble `._*` files.
+- Use fingerprints for display and conservative matching only, not backup safety yet.
+- Represent match states such as exact, changed since last seen, ambiguous, and unknown.
 
-### Phase 5: Backup and Export
+#### Phase 5: Song Detail UI Refresh
+
+- Turn the current parser table view into a more polished selected-song workspace.
+- Add sections for overview, tracks, region/timeline summary, validation, and preview transport.
+- Keep evidence labels visible, but make normal user interpretation easier.
+- Preserve existing parser tables where they are still needed for research/debug visibility.
+- Improve empty states and loading/error states.
+
+#### Phase 6: Track Selection and Inspector
+
+- Add selected track and selected region state.
+- Add a right-side inspector or third column.
+- Show track number, candidate WAV, evidence level, mute/pan/level values, raw bytes, and identity/match status.
+- Reserve fields for app-owned labels and notes.
+- Keep inspector actions read-only relative to Portastudio files.
+
+#### Phase 7: Basic App-Owned Track Labels
+
+- Add simple local annotations for track names and optionally song display names.
+- Keep storage app-owned and read-only relative to Portastudio files.
+- Attach labels to a conservative key such as song fingerprint plus track number.
+- Prefer SwiftData for app-owned persistence if the deployment target supports it cleanly.
+- Keep advanced labels, colors, notes, tags, templates, and ambiguity history for Part 2.
+
+#### Phase 8: First-Round Polish and Validation
+
+- Add search/filter for sources and songs.
+- Polish toolbar/menu commands and keyboard shortcuts.
+- Add native empty states, missing-folder states, and accessibility labels.
+- Add focused tests for source classification, remembered locations, selected song loading, and annotation persistence.
+- Validate build and test with the documented `xcodebuild` commands.
+
+### Part 2: Pre-Release / After-Release Considerations
+
+Part 2 contains important product features, but they carry more risk because they involve file management, media identity, user trust, large scans, and eventually write operations. These should be implemented, but they should not block the first round of source-library and song-inspection work.
+
+Each Part 2 phase should become its own dedicated plan before implementation.
+
+#### Phase 9: Backup MVP
 
 - Add backup actions for sources and individual songs.
-- Add export actions for WAVs and reports.
-- Add explicit master-mix copy/export actions.
-- Add `AudioDepot` export/copy-out actions.
+- Implement read-only copy workflows with progress, cancellation, and destination selection.
 - Create backup manifests.
-- Show "changed since last backup" indicators.
+- Preserve original folder structure and unknown/private companion files.
 - Exclude ignored macOS metadata from normal logical backups; document any future raw clone mode separately.
 - Support iCloud Drive destinations through standard macOS file panels.
 
-### Phase 6: AudioDepot Import Staging
+#### Phase 10: Export Workflows
+
+- Add DAW-friendly Export WAVs and Export Report actions.
+- Add explicit master-mix copy/export actions.
+- Add `AudioDepot` export/copy-out actions.
+- Keep export separate from backup: export is convenience, backup is preservation.
+- Decide whether exported WAVs preserve original filenames, use app labels, or offer both.
+
+#### Phase 11: Backup Change Detection
+
+- Show "changed since last backup" indicators.
+- Use backup manifests and source snapshots to identify new, changed, and missing files.
+- Start with key `.sys` fingerprints, WAV inventory metadata, sizes, and modified dates.
+- Avoid whole-WAV hashing during routine scans unless the user requests deeper verification.
+
+#### Phase 12: Automatic Removable Media Detection
+
+- Detect likely Portastudio removable media from mounted volumes.
+- Validate with volume properties, `dp-24.sys`, `MUSIC/`, `AudioDepot/`, `UTILITY/`, and song-folder evidence.
+- Offer detected media to the user instead of importing silently.
+- Keep user confirmation in the loop for ambiguous matches.
+
+#### Phase 13: Advanced Custom Metadata
+
+- Expand local annotations beyond basic track labels.
+- Add track colors, notes, tags, song display-name overrides, favorite/archive states, reusable label templates, and ambiguity-resolution history.
+- Match annotations back to songs using conservative identity fingerprints.
+- Add UI for ambiguous matches before applying labels to copied or relocated songs.
+
+#### Phase 14: Media Asset Browser
+
+- Add first-class browsing for master mixes, exported tracks, project WAVs, and `AudioDepot` assets.
+- Show duration, sample rate, bit depth, channels, file size, modified date, playback, and Reveal in Finder.
+- Add a source-level `AudioDepot` view.
+- Add song-level Master Mixes and Rendered/Other WAV sections.
+- Preserve project parser evidence separately from media browsing.
+
+#### Phase 15: Waveform and Timeline Visualization
+
+- Add custom SwiftUI `Canvas` waveform strips.
+- Add region lanes, zoom, playhead display, and evidence-scoped timeline visualization.
+- Keep ambiguous regions visually distinct.
+- Avoid implying physical track mapping when it remains `Hypothesis`.
+
+#### Phase 16: AudioDepot Import Staging
 
 - Validate user-selected WAV files for sample rate, bit depth, channel count, extension, size, and destination free space.
 - Compare candidate WAV format against the selected song or source expectations when known.
@@ -541,14 +625,7 @@ Decisions:
 - Make copying into `AudioDepot` explicit, reversible where possible, and never automatic.
 - Do not write into song folders or edit `song.sys` / `edltable.sys`.
 
-### Phase 7: Automatic Media Detection
-
-- Detect likely Portastudio removable media from mounted volumes.
-- Validate with root and song-folder evidence.
-- Offer detected media to the user instead of auto-importing silently.
-- Keep user confirmation in the loop for ambiguous matches.
-
-### Phase 8: Restore
+#### Phase 17: Restore to SD Card
 
 - Design a guarded restore flow.
 - Validate destination media before writing.
