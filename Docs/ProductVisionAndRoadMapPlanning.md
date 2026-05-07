@@ -41,6 +41,8 @@ Status (implemented on May 7, 2026): `ProjectDetailView` now uses a scrollable s
 
 Add selected track/region state and a right-side inspector or third column. Show track number, candidate WAV, evidence level, mute/pan/level values, raw bytes, and identity/match status.
 
+Status (planned on May 7, 2026): implementation handoff plan saved at `Plans/Phase6TrackSelectionInspector.md`. The plan keeps Phase 6 read-only, chooses a SwiftUI right-side inspector as the primary UI path, preserves `TrackTableView` as the canonical raw table, makes track and unassigned-region tables selection-aware, and defers editable app-owned labels/notes persistence to Phase 7.
+
 ### Phase 7: Basic App-Owned Track Labels
 
 Add simple local annotations for track names and maybe song display names. Keep storage app-owned and read-only relative to Portastudio files. This can start modestly: track number plus song fingerprint plus label.

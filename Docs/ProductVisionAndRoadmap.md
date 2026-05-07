@@ -558,6 +558,7 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - Show track number, candidate WAV, evidence level, mute/pan/level values, raw bytes, and identity/match status.
 - Reserve fields for app-owned labels and notes.
 - Keep inspector actions read-only relative to Portastudio files.
+- Planned implementation artifact: `Plans/Phase6TrackSelectionInspector.md`. Current direction is a SwiftUI right-side inspector attached to `ProjectDetailView`, with selection-aware track and unassigned-region tables. Editable annotation storage remains Phase 7.
 
 #### Phase 7: Basic App-Owned Track Labels
 

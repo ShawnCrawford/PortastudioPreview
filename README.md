@@ -40,6 +40,13 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 
 ## Current App Shell (Phase 5)
 
+### Planned Next: Track Selection and Inspector (Phase 6)
+
+- The implementation handoff plan is saved at `Plans/Phase6TrackSelectionInspector.md`.
+- Phase 6 should add selection-aware track and unassigned-region tables plus a native right-side SwiftUI inspector in `ProjectDetailView`.
+- The inspector should show read-only track/region evidence, raw bytes, mapped mute/pan/level values, candidate WAV or unassigned-region context, and identity context for future annotations.
+- Editable labels, notes, colors, tags, and SwiftData annotation entities remain Phase 7 work.
+
 ### Song Detail Workspace (Phase 5)
 
 - `ProjectDetailView` is now a scrollable selected-song workspace with native `GroupBox` sections for **Overview**, **Validation**, **Tracks**, **Regions / Timeline**, and **Preview**.
