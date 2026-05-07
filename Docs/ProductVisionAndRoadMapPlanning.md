@@ -35,6 +35,8 @@ Status (implemented on May 7, 2026): `FingerprintService` computes SHA-256 hashe
 
 Turn the current parser table view into a more polished selected-song workspace with sections for overview, tracks, regions/timeline summary, validation, and preview transport.
 
+Status (implemented on May 7, 2026): `ProjectDetailView` now uses a scrollable selected-song workspace with native `GroupBox` sections for **Overview**, **Validation**, **Tracks**, **Regions / Timeline**, and **Preview**. Existing research-visible tables remain intact (`TrackTableView` and unassigned-region data), while view-only summaries now report folder/path context, counts for tracks/WAVs/issues/unassigned regions/EDL file-list/timeline candidates, and preview availability. `PreviewTransportView` gained clearer no-playable-region copy and accessibility labels without changing `StereoPreviewEngine` behavior. The implementation remained UI-only/read-only with no parser, fingerprint, persistence, or write-path changes.
+
 ### Phase 6: Track Selection and Inspector
 
 Add selected track/region state and a right-side inspector or third column. Show track number, candidate WAV, evidence level, mute/pan/level values, raw bytes, and identity/match status.

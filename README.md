@@ -38,7 +38,15 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
 
-## Current App Shell (Phase 4)
+## Current App Shell (Phase 5)
+
+### Song Detail Workspace (Phase 5)
+
+- `ProjectDetailView` is now a scrollable selected-song workspace with native `GroupBox` sections for **Overview**, **Validation**, **Tracks**, **Regions / Timeline**, and **Preview**.
+- Overview adds view-only summary metrics (folder/path, track count, WAV count, validation issue count, unassigned region count, EDL file-list count, timeline candidate count, preview availability) derived from existing models.
+- Track and region research/debug visibility remains intact: `TrackTableView` is still the canonical raw track/mixer table, and unassigned region rows remain visible with evidence labels.
+- Regions/timeline summary includes sample positions plus conservative approximate time text (`≈`) for readability; inferred behavior remains labeled as `Hypothesis`.
+- Preview transport remains approximate and read-only with unchanged Play/Stop semantics and clearer disabled/empty-state copy when no playable WAV regions are available.
 
 ### Source and Song Fingerprints (Phase 4)
 

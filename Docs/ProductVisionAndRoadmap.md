@@ -56,10 +56,10 @@ The current app already has the right native macOS foundation:
 | Source deduplication | Sources upsert by canonical URL; reopening the same root updates the existing row and persisted record. |
 | Source song loading | Selecting a nested source song loads the project on demand via `loadIfSourceSong()`. |
 | Commands | Supports `Open Individual Song...` with `Command-O` and `Add SD Card or Backup...` with `Command-Shift-O`. |
-| Project detail | Shows validation, track information, unassigned regions, and transport. |
-| Track display | Uses SwiftUI `Table` for parsed track and mixer data. |
-| Region display | Uses SwiftUI `Table` for unassigned WAV/timeline regions. |
-| Preview playback | Uses AVFoundation through `StereoPreviewEngine`. |
+| Project detail | Uses a scrollable selected-song workspace with grouped sections for Overview, Validation, Tracks, Regions/Timeline, and Preview while keeping `navigationTitle(project.folderName)`. |
+| Track display | Keeps `TrackTableView` as the canonical raw track/mixer SwiftUI `Table` (including raw bytes and evidence labels) inside the Tracks section. |
+| Region display | Keeps unassigned WAV/timeline table data visible in a dedicated Regions/Timeline section with explanatory copy, timeline candidate summaries, and conservative approximate-time labels. |
+| Preview playback | Uses AVFoundation through `StereoPreviewEngine`; Preview section keeps existing Play/Stop semantics and adds clearer empty-state messaging when no playable regions exist. |
 | Parser stance | Read-only and evidence-labeled. |
 | Persistence | SwiftData (`LibrarySourceRecord`, `LibrarySongRecord`) injected via `ModelContainer`. Sources and standalone songs persist across relaunches. Nested source songs are cascade-deleted when their source is forgotten. |
 | Security-scoped bookmarks | Created and resolved by `SecurityScopedBookmarkService`. `PassthroughBookmarkService` is available as a test seam. Stale bookmarks are refreshed on resolution. Fallback to last-known path when bookmark fails. |
@@ -543,7 +543,7 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - WAV files are never content-hashed; only metadata (relative path, byte count, modification date) is used.
 - Fingerprints persist to SwiftData; match state is recomputed on hydration against the stored "last seen" baseline.
 
-#### Phase 5: Song Detail UI Refresh
+#### Phase 5: Song Detail UI Refresh ✓ Implemented
 
 - Turn the current parser table view into a more polished selected-song workspace.
 - Add sections for overview, tracks, region/timeline summary, validation, and preview transport.
