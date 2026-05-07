@@ -59,14 +59,15 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - The unassigned-region table inside `RegionsTimelineGroupBoxView` is similarly selection-aware via `@Binding var selectedRegionID`.
 - `TrackRegionInspectorView` is a native right-side inspector attached with `.inspector(isPresented:)`. It displays:
   - **Empty state**: neutral prompt when nothing is selected.
-  - **Track inspector**: track number, candidate WAV (filename or "Unassigned" with evidence), level/pan/mute mapped values, raw byte offsets, mirror raw bytes and mismatch warnings, active-take byte and offset (track 1 only, Correlated evidence), read-only identity context noting the Phase 7 annotation key (song fingerprint + track number), and reserved disabled placeholders for future track name and notes fields.
+  - **Track inspector**: track number, candidate WAV (filename or "Unassigned" with evidence), level/pan/mute mapped values, raw byte offsets, mirror raw bytes and mismatch warnings, active-take byte and offset (track 1 only, Correlated evidence), identity context for the Phase 7 annotation key (song fingerprint + track number), and the current Phase 7 app-owned track-label editor.
   - **Region inspector**: source filename and path, start/length/end samples with approximate time strings, evidence level, EDL file-list ID and evidence when the source filename matches a `fileListEntries` entry, and an assignment note that track-to-WAV mapping remains Hypothesis.
 - Inspector width is 240–360 pt. A toolbar button toggles it with `sidebar.right` icon.
 - Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
-- The implementation is entirely read-only. No sidecar files, no source-folder mutations, no app-owned annotation persistence (Phase 7).
+- The inspector remains read-only toward Portastudio files. Phase 7 annotation edits are app-owned SwiftData writes only; no sidecar files or source-folder mutations are created.
 
 ### Planned Next: First-Round Polish and Validation (Phase 8)
 
+- Detailed handoff plan: `Plans/Phase8FirstRoundPolishAndValidation.md`.
 - Search/filter for sources and songs.
 - Polish toolbar/menu commands and keyboard shortcuts.
 - Native empty states, missing-folder states, and accessibility labels.

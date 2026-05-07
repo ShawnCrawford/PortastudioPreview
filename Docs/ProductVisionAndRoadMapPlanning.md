@@ -49,9 +49,13 @@ Add simple local annotations for track names and maybe song display names. Keep 
 
 Plan status (created on May 7, 2026): detailed implementation handoff saved at `Plans/Phase7BasicAppOwnedTrackLabels.md`. The plan keeps Phase 7 focused on SwiftData-backed app-owned track labels, keyed by song fingerprint plus track number, with optional song display-name override only if it stays low-risk. It explicitly preserves the read-only Portastudio source-folder guarantee and defers colors, notes, tags, templates, ambiguity-resolution history, and copied-song matching to later phases.
 
+Status (implemented on May 7, 2026): `TrackAnnotationRecord` is now part of the SwiftData schema, keyed by song fingerprint plus track number. `TrackAnnotationStore` loads, upserts, clears, and persists app-owned track names and song display-name overrides while writing only to SwiftData. `SongAnnotationContext` carries selected-song identity and requires an exact fingerprint match before labels are editable. `TrackTableView` shows saved names, `TrackRegionInspectorView` exposes `TrackLabelEditorView`, and `ProjectDetailView` uses the effective song display name in the navigation title and overview. `TrackAnnotationStoreTests` covers keying, persistence, editability gates, display-name override, and read-only source-folder guarantees.
+
 ### Phase 8: First-Round Polish and Validation
 
 Add search, toolbar/menu polish, empty states, missing-folder states, accessibility labels, and focused tests for source classification, remembered locations, selected song loading, and annotation persistence.
+
+Plan status (created on May 7, 2026): detailed implementation handoff saved at `Plans/Phase8FirstRoundPolishAndValidation.md`. The plan keeps Phase 8 limited to first-round app polish and validation: sidebar search/filter, command and toolbar discoverability, native empty and missing states, accessibility coverage, and focused tests. It explicitly defers backup/export, automatic removable-media detection, media browsing, waveforms, advanced metadata, and all Portastudio write workflows to later phases.
 
 ## Part 2: Pre-Release / After-Release Considerations
 

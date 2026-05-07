@@ -578,6 +578,7 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - Add native empty states, missing-folder states, and accessibility labels.
 - Add focused tests for source classification, remembered locations, selected song loading, and annotation persistence.
 - Validate build and test with the documented `xcodebuild` commands.
+- Implementation plan created on May 7, 2026: `Plans/Phase8FirstRoundPolishAndValidation.md`. The plan scopes Phase 8 to first-round polish and validation only: pure sidebar search/filter using localized standard matching, command/toolbar help and keyboard discoverability, lightweight native empty and missing states, accessibility labels/identifiers where useful, and focused tests for the existing source-library and annotation seams. Backup/export, automatic removable-media detection, media browsing, waveforms, advanced metadata, and Portastudio write workflows remain future phases.
 
 ### Part 2: Pre-Release / After-Release Considerations
 
