@@ -8,19 +8,54 @@ import SwiftUI
 struct ProjectDetailView: View {
     let project: PortastudioProject
 
+    @State private var selectedTrackID: TrackPreview.ID?
+    @State private var selectedRegionID: TimelineRegion.ID?
+    @State private var isInspectorPresented = true
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 OverviewGroupBoxView(project: project)
                 ValidationGroupBoxView(issues: project.validationIssues)
-                TracksGroupBoxView(tracks: project.tracks)
-                RegionsTimelineGroupBoxView(project: project)
+                TracksGroupBoxView(tracks: project.tracks, selectedTrackID: $selectedTrackID)
+                RegionsTimelineGroupBoxView(
+                    project: project,
+                    selectedRegionID: $selectedRegionID
+                )
                 PreviewGroupBoxView(project: project)
             }
             .padding()
         }
         .navigationTitle(project.folderName)
         .frame(minWidth: 600)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isInspectorPresented.toggle()
+                } label: {
+                    Label("Inspector", systemImage: "sidebar.right")
+                }
+                .help(isInspectorPresented ? "Hide Inspector" : "Show Inspector")
+            }
+        }
+        .inspector(isPresented: $isInspectorPresented) {
+            TrackRegionInspectorView(
+                project: project,
+                selectedTrack: project.tracks.first { $0.id == selectedTrackID },
+                selectedRegion: project.unassignedAudioRegions.first { $0.id == selectedRegionID }
+            )
+            .inspectorColumnWidth(min: 240, ideal: 300, max: 360)
+        }
+        .onChange(of: selectedTrackID) { _, newValue in
+            if newValue != nil { selectedRegionID = nil }
+        }
+        .onChange(of: selectedRegionID) { _, newValue in
+            if newValue != nil { selectedTrackID = nil }
+        }
+        .onChange(of: project.folderURL) { _, _ in
+            selectedTrackID = nil
+            selectedRegionID = nil
+        }
     }
 }
 
@@ -136,10 +171,11 @@ private struct ValidationGroupBoxView: View {
 
 private struct TracksGroupBoxView: View {
     let tracks: [TrackPreview]
+    @Binding var selectedTrackID: TrackPreview.ID?
 
     var body: some View {
         GroupBox {
-            TrackTableView(tracks: tracks)
+            TrackTableView(tracks: tracks, selectedTrackID: $selectedTrackID)
                 .frame(minHeight: 200, idealHeight: 300)
         } label: {
             Label("Tracks", systemImage: "slider.horizontal.3")
@@ -153,6 +189,7 @@ private struct TracksGroupBoxView: View {
 
 private struct RegionsTimelineGroupBoxView: View {
     let project: PortastudioProject
+    @Binding var selectedRegionID: TimelineRegion.ID?
 
     var body: some View {
         GroupBox {
@@ -165,7 +202,10 @@ private struct RegionsTimelineGroupBoxView: View {
                     Text("No unassigned regions parsed.")
                         .foregroundStyle(.secondary)
                 } else {
-                    UnassignedRegionsTableView(regions: project.unassignedAudioRegions)
+                    UnassignedRegionsTableView(
+                        regions: project.unassignedAudioRegions,
+                        selectedRegionID: $selectedRegionID
+                    )
                 }
 
                 if let edl = project.edlTableSummary {
@@ -192,9 +232,10 @@ private struct RegionsTimelineGroupBoxView: View {
 
 private struct UnassignedRegionsTableView: View {
     let regions: [TimelineRegion]
+    @Binding var selectedRegionID: TimelineRegion.ID?
 
     var body: some View {
-        Table(regions) {
+        Table(regions, selection: $selectedRegionID) {
             TableColumn("Unassigned WAV") { region in
                 Text(region.sourceFilename ?? "Unknown")
             }

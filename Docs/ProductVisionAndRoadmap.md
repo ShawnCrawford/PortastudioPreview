@@ -57,8 +57,9 @@ The current app already has the right native macOS foundation:
 | Source song loading | Selecting a nested source song loads the project on demand via `loadIfSourceSong()`. |
 | Commands | Supports `Open Individual Song...` with `Command-O` and `Add SD Card or Backup...` with `Command-Shift-O`. |
 | Project detail | Uses a scrollable selected-song workspace with grouped sections for Overview, Validation, Tracks, Regions/Timeline, and Preview while keeping `navigationTitle(project.folderName)`. |
-| Track display | Keeps `TrackTableView` as the canonical raw track/mixer SwiftUI `Table` (including raw bytes and evidence labels) inside the Tracks section. |
-| Region display | Keeps unassigned WAV/timeline table data visible in a dedicated Regions/Timeline section with explanatory copy, timeline candidate summaries, and conservative approximate-time labels. |
+| Track display | `TrackTableView` is the canonical raw track/mixer SwiftUI `Table` (raw bytes and evidence labels) inside the Tracks section. Single-row selection enabled via `@Binding`; selecting a row opens the track inspector. |
+| Region display | Unassigned WAV/timeline table data in a dedicated Regions/Timeline section with approximate-time labels. Single-row selection enabled via `@Binding`; selecting a row opens the region inspector. |
+| Inspector | `TrackRegionInspectorView` is a native right-side `.inspector` panel. Track view: mapped level/pan/mute values, raw byte offsets, mirror mismatch warnings, active-take byte (track 1), candidate WAV evidence, identity context, and reserved Phase 7 placeholders. Region view: source filename/path, start/length samples with approximate time, evidence, EDL file-list match, and assignment note. Toolbar toggle controls visibility. |
 | Preview playback | Uses AVFoundation through `StereoPreviewEngine`; Preview section keeps existing Play/Stop semantics and adds clearer empty-state messaging when no playable regions exist. |
 | Parser stance | Read-only and evidence-labeled. |
 | Persistence | SwiftData (`LibrarySourceRecord`, `LibrarySongRecord`) injected via `ModelContainer`. Sources and standalone songs persist across relaunches. Nested source songs are cascade-deleted when their source is forgotten. |
@@ -558,7 +559,7 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - Show track number, candidate WAV, evidence level, mute/pan/level values, raw bytes, and identity/match status.
 - Reserve fields for app-owned labels and notes.
 - Keep inspector actions read-only relative to Portastudio files.
-- Planned implementation artifact: `Plans/Phase6TrackSelectionInspector.md`. Current direction is a SwiftUI right-side inspector attached to `ProjectDetailView`, with selection-aware track and unassigned-region tables. Editable annotation storage remains Phase 7.
+- Implemented on May 7, 2026. `TrackTableView` and the unassigned-region table are selection-aware via `@Binding`. Track and region selections are mutually exclusive; each clears the other. `TrackRegionInspectorView` is a native `.inspector` panel showing mapped level/pan/mute values, raw byte offsets, mirror mismatch warnings, active-take byte for track 1, candidate WAV or unassigned status with evidence, region timing with approximate time strings, EDL file-list match when available, identity context for Phase 7 annotation keying, and reserved placeholder rows for future track-name and notes fields. A toolbar toggle controls inspector visibility. Entirely read-only; no annotation persistence or source writes.
 
 #### Phase 7: Basic App-Owned Track Labels
 

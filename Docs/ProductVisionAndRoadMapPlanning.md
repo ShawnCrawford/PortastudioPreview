@@ -41,7 +41,7 @@ Status (implemented on May 7, 2026): `ProjectDetailView` now uses a scrollable s
 
 Add selected track/region state and a right-side inspector or third column. Show track number, candidate WAV, evidence level, mute/pan/level values, raw bytes, and identity/match status.
 
-Status (planned on May 7, 2026): implementation handoff plan saved at `Plans/Phase6TrackSelectionInspector.md`. The plan keeps Phase 6 read-only, chooses a SwiftUI right-side inspector as the primary UI path, preserves `TrackTableView` as the canonical raw table, makes track and unassigned-region tables selection-aware, and defers editable app-owned labels/notes persistence to Phase 7.
+Status (implemented on May 7, 2026): `TrackTableView` and the unassigned-region table are now selection-aware via `@Binding` passed from `ProjectDetailView`. Track and region selection are mutually exclusive: selecting one clears the other. `TrackRegionInspectorView` is a native right-side `.inspector` panel showing track number, mapped level/pan/mute values, raw byte offsets, mirror mismatch warnings, active-take byte (track 1, Correlated), candidate WAV or "Unassigned" with evidence, identity context for Phase 7 keying, and reserved placeholder rows for future track-name and notes fields. Region inspection shows source filename/path, start/length/end samples with approximate time, evidence, and EDL file-list ID when matched. A toolbar toggle button controls inspector visibility. Implementation is entirely read-only with no annotation persistence, no source-folder writes, and no evidence levels promoted beyond current model values.
 
 ### Phase 7: Basic App-Owned Track Labels
 

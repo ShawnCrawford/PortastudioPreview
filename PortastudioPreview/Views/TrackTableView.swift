@@ -7,9 +7,10 @@ import SwiftUI
 
 struct TrackTableView: View {
     let tracks: [TrackPreview]
+    @Binding var selectedTrackID: TrackPreview.ID?
 
     var body: some View {
-        Table(tracks) {
+        Table(tracks, selection: $selectedTrackID) {
             TableColumn("Track") { track in
                 Text("\(track.trackNumber)")
             }

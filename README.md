@@ -38,14 +38,25 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
 
-## Current App Shell (Phase 5)
+## Current App Shell (Phase 6)
 
-### Planned Next: Track Selection and Inspector (Phase 6)
+### Track Selection and Inspector (Phase 6)
 
-- The implementation handoff plan is saved at `Plans/Phase6TrackSelectionInspector.md`.
-- Phase 6 should add selection-aware track and unassigned-region tables plus a native right-side SwiftUI inspector in `ProjectDetailView`.
-- The inspector should show read-only track/region evidence, raw bytes, mapped mute/pan/level values, candidate WAV or unassigned-region context, and identity context for future annotations.
-- Editable labels, notes, colors, tags, and SwiftData annotation entities remain Phase 7 work.
+- `ProjectDetailView` owns `selectedTrackID` and `selectedRegionID` as view-local `@State`. Selecting a track clears any active region selection, and selecting a region clears track selection.
+- `TrackTableView` is now selection-aware via a `@Binding var selectedTrackID` passed from `ProjectDetailView`. The `Table(tracks, selection:)` initializer enables single-row click selection while preserving all existing track/mixer columns.
+- The unassigned-region table inside `RegionsTimelineGroupBoxView` is similarly selection-aware via `@Binding var selectedRegionID`.
+- `TrackRegionInspectorView` is a native right-side inspector attached with `.inspector(isPresented:)`. It displays:
+  - **Empty state**: neutral prompt when nothing is selected.
+  - **Track inspector**: track number, candidate WAV (filename or "Unassigned" with evidence), level/pan/mute mapped values, raw byte offsets, mirror raw bytes and mismatch warnings, active-take byte and offset (track 1 only, Correlated evidence), read-only identity context noting the Phase 7 annotation key (song fingerprint + track number), and reserved disabled placeholders for future track name and notes fields.
+  - **Region inspector**: source filename and path, start/length/end samples with approximate time strings, evidence level, EDL file-list ID and evidence when the source filename matches a `fileListEntries` entry, and an assignment note that track-to-WAV mapping remains Hypothesis.
+- Inspector width is 240–360 pt. A toolbar button toggles it with `sidebar.right` icon.
+- Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
+- The implementation is entirely read-only. No sidecar files, no source-folder mutations, no app-owned annotation persistence (Phase 7).
+
+### Planned Next: Basic App-Owned Track Labels (Phase 7)
+
+- Phase 7 should add SwiftData annotation entities for track names and song display names, keyed by song fingerprint + track number.
+- The inspector already reserves read-only placeholder rows for future track name and notes fields.
 
 ### Song Detail Workspace (Phase 5)
 
