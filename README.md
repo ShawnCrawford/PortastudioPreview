@@ -14,6 +14,7 @@ The app is designed for safe inspection and approximate playback during reverse-
 - Provide approximate stereo playback for quick validation.
 - Remember opened sources and songs using SwiftData and security-scoped bookmarks.
 - Show missing remembered locations as muted rows with Relocate and Forget affordances.
+- Annotate tracks with app-owned names keyed by song fingerprint; never write to source folders.
 
 ## Non-Goals
 
@@ -38,7 +39,18 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
 
-## Current App Shell (Phase 6)
+## Current App Shell (Phase 7)
+
+### App-Owned Track Labels (Phase 7)
+
+- `TrackAnnotationRecord` is a SwiftData `@Model` keyed by song fingerprint string + track number. Records are app-owned; no source folders are ever modified.
+- `TrackAnnotationStore` is a `@MainActor @Observable` service. It exposes `annotationContext` (a `SongAnnotationContext` value) and write methods: `setTrackName`, `clearTrackName`, `setSongDisplayNameOverride`. It is owned by `ContentView` and passed down through `ProjectDetailView`, `TrackTableView`, and `TrackRegionInspectorView`.
+- `SongAnnotationContext` carries the song fingerprint, match state, folder URL, and folder name. `isEditable` returns `true` only when `matchState == .exact` and fingerprint is non-empty.
+- `SourceLibraryStore.selectedSongAnnotationContext()` builds and returns context for the selected song. `ContentView` calls this via `.task(id: store.selectedProject?.folderURL)` so context reloads on selection change.
+- `TrackTableView` shows a "Name" column populated from `annotationStore` when available.
+- `TrackRegionInspectorView` replaces the Phase 6 placeholder rows with a `TrackLabelEditorView` in a "Label" section. The editor saves on Return and on focus loss; when `isEditable` is false, the field is read-only with an orange warning when the fingerprint has changed.
+- Song display-name override is stored in `LibrarySongRecord.displayNameOverride`. The nav title and overview section show the override name when set.
+- The app schema includes `TrackAnnotationRecord.self` in the `ModelContainer` schema alongside `LibrarySourceRecord` and `LibrarySongRecord`.
 
 ### Track Selection and Inspector (Phase 6)
 
@@ -53,12 +65,13 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
 - The implementation is entirely read-only. No sidecar files, no source-folder mutations, no app-owned annotation persistence (Phase 7).
 
-### Planned Next: Basic App-Owned Track Labels (Phase 7)
+### Planned Next: First-Round Polish and Validation (Phase 8)
 
-- Phase 7 has a saved implementation handoff at `Plans/Phase7BasicAppOwnedTrackLabels.md`.
-- The plan adds app-owned SwiftData track labels keyed by song fingerprint + track number, threads selected-song annotation context into the detail view, and makes the Phase 6 inspector the primary edit surface.
-- Song display-name override is optional for this phase and should stay app-owned if included.
-- The inspector already reserves read-only placeholder rows for future track name and notes fields; Phase 7 should replace the track-name placeholder with editable local metadata while leaving notes for a later phase.
+- Search/filter for sources and songs.
+- Polish toolbar/menu commands and keyboard shortcuts.
+- Native empty states, missing-folder states, and accessibility labels.
+- Focused tests for source classification, remembered locations, selected song loading, and annotation persistence.
+- Validate build and test with the documented `xcodebuild` commands.
 
 ### Song Detail Workspace (Phase 5)
 

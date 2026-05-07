@@ -18,9 +18,11 @@ struct ContentView: View {
 @MainActor
 private struct ContentViewBody: View {
     @State private var store: SourceLibraryStore
+    @State private var annotationStore: TrackAnnotationStore
 
     init(modelContext: ModelContext) {
         _store = State(wrappedValue: SourceLibraryStore(modelContext: modelContext))
+        _annotationStore = State(wrappedValue: TrackAnnotationStore(modelContext: modelContext))
     }
 
     var body: some View {
@@ -29,7 +31,7 @@ private struct ContentViewBody: View {
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260)
         } detail: {
             if let project = store.selectedProject {
-                ProjectDetailView(project: project)
+                ProjectDetailView(project: project, annotationStore: annotationStore)
             } else {
                 ProjectOpenView(openAction: openIndividualSongFolder, addSourceAction: addSourceRoot)
             }
@@ -51,6 +53,9 @@ private struct ContentViewBody: View {
         }
         .task(id: store.selection) {
             await store.loadIfSourceSong()
+        }
+        .task(id: store.selectedProject?.folderURL) {
+            annotationStore.load(context: store.selectedSongAnnotationContext())
         }
         .focusedValue(\.openProjectAction, openIndividualSongFolder)
         .focusedValue(\.addSourceAction, addSourceRoot)

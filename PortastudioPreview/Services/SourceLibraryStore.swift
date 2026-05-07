@@ -804,5 +804,44 @@ final class SourceLibraryStore {
         case .backupRoot: return "backupRoot"
         }
     }
+
+    // MARK: - Annotation Context
+
+    /// Returns a `SongAnnotationContext` for the currently selected song, or nil when no editable
+    /// song is selected or no persisted fingerprint is available.
+    func selectedSongAnnotationContext() -> SongAnnotationContext? {
+        guard let context = modelContext else { return nil }
+
+        switch selection {
+        case .individualSong(let id):
+            if let song = individualSongs.first(where: { $0.id == id }) {
+                return buildAnnotationContext(for: song, context: context)
+            }
+            for source in sources {
+                if let song = source.songs.first(where: { $0.id == id }) {
+                    return buildAnnotationContext(for: song, context: context)
+                }
+            }
+            return nil
+        case .source, .missingItem, nil:
+            return nil
+        }
+    }
+
+    private func buildAnnotationContext(
+        for song: SourceLibrarySong,
+        context: ModelContext
+    ) -> SongAnnotationContext? {
+        guard let record = fetchSongRecord(by: song.folderURL.path, context: context),
+              let fp = record.aggregateFingerprintString, !fp.isEmpty else { return nil }
+        return SongAnnotationContext(
+            songRecordID: record.id,
+            songFingerprintString: fp,
+            folderURL: song.folderURL,
+            folderDerivedDisplayName: song.displayName,
+            displayNameOverride: record.displayNameOverride,
+            matchState: song.matchState
+        )
+    }
 }
 

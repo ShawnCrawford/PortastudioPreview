@@ -29,6 +29,12 @@ final class LibrarySongRecord {
     /// Raw value of `FingerprintMatchState` set during hydration or explicit re-scan.
     var matchStateRawValue: String?
 
+    // MARK: - Phase 7: App-Owned Display Name Override
+
+    /// User-supplied display name override stored in app-owned SwiftData; nil means use `displayName`.
+    /// The source folder is never touched when this value is set or cleared.
+    var displayNameOverride: String?
+
     init(
         id: UUID = UUID(),
         displayName: String,

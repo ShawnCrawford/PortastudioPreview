@@ -8,6 +8,7 @@ import SwiftUI
 struct TrackTableView: View {
     let tracks: [TrackPreview]
     @Binding var selectedTrackID: TrackPreview.ID?
+    var annotationStore: TrackAnnotationStore? = nil
 
     var body: some View {
         Table(tracks, selection: $selectedTrackID) {
@@ -15,6 +16,16 @@ struct TrackTableView: View {
                 Text("\(track.trackNumber)")
             }
             .width(48)
+
+            TableColumn("Name") { track in
+                if let name = annotationStore?.trackName(for: track.trackNumber) {
+                    Text(name)
+                } else {
+                    Text("–")
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .width(min: 80, ideal: 120)
 
             TableColumn("Mapped WAV") { track in
                 Text(track.candidateWAV?.rawFilename ?? "Unassigned")

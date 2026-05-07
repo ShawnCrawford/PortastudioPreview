@@ -9,10 +9,11 @@ struct TrackRegionInspectorView: View {
     let project: PortastudioProject
     let selectedTrack: TrackPreview?
     let selectedRegion: TimelineRegion?
+    let annotationStore: TrackAnnotationStore
 
     var body: some View {
         if let track = selectedTrack {
-            TrackInspectorContent(project: project, track: track)
+            TrackInspectorContent(project: project, track: track, annotationStore: annotationStore)
         } else if let region = selectedRegion {
             RegionInspectorContent(project: project, region: region)
         } else {
@@ -47,6 +48,7 @@ private struct EmptyInspectorContent: View {
 private struct TrackInspectorContent: View {
     let project: PortastudioProject
     let track: TrackPreview
+    let annotationStore: TrackAnnotationStore
 
     var body: some View {
         ScrollView {
@@ -82,21 +84,8 @@ private struct TrackInspectorContent: View {
                 }
 
                 Divider()
-                InspectorSectionHeader(title: "Identity", systemImage: "tag")
-                InspectorGrid {
-                    InspectorRow(
-                        label: "Key (Phase 7)",
-                        value: "Song fingerprint + track \(track.trackNumber)",
-                        secondary: "App-owned labels not yet implemented"
-                    )
-                }
-
-                Divider()
-                InspectorSectionHeader(title: "Future Metadata", systemImage: "pencil.slash")
-                InspectorGrid {
-                    InspectorRow(label: "Track name", value: "—", secondary: "Phase 7 · not yet editable")
-                    InspectorRow(label: "Notes", value: "—", secondary: "Phase 7 · not yet editable")
-                }
+                InspectorSectionHeader(title: "Label", systemImage: "tag")
+                TrackLabelEditorView(trackNumber: track.trackNumber, annotationStore: annotationStore)
             }
             .padding(14)
         }

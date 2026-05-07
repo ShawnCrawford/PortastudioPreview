@@ -11,7 +11,7 @@ import SwiftData
 @main
 struct PortastudioPreviewApp: App {
     let container: ModelContainer = {
-        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self])
+        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self, TrackAnnotationRecord.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
             return try ModelContainer(for: schema, configurations: config)

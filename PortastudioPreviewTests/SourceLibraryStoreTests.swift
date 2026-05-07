@@ -192,7 +192,7 @@ struct SourceLibraryStoreTests {
     // MARK: - In-memory SwiftData helpers
 
     private func makeTestContainer() throws -> ModelContainer {
-        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self])
+        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self, TrackAnnotationRecord.self])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: config)
     }

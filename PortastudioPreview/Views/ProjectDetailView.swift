@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ProjectDetailView: View {
     let project: PortastudioProject
+    let annotationStore: TrackAnnotationStore
 
     @State private var selectedTrackID: TrackPreview.ID?
     @State private var selectedRegionID: TimelineRegion.ID?
@@ -15,9 +16,13 @@ struct ProjectDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                OverviewGroupBoxView(project: project)
+                OverviewGroupBoxView(project: project, annotationStore: annotationStore)
                 ValidationGroupBoxView(issues: project.validationIssues)
-                TracksGroupBoxView(tracks: project.tracks, selectedTrackID: $selectedTrackID)
+                TracksGroupBoxView(
+                    tracks: project.tracks,
+                    selectedTrackID: $selectedTrackID,
+                    annotationStore: annotationStore
+                )
                 RegionsTimelineGroupBoxView(
                     project: project,
                     selectedRegionID: $selectedRegionID
@@ -26,7 +31,7 @@ struct ProjectDetailView: View {
             }
             .padding()
         }
-        .navigationTitle(project.folderName)
+        .navigationTitle(annotationStore.annotationContext?.effectiveDisplayName ?? project.folderName)
         .frame(minWidth: 600)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -42,7 +47,8 @@ struct ProjectDetailView: View {
             TrackRegionInspectorView(
                 project: project,
                 selectedTrack: project.tracks.first { $0.id == selectedTrackID },
-                selectedRegion: project.unassignedAudioRegions.first { $0.id == selectedRegionID }
+                selectedRegion: project.unassignedAudioRegions.first { $0.id == selectedRegionID },
+                annotationStore: annotationStore
             )
             .inspectorColumnWidth(min: 240, ideal: 300, max: 360)
         }
@@ -63,12 +69,21 @@ struct ProjectDetailView: View {
 
 private struct OverviewGroupBoxView: View {
     let project: PortastudioProject
+    let annotationStore: TrackAnnotationStore
+
+    @State private var nameDraft: String = ""
+    @FocusState private var nameFieldFocused: Bool
 
     private var summary: SongDetailSummary { SongDetailSummary(project: project) }
+    private var context: SongAnnotationContext? { annotationStore.annotationContext }
 
     var body: some View {
         GroupBox {
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                if context != nil {
+                    songNameRow
+                    Divider().gridCellUnsizedAxes(.horizontal)
+                }
                 GridRow {
                     Text("Folder").foregroundStyle(.secondary)
                     Text(summary.folderName).fontWeight(.medium)
@@ -126,6 +141,45 @@ private struct OverviewGroupBoxView: View {
                 .font(.headline)
         }
         .accessibilityLabel("Song overview")
+        .task(id: context?.songFingerprintString) {
+            nameDraft = context?.displayNameOverride ?? ""
+        }
+    }
+
+    @ViewBuilder
+    private var songNameRow: some View {
+        GridRow {
+            Text("Name").foregroundStyle(.secondary)
+            if context?.isEditable == true {
+                HStack(spacing: 4) {
+                    TextField("Song name", text: $nameDraft)
+                        .focused($nameFieldFocused)
+                        .onSubmit { commitName() }
+                        .onChange(of: nameFieldFocused) { _, focused in
+                            if !focused { commitName() }
+                        }
+                    if !nameDraft.isEmpty {
+                        Button {
+                            nameDraft = ""
+                            annotationStore.setSongDisplayNameOverride(nil)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Clear name override")
+                    }
+                }
+            } else {
+                Text(context?.effectiveDisplayName ?? project.folderName)
+                    .fontWeight(.medium)
+            }
+        }
+    }
+
+    private func commitName() {
+        annotationStore.setSongDisplayNameOverride(nameDraft.isEmpty ? nil : nameDraft)
+        nameDraft = annotationStore.annotationContext?.displayNameOverride ?? ""
     }
 }
 
@@ -172,10 +226,11 @@ private struct ValidationGroupBoxView: View {
 private struct TracksGroupBoxView: View {
     let tracks: [TrackPreview]
     @Binding var selectedTrackID: TrackPreview.ID?
+    let annotationStore: TrackAnnotationStore
 
     var body: some View {
         GroupBox {
-            TrackTableView(tracks: tracks, selectedTrackID: $selectedTrackID)
+            TrackTableView(tracks: tracks, selectedTrackID: $selectedTrackID, annotationStore: annotationStore)
                 .frame(minHeight: 200, idealHeight: 300)
         } label: {
             Label("Tracks", systemImage: "slider.horizontal.3")
