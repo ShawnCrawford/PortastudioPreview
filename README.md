@@ -6,11 +6,13 @@ The app is designed for safe inspection and approximate playback during reverse-
 
 ## Goals
 
+- Add an SD card root or backup folder and browse all its songs.
 - Open an individual DP-32SD song folder.
+- Classify selected folders conservatively as media roots, backup roots, or song folders.
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
 - Show track-level mixer bytes and candidate WAV inventory.
 - Provide approximate stereo playback for quick validation.
-- Keep a read-only in-memory source library shell with `SD Cards & Backups`, `Individual Songs`, and `Missing` sections.
+- Keep a read-only in-memory source library with `SD Cards & Backups`, `Individual Songs`, and `Missing` sections.
 
 ## Non-Goals
 
@@ -33,12 +35,19 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
 
-## Current App Shell (Phase 1)
+## Current App Shell (Phase 2)
 
 - `NavigationSplitView` uses a source-library sidebar with native `List(selection:)`, `Section`, and `DisclosureGroup` structure.
-- `Command-O` and toolbar action `Open Individual Song...` load a selected folder via `ProjectFolderLoader`.
-- Opened folders are inserted/updated under `Individual Songs`, selected, and shown in the existing project detail UI.
-- `SD Cards & Backups` and `Missing` remain visible as structural placeholder sections for later phases.
+- **Add SD Card or Backup...** (`Command-Shift-O`) and toolbar button accept a card root or backup root folder, classify it via `SourceFolderClassifier`, scan `MUSIC/` for song folders, and insert a nested source row under `SD Cards & Backups`.
+- **Open Individual Song...** (`Command-O`) routes through `SourceFolderClassifier` first and rejects non-song folders with a clear error before loading.
+- Sources upsert by canonical URL so reopening the same root updates the existing row without duplicating it.
+- Selecting a nested source song loads the project on demand via `ProjectFolderLoader` through `SourceLibraryStore.loadIfSourceSong()`.
+- Opened individual song folders insert/update under `Individual Songs`, selected, and shown in the existing project detail UI.
+- `SourceFolderClassifier` ignores hidden Apple metadata (`.DS_Store`, `._*`, `.Spotlight-V100`, `.fseventsd`) and classifies by folder contents, not folder names.
+- Classification: `.mediaRoot` requires `dp-24.sys` + `MUSIC/` + at least one valid song; `.backupRoot` requires `MUSIC/` + valid songs; `.songFolder` requires `song.sys` + `edltable.sys` directly inside.
+- Source rows in the sidebar show a kind-specific icon and a secondary `SD Card · /path` or `Backup · /path` label.
+- `Missing` section remains visible as a structural placeholder for Phase 3 persistence.
+- Phase 2 is in-memory only — no security-scoped bookmarks, no persistence, no automatic removable-media detection.
 
 Run focused suites:
 

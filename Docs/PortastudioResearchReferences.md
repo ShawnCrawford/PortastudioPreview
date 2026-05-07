@@ -59,8 +59,8 @@ Observed fields from the inspected card:
 Current app impact:
 
 - No current preview parsing should depend on `dp-24.sys`; project reconstruction still comes from each opened song folder's `song.sys`, `edltable.sys`, and WAV inventory.
-- This file could become useful if the app adds an "open SD card root" flow. It may support card validation, device-family identification, and highlighting the current or last-loaded song.
-- Treat the `SONG_0046` interpretation as a hypothesis for future controlled testing, not as confirmed song-selection semantics.
+- `dp-24.sys` presence at a folder root is now used by `SourceFolderClassifier` as the primary signal for `.mediaRoot` classification (versus `.backupRoot` for roots that have `MUSIC/` and valid songs but no `dp-24.sys`). It is treated as a structural presence check only — no field parsing is performed.
+- The `SONG_0046` interpretation at `0x0428` remains a hypothesis for future controlled testing, not confirmed song-selection semantics.
 
 ## Current Parser Evidence
 

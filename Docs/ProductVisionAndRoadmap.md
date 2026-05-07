@@ -49,16 +49,20 @@ The current app already has the right native macOS foundation:
 | --- | --- |
 | App shell | Uses a native SwiftUI `WindowGroup`. |
 | Main layout | Uses `NavigationSplitView`. |
-| Sidebar | Uses a source-library sidebar shell with native `List(selection:)`, `Section`, and structural `DisclosureGroup` rows (`SD Cards & Backups`, `Individual Songs`, `Missing`). |
-| Opening | Lets the user open one DP-32SD individual song folder with `NSOpenPanel`, then inserts/updates it under `Individual Songs`. |
-| Commands | Supports `Open Individual Song...` and `Command-O`. |
+| Sidebar | Uses a source-library sidebar with native `List(selection:)`, `Section`, and `DisclosureGroup` rows (`SD Cards & Backups`, `Individual Songs`, `Missing`). Source rows show kind icon and secondary path/kind label. |
+| Opening individual song | `Command-O` and toolbar action `Open Individual Song...` load a selected folder via `ProjectFolderLoader`. Folder is classified first; non-song folders show a clear error. |
+| Adding SD card or backup | `Command-Shift-O` and toolbar action `Add SD Card or Backup...` classify a root folder, scan `MUSIC/` for song subfolders, and create a nested source row with song list. |
+| Folder classification | `SourceFolderClassifier` classifies as `.mediaRoot`, `.backupRoot`, `.songFolder`, or `.unsupported`. Ignores hidden Apple metadata (`._*`, `.DS_Store`, `.Spotlight-V100`, `.fseventsd`). |
+| Source deduplication | Sources upsert by canonical URL; reopening the same root updates the existing row. |
+| Source song loading | Selecting a nested source song loads the project on demand via `loadIfSourceSong()`. |
+| Commands | Supports `Open Individual Song...` with `Command-O` and `Add SD Card or Backup...` with `Command-Shift-O`. |
 | Project detail | Shows validation, track information, unassigned regions, and transport. |
 | Track display | Uses SwiftUI `Table` for parsed track and mixer data. |
 | Region display | Uses SwiftUI `Table` for unassigned WAV/timeline regions. |
 | Preview playback | Uses AVFoundation through `StereoPreviewEngine`. |
 | Parser stance | Read-only and evidence-labeled. |
-
-The current UI is still an MVP inspection surface. It is mostly organized around parser output, not yet around a user-facing library workflow.
+| Persistence | In-memory only. No security-scoped bookmarks or remembered locations yet (Phase 3). |
+| Removable media detection | None. Manual add flows only (Phase 12). |
 
 ## Final App Experience Target
 
@@ -494,7 +498,7 @@ Each phase should be small enough to become one dedicated implementation plan fo
 
 Part 1 should result in an app that feels useful even without backup/export: users can add sources, browse songs, reopen remembered items, inspect tracks, preview audio, and add basic local labels.
 
-#### Phase 1: Source Library Shell
+#### Phase 1: Source Library Shell ✓ Implemented
 
 - Replace the summary-only sidebar with a source library model.
 - Use `NavigationSplitView`, `List(selection:)`, `Section`, and expandable source rows.
@@ -502,13 +506,16 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - Keep selected-song loading wired to the current parser/detail path.
 - Preserve read-only behavior.
 
-#### Phase 2: Manual Add Flows
+#### Phase 2: Manual Add Flows ✓ Implemented
 
-- Add toolbar/menu actions for "Add SD Card or Backup" and "Open Individual Song".
-- Classify selected folders as media roots, backup roots, or song folders using expected Portastudio files and folders.
-- Recognize root items such as `dp-24.sys`, `MUSIC/`, `AudioDepot/`, and `UTILITY/`.
-- Recognize song folders containing `song.sys` and `edltable.sys`, regardless of folder naming style.
-- Keep this user-driven. Do not auto-scan mounted removable media in Part 1.
+- Add toolbar/menu actions for "Add SD Card or Backup" (`Command-Shift-O`) and "Open Individual Song" (`Command-O`).
+- Classify selected folders as media roots, backup roots, or song folders using `SourceFolderClassifier`.
+- Recognize root items such as `dp-24.sys` (media root signal), `MUSIC/` (required for root classification), and validate song folders by `song.sys` + `edltable.sys` presence, regardless of folder naming style.
+- Ignore hidden Apple metadata (`.DS_Store`, `._*`, `.Spotlight-V100`, `.fseventsd`) during classification.
+- Sources upsert by canonical URL; reopening the same root updates the existing row.
+- Selecting a nested source song loads the project on demand.
+- Unsupported folders surface a clear non-destructive error.
+- In-memory only. No security-scoped bookmarks or persistence.
 
 #### Phase 3: Remembered Locations MVP
 
