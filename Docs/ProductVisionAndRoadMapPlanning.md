@@ -23,6 +23,8 @@ Add "Add SD Card or Backup" and "Open Individual Song" actions. Classify selecte
 
 Persist opened sources and songs with display name, source kind, last-known path, and security-scoped bookmark data. Show missing locations as muted rows with basic Forget and Relocate affordances.
 
+Status (implemented on May 7, 2026): SwiftData persistence is now active. `LibrarySourceRecord` and `LibrarySongRecord` are persisted via `ModelContainer` injected from `PortastudioPreviewApp`. `SourceLibraryStore` hydrates from SwiftData at launch, upserts on add/open, marks unresolvable records as missing without deleting them, and exposes `forgetSource`, `forgetSong`, `relocateSource`, and `relocateSong`. `SecurityScopedBookmarkService` creates and resolves security-scoped bookmarks; `PassthroughBookmarkService` provides a test seam. Sidebar shows muted missing rows with Relocate and Forget context menus, and Reveal in Finder on available rows. `RememberedLocationStoreTests` covers all plan scenarios with an in-memory `ModelContainer`.
+
 ### Phase 4: Source/Song Fingerprint MVP
 
 Create lightweight fingerprints for source roots and songs using folder names, root structure, `song.sys`, `edltable.sys`, and WAV inventory metadata. Use this only for display and conservative matching, not backup safety yet.

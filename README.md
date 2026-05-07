@@ -1,6 +1,6 @@
 # PortastudioPreview
 
-PortastudioPreview is a macOS SwiftUI prototype for read-only preview of TASCAM DP-32SD song folders, with an in-app source-library sidebar shell.
+PortastudioPreview is a macOS SwiftUI prototype for read-only preview of TASCAM DP-32SD song folders, with an app-owned source library that remembers opened SD card roots, backup roots, and individual songs across relaunches.
 
 The app is designed for safe inspection and approximate playback during reverse-engineering. It does not write to project folders.
 
@@ -12,13 +12,16 @@ The app is designed for safe inspection and approximate playback during reverse-
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
 - Show track-level mixer bytes and candidate WAV inventory.
 - Provide approximate stereo playback for quick validation.
-- Keep a read-only in-memory source library with `SD Cards & Backups`, `Individual Songs`, and `Missing` sections.
+- Remember opened sources and songs using SwiftData and security-scoped bookmarks.
+- Show missing remembered locations as muted rows with Relocate and Forget affordances.
 
 ## Non-Goals
 
 - No project mutation, export, or normalization.
 - No destructive operations on sample folders.
 - No claims above documented evidence levels.
+- No automatic removable-media detection (Phase 12).
+- No source/song fingerprinting or identity matching (Phase 4).
 
 ## Repository Layout
 
@@ -35,19 +38,36 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
 
-## Current App Shell (Phase 2)
+## Current App Shell (Phase 3)
+
+### Persistence and Remembered Locations
+
+- Opened sources and songs are persisted using **SwiftData** (`LibrarySourceRecord`, `LibrarySongRecord`) injected into `SourceLibraryStore` via `ModelContainer` from `PortastudioPreviewApp`.
+- Security-scoped bookmarks are created and resolved by `SecurityScopedBookmarkService` (production) / `PassthroughBookmarkService` (test seam).
+- On launch, `hydrateFromPersistence()` reloads all remembered sources and songs; records whose bookmark and fallback path both fail resolve as muted missing rows rather than being deleted.
+- Source records cascade-delete their nested song records when forgotten.
+- Standalone individual songs use `isStandalone = true` in the SwiftData model to distinguish them from source-nested songs.
+
+### Sidebar Affordances
+
+- **Available source rows**: context menu with **Reveal in Finder** and **Forget**.
+- **Available individual song rows**: context menu with **Reveal in Finder** and **Forget**.
+- **Missing source rows**: appear in the `Missing` section as muted rows; context menu with **Relocate...** and **Forget**.
+- **Missing individual song rows**: same muted treatment and context menu as missing sources.
+- `Relocate...` opens `NSOpenPanel`, classifies the chosen folder, validates kind-compatibility, updates bookmark/path/display data, and moves the row out of `Missing` if valid; wrong-kind selections leave the missing record intact and surface a load error.
+- `Forget` removes only the SwiftData record; source files are never modified.
+
+### Source Library (carried forward from Phase 2)
 
 - `NavigationSplitView` uses a source-library sidebar with native `List(selection:)`, `Section`, and `DisclosureGroup` structure.
-- **Add SD Card or Backup...** (`Command-Shift-O`) and toolbar button accept a card root or backup root folder, classify it via `SourceFolderClassifier`, scan `MUSIC/` for song folders, and insert a nested source row under `SD Cards & Backups`.
-- **Open Individual Song...** (`Command-O`) routes through `SourceFolderClassifier` first and rejects non-song folders with a clear error before loading.
-- Sources upsert by canonical URL so reopening the same root updates the existing row without duplicating it.
-- Selecting a nested source song loads the project on demand via `ProjectFolderLoader` through `SourceLibraryStore.loadIfSourceSong()`.
-- Opened individual song folders insert/update under `Individual Songs`, selected, and shown in the existing project detail UI.
+- **Add SD Card or Backup...** (`Command-Shift-O`) and toolbar button classify the chosen folder, persist a `LibrarySourceRecord`, scan `MUSIC/` for song folders, persist a `LibrarySongRecord` per song, and insert a nested source row.
+- **Open Individual Song...** (`Command-O`) routes through `SourceFolderClassifier`, persists a standalone `LibrarySongRecord`, and loads the project via `ProjectFolderLoader`.
+- Sources upsert by canonical URL so reopening the same root updates the existing row and bookmark without duplicating records.
+- Selecting a nested source song loads the project on demand via `loadIfSourceSong()`, which now also covers hydrated standalone songs.
 - `SourceFolderClassifier` ignores hidden Apple metadata (`.DS_Store`, `._*`, `.Spotlight-V100`, `.fseventsd`) and classifies by folder contents, not folder names.
 - Classification: `.mediaRoot` requires `dp-24.sys` + `MUSIC/` + at least one valid song; `.backupRoot` requires `MUSIC/` + valid songs; `.songFolder` requires `song.sys` + `edltable.sys` directly inside.
-- Source rows in the sidebar show a kind-specific icon and a secondary `SD Card · /path` or `Backup · /path` label.
-- `Missing` section remains visible as a structural placeholder for Phase 3 persistence.
-- Phase 2 is in-memory only — no security-scoped bookmarks, no persistence, no automatic removable-media detection.
+- Source rows show a kind-specific icon and a secondary `SD Card · /path` or `Backup · /path` label.
+- Automatic removable-media detection is not implemented (Phase 12).
 
 Run focused suites:
 

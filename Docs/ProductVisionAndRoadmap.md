@@ -49,11 +49,11 @@ The current app already has the right native macOS foundation:
 | --- | --- |
 | App shell | Uses a native SwiftUI `WindowGroup`. |
 | Main layout | Uses `NavigationSplitView`. |
-| Sidebar | Uses a source-library sidebar with native `List(selection:)`, `Section`, and `DisclosureGroup` rows (`SD Cards & Backups`, `Individual Songs`, `Missing`). Source rows show kind icon and secondary path/kind label. |
+| Sidebar | Uses a source-library sidebar with native `List(selection:)`, `Section`, and `DisclosureGroup` rows (`SD Cards & Backups`, `Individual Songs`, `Missing`). Source rows show kind icon and secondary path/kind label. Available rows have **Reveal in Finder** and **Forget** context menu actions. Missing rows have **Relocate…** and **Forget** context menu actions. |
 | Opening individual song | `Command-O` and toolbar action `Open Individual Song...` load a selected folder via `ProjectFolderLoader`. Folder is classified first; non-song folders show a clear error. |
 | Adding SD card or backup | `Command-Shift-O` and toolbar action `Add SD Card or Backup...` classify a root folder, scan `MUSIC/` for song subfolders, and create a nested source row with song list. |
 | Folder classification | `SourceFolderClassifier` classifies as `.mediaRoot`, `.backupRoot`, `.songFolder`, or `.unsupported`. Ignores hidden Apple metadata (`._*`, `.DS_Store`, `.Spotlight-V100`, `.fseventsd`). |
-| Source deduplication | Sources upsert by canonical URL; reopening the same root updates the existing row. |
+| Source deduplication | Sources upsert by canonical URL; reopening the same root updates the existing row and persisted record. |
 | Source song loading | Selecting a nested source song loads the project on demand via `loadIfSourceSong()`. |
 | Commands | Supports `Open Individual Song...` with `Command-O` and `Add SD Card or Backup...` with `Command-Shift-O`. |
 | Project detail | Shows validation, track information, unassigned regions, and transport. |
@@ -61,7 +61,12 @@ The current app already has the right native macOS foundation:
 | Region display | Uses SwiftUI `Table` for unassigned WAV/timeline regions. |
 | Preview playback | Uses AVFoundation through `StereoPreviewEngine`. |
 | Parser stance | Read-only and evidence-labeled. |
-| Persistence | In-memory only. No security-scoped bookmarks or remembered locations yet (Phase 3). |
+| Persistence | SwiftData (`LibrarySourceRecord`, `LibrarySongRecord`) injected via `ModelContainer`. Sources and standalone songs persist across relaunches. Nested source songs are cascade-deleted when their source is forgotten. |
+| Security-scoped bookmarks | Created and resolved by `SecurityScopedBookmarkService`. `PassthroughBookmarkService` is available as a test seam. Stale bookmarks are refreshed on resolution. Fallback to last-known path when bookmark fails. |
+| Missing-location handling | Records that fail both bookmark resolution and fallback path check are surfaced as muted missing rows; not deleted. Sidebar shows them in `Missing` with Relocate and Forget context menu actions. |
+| Sidebar context menus | Available rows: Reveal in Finder, Forget. Missing rows: Relocate…, Forget. |
+| Relocate | Opens `NSOpenPanel`, classifies folder, validates kind-compatibility (source accepts `.mediaRoot`/`.backupRoot`; song accepts `.songFolder`), updates bookmark/path/displayName, moves row out of Missing. Wrong-kind selection leaves missing record intact and sets a load error. |
+| Forget | Removes only the app-owned SwiftData record. Never modifies source files. |
 | Removable media detection | None. Manual add flows only (Phase 12). |
 
 ## Final App Experience Target
