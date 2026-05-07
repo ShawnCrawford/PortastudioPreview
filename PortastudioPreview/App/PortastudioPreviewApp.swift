@@ -6,13 +6,25 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct PortastudioPreviewApp: App {
+    let container: ModelContainer = {
+        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        do {
+            return try ModelContainer(for: schema, configurations: config)
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(container)
         .commands {
             ProjectCommands()
         }

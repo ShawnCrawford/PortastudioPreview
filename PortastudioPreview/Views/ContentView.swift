@@ -4,17 +4,31 @@
 //
 
 import AppKit
+import SwiftData
 import SwiftUI
 
 struct ContentView: View {
-    @State private var sourceLibraryStore = SourceLibraryStore()
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        ContentViewBody(modelContext: modelContext)
+    }
+}
+
+@MainActor
+private struct ContentViewBody: View {
+    @State private var store: SourceLibraryStore
+
+    init(modelContext: ModelContext) {
+        _store = State(wrappedValue: SourceLibraryStore(modelContext: modelContext))
+    }
 
     var body: some View {
         NavigationSplitView {
-            SourceLibrarySidebarView(store: sourceLibraryStore)
+            SourceLibrarySidebarView(store: store)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260)
         } detail: {
-            if let project = sourceLibraryStore.selectedProject {
+            if let project = store.selectedProject {
                 ProjectDetailView(project: project)
             } else {
                 ProjectOpenView(openAction: openIndividualSongFolder, addSourceAction: addSourceRoot)
@@ -32,8 +46,11 @@ struct ContentView: View {
                 }
             }
         }
-        .task(id: sourceLibraryStore.selection) {
-            await sourceLibraryStore.loadIfSourceSong()
+        .task {
+            await store.hydrateFromPersistence()
+        }
+        .task(id: store.selection) {
+            await store.loadIfSourceSong()
         }
         .focusedValue(\.openProjectAction, openIndividualSongFolder)
         .focusedValue(\.addSourceAction, addSourceRoot)
@@ -52,7 +69,7 @@ struct ContentView: View {
         }
 
         Task {
-            await sourceLibraryStore.addSourceRoot(at: url)
+            await store.addSourceRoot(at: url)
         }
     }
 
@@ -69,7 +86,7 @@ struct ContentView: View {
         }
 
         Task {
-            await sourceLibraryStore.openIndividualSongFolder(at: url)
+            await store.openIndividualSongFolder(at: url)
         }
     }
 }

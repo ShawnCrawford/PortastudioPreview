@@ -30,6 +30,8 @@ struct SourceLibrarySource: Identifiable, Hashable, Sendable {
     var songs: [SourceLibrarySong]
     var isExpanded: Bool
     var loadState: LoadState
+    var isMissing: Bool
+    var bookmarkData: Data?
 
     init(
         id: UUID = UUID(),
@@ -38,7 +40,9 @@ struct SourceLibrarySource: Identifiable, Hashable, Sendable {
         displayName: String,
         songs: [SourceLibrarySong] = [],
         isExpanded: Bool = true,
-        loadState: LoadState = .loaded
+        loadState: LoadState = .loaded,
+        isMissing: Bool = false,
+        bookmarkData: Data? = nil
     ) {
         self.id = id
         self.folderURL = folderURL
@@ -47,6 +51,8 @@ struct SourceLibrarySource: Identifiable, Hashable, Sendable {
         self.songs = songs
         self.isExpanded = isExpanded
         self.loadState = loadState
+        self.isMissing = isMissing
+        self.bookmarkData = bookmarkData
     }
 }
 
@@ -61,12 +67,27 @@ struct SourceLibrarySong: Identifiable, Hashable, Sendable {
     var folderURL: URL
     var displayName: String
     var loadState: LoadState
+    var isMissing: Bool
+    var bookmarkData: Data?
+    /// Non-nil for songs nested under a source root; the value is the parent source's `id`.
+    var sourceID: UUID?
 
-    init(id: UUID = UUID(), folderURL: URL, displayName: String, loadState: LoadState) {
+    init(
+        id: UUID = UUID(),
+        folderURL: URL,
+        displayName: String,
+        loadState: LoadState,
+        isMissing: Bool = false,
+        bookmarkData: Data? = nil,
+        sourceID: UUID? = nil
+    ) {
         self.id = id
         self.folderURL = folderURL
         self.displayName = displayName
         self.loadState = loadState
+        self.isMissing = isMissing
+        self.bookmarkData = bookmarkData
+        self.sourceID = sourceID
     }
 }
 
