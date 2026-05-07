@@ -94,6 +94,41 @@ struct SourceFolderClassifierTests {
         }
     }
 
+    @Test func appleDoubleFilesInsideMusicFolderDoNotCreateFakeSongs() throws {
+        // AppleDouble files inside MUSIC/ should not cause child directories to
+        // be treated as song folders; only real song.sys + edltable.sys pairs count.
+        let folder = try TemporaryFolder()
+        let musicURL = folder.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try FileManager.default.createDirectory(at: musicURL, withIntermediateDirectories: true)
+
+        // Write a fake "song folder" with only AppleDouble files, no real sys files
+        let fakeSong = musicURL.appendingPathComponent("SONG_FAKE", isDirectory: true)
+        try FileManager.default.createDirectory(at: fakeSong, withIntermediateDirectories: true)
+        try Data().write(to: fakeSong.appendingPathComponent("._song.sys"))
+        try Data().write(to: fakeSong.appendingPathComponent("._edltable.sys"))
+
+        guard case .unsupported = classifier.classify(url: folder.url) else {
+            Issue.record("Expected .unsupported — AppleDouble files inside MUSIC/ should not create fake songs.")
+            return
+        }
+    }
+
+    @Test func sourceRootWithValidSongsAndHiddenMetadataClassifiesCorrectly() throws {
+        // A root with both valid songs AND hidden system metadata should still classify
+        // correctly; the hidden files must not interfere.
+        let folder = try TemporaryFolder()
+        let musicURL = folder.url.appendingPathComponent("MUSIC", isDirectory: true)
+
+        // Add a valid song
+        try makeSongFolder(in: musicURL, name: "SONG_0001")
+
+        // Add hidden metadata files alongside the valid song
+        try Data().write(to: musicURL.appendingPathComponent(".DS_Store"))
+        try Data().write(to: musicURL.appendingPathComponent("._SONG_0001"))
+
+        #expect(classifier.classify(url: folder.url) == .backupRoot)
+    }
+
     // MARK: - Helpers
 
     @discardableResult

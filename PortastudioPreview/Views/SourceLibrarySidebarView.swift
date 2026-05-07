@@ -8,12 +8,30 @@ import SwiftUI
 
 struct SourceLibrarySidebarView: View {
     @Bindable var store: SourceLibraryStore
+    @State private var searchText = ""
+
+    private var filtered: SourceLibrarySearch.FilterResult {
+        SourceLibrarySearch.filter(
+            sources: store.sources,
+            individualSongs: store.individualSongs,
+            missingItems: store.missingItems,
+            searchText: searchText
+        )
+    }
+
+    private var isSearchActive: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         List(selection: $store.selection) {
             sourcesSection
             individualSongsSection
             missingSection
+
+            if isSearchActive && !filtered.hasAnyResults {
+                noResultsSection
+            }
 
             if let error = store.loadError {
                 Section("Load Error") {
@@ -24,25 +42,31 @@ struct SourceLibrarySidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search Sources and Songs")
+        .accessibilityIdentifier("sidebar-source-list")
     }
 
     // MARK: - SD Cards & Backups
 
     private var sourcesSection: some View {
         Section("SD Cards & Backups") {
-            let available = store.sources.filter { !$0.isMissing }
-            if available.isEmpty {
+            let availableInFilter = filtered.sources.filter { !$0.isMissing }
+            if availableInFilter.isEmpty && !isSearchActive {
                 mutedEmptyRow("No sources added")
+                    .accessibilityLabel("No sources added")
             } else {
                 ForEach($store.sources) { $source in
-                    if !source.isMissing {
+                    if !source.isMissing && filteredSourceIsVisible(source) {
+                        let visibleSongs = filteredSongs(for: source)
                         DisclosureGroup(isExpanded: $source.isExpanded) {
-                            if source.songs.isEmpty {
+                            if visibleSongs.isEmpty {
                                 mutedEmptyRow("No songs found")
+                                    .accessibilityLabel("No songs found in \(source.displayName)")
                             } else {
-                                ForEach(source.songs.filter { !$0.isMissing }) { song in
+                                ForEach(visibleSongs) { song in
                                     SourceLibrarySongRow(song: song)
                                         .tag(SourceLibrarySelection.individualSong(song.id))
+                                        .accessibilityLabel(sourceSongAccessibilityLabel(song))
                                         .contextMenu {
                                             Button("Reveal in Finder") {
                                                 NSWorkspace.shared.activateFileViewerSelecting([song.folderURL])
@@ -59,6 +83,8 @@ struct SourceLibrarySidebarView: View {
                             }
                         }
                         .tag(SourceLibrarySelection.source(source.id))
+                        .accessibilityLabel(sourceAccessibilityLabel(source))
+                        .accessibilityHint("Select to browse songs")
                         .contextMenu {
                             Button("Reveal in Finder") {
                                 NSWorkspace.shared.activateFileViewerSelecting([source.folderURL])
@@ -78,13 +104,15 @@ struct SourceLibrarySidebarView: View {
 
     private var individualSongsSection: some View {
         Section("Individual Songs") {
-            let available = store.individualSongs.filter { !$0.isMissing }
-            if available.isEmpty {
+            let available = filtered.individualSongs.filter { !$0.isMissing }
+            if available.isEmpty && !isSearchActive {
                 mutedEmptyRow("No songs opened")
+                    .accessibilityLabel("No individual songs opened")
             } else {
                 ForEach(available) { song in
                     SourceLibrarySongRow(song: song)
                         .tag(SourceLibrarySelection.individualSong(song.id))
+                        .accessibilityLabel(individualSongAccessibilityLabel(song))
                         .contextMenu {
                             Button("Reveal in Finder") {
                                 NSWorkspace.shared.activateFileViewerSelecting([song.folderURL])
@@ -103,15 +131,20 @@ struct SourceLibrarySidebarView: View {
 
     private var missingSection: some View {
         Section("Missing") {
-            let missingSources = store.sources.filter(\.isMissing)
-            let missingSongs = store.individualSongs.filter(\.isMissing)
+            let missingSources = filtered.sources.filter(\.isMissing)
+            let missingSongs = filtered.individualSongs.filter(\.isMissing)
+            let missingOther = filtered.missingItems
 
-            if missingSources.isEmpty && missingSongs.isEmpty && store.missingItems.isEmpty {
+            if missingSources.isEmpty && missingSongs.isEmpty && missingOther.isEmpty && !isSearchActive {
                 mutedEmptyRow("No missing items")
+                    .accessibilityLabel("No missing items")
             } else {
                 ForEach(missingSources) { source in
                     MissingSourceRow(source: source)
                         .tag(SourceLibrarySelection.source(source.id))
+                        .accessibilityLabel("Missing \(source.kind == .mediaRoot ? "SD Card" : "Backup"): \(source.displayName)")
+                        .accessibilityHint("Use context menu to relocate or forget")
+                        .accessibilityIdentifier("missing-source-\(source.id)")
                         .contextMenu {
                             Button("Relocate...") { performRelocateSource(source) }
                             Divider()
@@ -123,6 +156,9 @@ struct SourceLibrarySidebarView: View {
                 ForEach(missingSongs) { song in
                     MissingSongRow(song: song)
                         .tag(SourceLibrarySelection.individualSong(song.id))
+                        .accessibilityLabel("Missing song: \(song.displayName)")
+                        .accessibilityHint("Use context menu to relocate or forget")
+                        .accessibilityIdentifier("missing-song-\(song.id)")
                         .contextMenu {
                             Button("Relocate...") { performRelocateSong(song) }
                             Divider()
@@ -131,7 +167,7 @@ struct SourceLibrarySidebarView: View {
                             }
                         }
                 }
-                ForEach(store.missingItems) { item in
+                ForEach(missingOther) { item in
                     VStack(alignment: .leading, spacing: 2) {
                         Label(item.displayName, systemImage: "questionmark.folder")
                         if let detail = item.detail {
@@ -141,8 +177,20 @@ struct SourceLibrarySidebarView: View {
                         }
                     }
                     .tag(SourceLibrarySelection.missingItem(item.id))
+                    .accessibilityLabel("Missing item: \(item.displayName)")
+                    .accessibilityIdentifier("missing-item-\(item.id)")
                 }
             }
+        }
+    }
+
+    // MARK: - No Results
+
+    private var noResultsSection: some View {
+        Section {
+            Label("No results for \"\(searchText)\"", systemImage: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("No results for search: \(searchText)")
         }
     }
 
@@ -171,6 +219,47 @@ struct SourceLibrarySidebarView: View {
             label += " · \(matchLabel)"
         }
         return label
+    }
+
+    /// Returns `true` if the source should be visible given the current search filter.
+    private func filteredSourceIsVisible(_ source: SourceLibrarySource) -> Bool {
+        filtered.sources.contains { $0.id == source.id }
+    }
+
+    /// Returns songs to display under a source row, respecting the current search filter.
+    private func filteredSongs(for source: SourceLibrarySource) -> [SourceLibrarySong] {
+        guard isSearchActive else {
+            return source.songs.filter { !$0.isMissing }
+        }
+        return filtered.sources.first(where: { $0.id == source.id })?.songs ?? []
+    }
+
+    // MARK: - Accessibility label helpers
+
+    private func sourceAccessibilityLabel(_ source: SourceLibrarySource) -> String {
+        let kindName = source.kind == .mediaRoot ? "SD Card" : "Backup"
+        let songCount = source.songs.filter { !$0.isMissing }.count
+        var label = "\(source.displayName), \(kindName), \(songCount) song\(songCount == 1 ? "" : "s")"
+        if let matchLabel = fingerprintMatchStateLabel(source.matchState) {
+            label += ", \(matchLabel)"
+        }
+        return label
+    }
+
+    private func sourceSongAccessibilityLabel(_ song: SourceLibrarySong) -> String {
+        var label = song.displayName
+        if case .loaded = song.loadState, let matchLabel = fingerprintMatchStateLabel(song.matchState) {
+            label += ", \(matchLabel)"
+        } else if case .loading = song.loadState {
+            label += ", loading"
+        } else if case .failed = song.loadState {
+            label += ", load failed"
+        }
+        return label
+    }
+
+    private func individualSongAccessibilityLabel(_ song: SourceLibrarySong) -> String {
+        sourceSongAccessibilityLabel(song)
     }
 
     private func performRelocateSource(_ source: SourceLibrarySource) {

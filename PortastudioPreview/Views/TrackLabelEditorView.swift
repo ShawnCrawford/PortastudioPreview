@@ -30,6 +30,8 @@ struct TrackLabelEditorView: View {
                         .onChange(of: textFieldFocused) { _, focused in
                             if !focused { commitDraft() }
                         }
+                        .accessibilityLabel("Track \(trackNumber) name")
+                        .accessibilityIdentifier("track-label-field-\(trackNumber)")
 
                     if !draft.isEmpty {
                         Button {
@@ -41,6 +43,8 @@ struct TrackLabelEditorView: View {
                         }
                         .buttonStyle(.plain)
                         .help("Clear track name")
+                        .accessibilityLabel("Clear track \(trackNumber) name")
+                        .accessibilityIdentifier("track-label-clear-\(trackNumber)")
                     }
                 }
             } else {

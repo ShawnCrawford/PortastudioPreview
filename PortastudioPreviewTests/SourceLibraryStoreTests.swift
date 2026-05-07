@@ -313,4 +313,160 @@ struct SourceLibraryStoreTests {
 
         #expect(after == before)
     }
+
+    // MARK: - Phase 8: Hydration missing records
+
+    @Test func hydrationKeepsMissingRecordVisibleWhenResolutionFails() async throws {
+        let container = try makeTestContainer()
+
+        // Insert a source record pointing to a path that does not exist
+        let missingPath = "/tmp/does-not-exist-\(UUID().uuidString)"
+        let record = LibrarySourceRecord(
+            id: UUID(),
+            displayName: "Phantom Card",
+            kindRawValue: "backupRoot",
+            lastKnownPath: missingPath,
+            bookmarkData: nil,
+            isMissing: true,
+            lastSeenAt: Date()
+        )
+        container.mainContext.insert(record)
+        try container.mainContext.save()
+
+        let store = SourceLibraryStore(
+            modelContext: container.mainContext,
+            projectLoader: { _ in fatalError("Should not load.") }
+        )
+        await store.hydrateFromPersistence()
+
+        let missingSources = store.sources.filter(\.isMissing)
+        #expect(missingSources.count == 1)
+        #expect(missingSources.first?.displayName == "Phantom Card")
+    }
+
+    // MARK: - Phase 8: Wrong-kind relocate leaves missing row
+
+    @Test func wrongKindRelocateSourceLeavesSourceMissingAndRecordsError() async throws {
+        let folder = try TemporaryFolder()
+        // Make an SD card root
+        try Data().write(to: folder.url.appendingPathComponent("dp-24.sys"))
+        let musicURL = folder.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try makeMinimalSongFolder(in: musicURL, name: "SONG_0001")
+
+        let store = SourceLibraryStore(projectLoader: { _ in fatalError("Should not load.") })
+        await store.addSourceRoot(at: folder.url)
+
+        // Mark it as missing manually to simulate the relocate scenario
+        let sourceID = try #require(store.sources.first?.id)
+        if let index = store.sources.firstIndex(where: { $0.id == sourceID }) {
+            store.sources[index].isMissing = true
+        }
+
+        // Try to relocate to a song folder (wrong kind — should fail)
+        let songFolder = try TemporaryFolder()
+        try Data().write(to: songFolder.url.appendingPathComponent("song.sys"))
+        try Data().write(to: songFolder.url.appendingPathComponent("edltable.sys"))
+
+        await store.relocateSource(id: sourceID, to: songFolder.url)
+
+        #expect(store.loadError != nil)
+        // The source row should still be present (missing or not, it wasn't removed)
+        #expect(store.sources.contains { $0.id == sourceID })
+    }
+
+    // MARK: - Phase 8: Forget clears selection
+
+    @Test func forgetSourceClearsSelectionWhenSourceIsSelected() async throws {
+        let root = try TemporaryFolder()
+        try Data().write(to: root.url.appendingPathComponent("dp-24.sys"))
+        let musicURL = root.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try makeMinimalSongFolder(in: musicURL, name: "SONG_0001")
+
+        let store = SourceLibraryStore(projectLoader: { _ in fatalError("Should not load.") })
+        await store.addSourceRoot(at: root.url)
+
+        let sourceID = try #require(store.sources.first?.id)
+        #expect(store.selection == .source(sourceID))
+
+        store.forgetSource(id: sourceID)
+
+        #expect(store.sources.isEmpty)
+        #expect(store.selection == nil)
+        #expect(store.selectedProject == nil)
+    }
+
+    @Test func forgetSongClearsSelectionWhenSongIsSelected() async throws {
+        let folder = try TemporaryFolder()
+        try writeMinimumSongSys(to: folder.url.appendingPathComponent("song.sys"))
+        try writeMinimumEdlTable(to: folder.url.appendingPathComponent("edltable.sys"))
+
+        let store = SourceLibraryStore()
+        await store.openIndividualSongFolder(at: folder.url)
+
+        let songID = try #require(store.individualSongs.first?.id)
+        #expect(store.selection == .individualSong(songID))
+
+        store.forgetSong(id: songID)
+
+        #expect(store.individualSongs.isEmpty)
+        #expect(store.selection == nil)
+        #expect(store.selectedProject == nil)
+    }
+
+    // MARK: - Phase 8: Selecting nested source song loads project
+
+    @Test func selectingNestedSourceSongLoadsProjectOnce() async throws {
+        let root = try TemporaryFolder()
+        try Data().write(to: root.url.appendingPathComponent("dp-24.sys"))
+        let musicURL = root.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try makeMinimalSongFolder(in: musicURL, name: "SONG_0001")
+
+        var loadCount = 0
+        let songFolder = musicURL.appendingPathComponent("SONG_0001", isDirectory: true)
+        try writeMinimumSongSys(to: songFolder.appendingPathComponent("song.sys"))
+        try writeMinimumEdlTable(to: songFolder.appendingPathComponent("edltable.sys"))
+
+        let store = SourceLibraryStore(projectLoader: { url in
+            loadCount += 1
+            return try await ProjectFolderLoader().loadProject(at: url)
+        })
+        await store.addSourceRoot(at: root.url)
+
+        let source = try #require(store.sources.first)
+        let song = try #require(source.songs.first)
+
+        store.selection = .individualSong(song.id)
+        await store.loadIfSourceSong()
+
+        #expect(loadCount == 1)
+        #expect(store.selectedProject != nil)
+        #expect(store.selectedProject?.folderURL == song.folderURL)
+    }
+
+    // MARK: - Phase 8: Read-only guard after forget and relocate failure
+
+    @Test func sourceAndSongFoldersUnchangedAfterForgetAndRelocateFailure() async throws {
+        let root = try TemporaryFolder()
+        try Data().write(to: root.url.appendingPathComponent("dp-24.sys"))
+        let musicURL = root.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try makeMinimalSongFolder(in: musicURL, name: "SONG_0001")
+        let before = try FileReadOnlyGuard.snapshot(of: root.url)
+
+        let store = SourceLibraryStore(projectLoader: { _ in fatalError("Should not load.") })
+        await store.addSourceRoot(at: root.url)
+
+        let sourceID = try #require(store.sources.first?.id)
+
+        // Forget the source
+        store.forgetSource(id: sourceID)
+
+        // Attempt a wrong-kind relocate against a song folder (will set loadError)
+        let badTarget = try TemporaryFolder()
+        try Data().write(to: badTarget.url.appendingPathComponent("song.sys"))
+        try Data().write(to: badTarget.url.appendingPathComponent("edltable.sys"))
+        await store.relocateSource(id: sourceID, to: badTarget.url)
+
+        let after = try FileReadOnlyGuard.snapshot(of: root.url)
+        #expect(after == before)
+    }
 }

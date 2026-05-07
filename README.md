@@ -39,7 +39,18 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
 
-## Current App Shell (Phase 7)
+### First-Round Polish and Validation (Phase 8)
+
+- **Sidebar search/filter**: `SourceLibrarySidebarView` now owns `@State private var searchText` and computes `FilterResult` via `SourceLibrarySearch.filter(sources:individualSongs:missingItems:searchText:)`. Source name/kind/path and nested song name/path matching is case-insensitive. A source match shows all its children; a song-only match narrows the children shown. A `noResultsSection` appears when search is active and all sections are empty.
+- **Toolbar/command polish**: Toolbar "Add SD Card or Backup…" and "Open Individual Song…" buttons now have `.help(…)` tooltips and `.accessibilityIdentifier` labels. Keyboard shortcuts were already present from earlier phases.
+- **SourceSelectedView**: Selecting a source row in the sidebar (without loading a specific song) now shows a polished intermediate detail view with source name, kind, path, song count, and match state. Previously this showed a blank detail area.
+- **Empty and missing states**: "No sources added", "No songs opened", and "No missing items" rows are suppressed during active search to avoid conflating empty-section feedback with no-results feedback. The unified "No results for…" row handles the active-search case.
+- **Accessibility**: Added `.accessibilityLabel`, `.accessibilityHint`, `.accessibilityIdentifier`, and `.accessibilityHidden(true)` to decorative icons and interactive elements across `ProjectOpenView`, `ProjectDetailView`, `TrackLabelEditorView`, and sidebar rows.
+- **Tests added** (all passing):
+  - `SourceLibrarySearchTests` (20 tests): empty/whitespace passthrough, source/song/missing matching logic, source-match shows all children, song-only match narrows children, no-results state, `hasAnyResults`, mutation safety, case insensitivity.
+  - `SourceFolderClassifierTests` additions: AppleDouble files inside MUSIC/ don't create fake songs; valid songs alongside hidden metadata classify correctly.
+  - `SourceLibraryStoreTests` additions: hydration keeps missing record visible, wrong-kind relocate leaves source missing with error, forget source/song clears selection, selecting nested source song loads project, source folders unchanged after forget/relocate-failure.
+  - `TrackAnnotationStoreTests` additions: nil context disables all writes, ambiguous match state disables writes, clearing labels is app-owned only.
 
 ### App-Owned Track Labels (Phase 7)
 

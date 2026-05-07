@@ -41,6 +41,8 @@ struct ProjectDetailView: View {
                     Label("Inspector", systemImage: "sidebar.right")
                 }
                 .help(isInspectorPresented ? "Hide Inspector" : "Show Inspector")
+                .accessibilityIdentifier("toolbar-inspector-toggle")
+                .accessibilityLabel(isInspectorPresented ? "Hide Inspector" : "Show Inspector")
             }
         }
         .inspector(isPresented: $isInspectorPresented) {
@@ -168,6 +170,7 @@ private struct OverviewGroupBoxView: View {
                         }
                         .buttonStyle(.plain)
                         .help("Clear name override")
+                        .accessibilityLabel("Clear song name override")
                     }
                 }
             } else {

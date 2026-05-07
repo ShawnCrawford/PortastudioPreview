@@ -284,4 +284,91 @@ struct TrackAnnotationStoreTests {
         let after = try FileReadOnlyGuard.snapshot(of: folder.url)
         #expect(after == before)
     }
+
+    // MARK: - Phase 8: Nil context disables writes
+
+    @Test func nilContextDisablesAllWrites() throws {
+        let container = try makeContainer()
+        let store = TrackAnnotationStore(modelContext: container.mainContext)
+        store.load(context: nil)
+
+        store.setTrackName("Should Not Save", for: 1)
+
+        #expect(store.trackName(for: 1) == nil)
+
+        let desc = FetchDescriptor<TrackAnnotationRecord>()
+        let records = try container.mainContext.fetch(desc)
+        #expect(records.isEmpty)
+    }
+
+    // MARK: - Phase 8: Ambiguous match state disables writes
+
+    @Test func ambiguousMatchStateDisablesWrites() throws {
+        let container = try makeContainer()
+        let store = TrackAnnotationStore(modelContext: container.mainContext)
+        let ambiguousCtx = SongAnnotationContext(
+            songRecordID: UUID(),
+            songFingerprintString: "fp-ambiguous",
+            folderURL: URL(fileURLWithPath: "/tmp/SONG_AMBIGUOUS"),
+            folderDerivedDisplayName: "SONG_AMBIGUOUS",
+            displayNameOverride: nil,
+            matchState: .ambiguous
+        )
+        store.load(context: ambiguousCtx)
+
+        store.setTrackName("Should Not Save", for: 1)
+
+        #expect(store.trackName(for: 1) == nil)
+
+        let desc = FetchDescriptor<TrackAnnotationRecord>()
+        let records = try container.mainContext.fetch(desc)
+        #expect(records.isEmpty)
+    }
+
+    // MARK: - Phase 8: Clearing labels is app-owned only
+
+    @Test func clearingLabelsAndDisplayNameOverrideIsAppOwnedOnly() throws {
+        let container = try makeContainer()
+
+        let songRecord = LibrarySongRecord(
+            id: UUID(),
+            displayName: "SONG_0001",
+            lastKnownPath: "/tmp/SONG_0001",
+            isStandalone: true
+        )
+        container.mainContext.insert(songRecord)
+        try container.mainContext.save()
+
+        let folder = try TemporaryFolder()
+        try Data(count: 64).write(to: folder.url.appendingPathComponent("song.sys"))
+
+        let before = try FileReadOnlyGuard.snapshot(of: folder.url)
+
+        let ctx = SongAnnotationContext(
+            songRecordID: songRecord.id,
+            songFingerprintString: "fp-clear-test",
+            folderURL: folder.url,
+            folderDerivedDisplayName: "SONG_0001",
+            displayNameOverride: nil,
+            matchState: .exact
+        )
+
+        let store = TrackAnnotationStore(modelContext: container.mainContext)
+        store.load(context: ctx)
+        store.setTrackName("Bass", for: 2)
+        store.setSongDisplayNameOverride("My Session")
+        store.clearTrackName(for: 2)
+        store.setSongDisplayNameOverride(nil)
+
+        let after = try FileReadOnlyGuard.snapshot(of: folder.url)
+        #expect(after == before)
+
+        // All writes went to SwiftData, not the source folder
+        let annDesc = FetchDescriptor<TrackAnnotationRecord>()
+        let records = try container.mainContext.fetch(annDesc)
+        #expect(records.isEmpty) // cleared
+        let songDesc = FetchDescriptor<LibrarySongRecord>()
+        let songs = try container.mainContext.fetch(songDesc)
+        #expect(songs.first?.displayNameOverride == nil) // cleared
+    }
 }

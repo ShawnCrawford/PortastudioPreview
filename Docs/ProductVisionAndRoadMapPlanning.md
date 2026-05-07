@@ -57,6 +57,8 @@ Add search, toolbar/menu polish, empty states, missing-folder states, accessibil
 
 Plan status (created on May 7, 2026): detailed implementation handoff saved at `Plans/Phase8FirstRoundPolishAndValidation.md`. The plan keeps Phase 8 limited to first-round app polish and validation: sidebar search/filter, command and toolbar discoverability, native empty and missing states, accessibility coverage, and focused tests. It explicitly defers backup/export, automatic removable-media detection, media browsing, waveforms, advanced metadata, and all Portastudio write workflows to later phases.
 
+Status (implemented): Sidebar `.searchable` added to `SourceLibrarySidebarView` with `SourceLibrarySearch` pure filter helper (`Models/SourceLibrarySearch.swift`). Source name/kind/path and nested song matching is case-insensitive. Source match shows all children; song-only match narrows children. A unified "No results for…" row appears when search is active and all sections are empty. `SourceSelectedView` added to `ContentView.swift` to handle the source-selected-without-loaded-song detail state. Toolbar buttons have `.help(…)` and `.accessibilityIdentifier`. Accessibility labels, hints, and identifiers added to `ProjectOpenView`, `ProjectDetailView`, `TrackLabelEditorView`, and sidebar rows. Tests added: 20 `SourceLibrarySearchTests`, 2 `SourceFolderClassifierTests` additions, 5 `SourceLibraryStoreTests` additions, 3 `TrackAnnotationStoreTests` additions. All tests passing.
+
 ## Part 2: Pre-Release / After-Release Considerations
 
 ### Phase 9: Backup MVP

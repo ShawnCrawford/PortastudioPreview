@@ -41,21 +41,21 @@ The app should be useful to normal users who want to:
 
 The core safety rule remains: the app should not modify Portastudio project files unless a future restore/write workflow is deliberately designed, validated, and clearly separated from read-only preview.
 
-## Current App Baseline
-
-The current app already has the right native macOS foundation:
+## Current App Baseline (Phase 8)
 
 | Area | Current status |
 | --- | --- |
 | App shell | Uses a native SwiftUI `WindowGroup`. |
 | Main layout | Uses `NavigationSplitView`. |
 | Sidebar | Uses a source-library sidebar with native `List(selection:)`, `Section`, and `DisclosureGroup` rows (`SD Cards & Backups`, `Individual Songs`, `Missing`). Source rows show kind icon and secondary path/kind label. Available rows have **Reveal in Finder** and **Forget** context menu actions. Missing rows have **Relocate…** and **Forget** context menu actions. |
+| Sidebar search | `.searchable` modifier on the sidebar list; `SourceLibrarySearch.filter` narrows sources, songs, and missing items. Source match shows all children; song-only match narrows children. No-results state shown when search active and all sections empty. |
+| Source-selected state | Selecting a source row (without a loaded song) shows `SourceSelectedView` in the detail area with name, kind, path, song count, and match state. |
 | Opening individual song | `Command-O` and toolbar action `Open Individual Song...` load a selected folder via `ProjectFolderLoader`. Folder is classified first; non-song folders show a clear error. |
 | Adding SD card or backup | `Command-Shift-O` and toolbar action `Add SD Card or Backup...` classify a root folder, scan `MUSIC/` for song subfolders, and create a nested source row with song list. |
 | Folder classification | `SourceFolderClassifier` classifies as `.mediaRoot`, `.backupRoot`, `.songFolder`, or `.unsupported`. Ignores hidden Apple metadata (`._*`, `.DS_Store`, `.Spotlight-V100`, `.fseventsd`). |
 | Source deduplication | Sources upsert by canonical URL; reopening the same root updates the existing row and persisted record. |
 | Source song loading | Selecting a nested source song loads the project on demand via `loadIfSourceSong()`. |
-| Commands | Supports `Open Individual Song...` with `Command-O` and `Add SD Card or Backup...` with `Command-Shift-O`. |
+| Commands | Supports `Open Individual Song...` with `Command-O` and `Add SD Card or Backup...` with `Command-Shift-O`. Toolbar buttons have `.help(…)` tooltips. |
 | Project detail | Uses a scrollable selected-song workspace with grouped sections for Overview, Validation, Tracks, Regions/Timeline, and Preview while keeping `navigationTitle(project.folderName)`. |
 | Track display | `TrackTableView` is the canonical raw track/mixer SwiftUI `Table` (raw bytes and evidence labels) inside the Tracks section. Single-row selection enabled via `@Binding`; selecting a row opens the track inspector. |
 | Region display | Unassigned WAV/timeline table data in a dedicated Regions/Timeline section with approximate-time labels. Single-row selection enabled via `@Binding`; selecting a row opens the region inspector. |
@@ -71,7 +71,9 @@ The current app already has the right native macOS foundation:
 | Fingerprinting | `FingerprintService` computes SHA-256 hashes for `dp-24.sys`, `song.sys`, `edltable.sys`, and metadata-only WAV inventory fingerprints. WAV contents are never hashed. Hidden Apple metadata is excluded. |
 | Match states | `FingerprintMatchState`: `.exact`, `.changedSinceLastSeen`, `.ambiguous` (reserved), `.unknown`. Sidebar secondary labels show `· Exact match` or `· Changed since last seen` when match state is resolved. |
 | Fingerprint persistence | `LibrarySourceRecord` and `LibrarySongRecord` store `aggregateFingerprintString`, `wavInventorySummaryString`, `fingerprintGeneratedAt`, `matchStateRawValue`. Fingerprints stored as `.exact` on add/open/relocate; match state recomputed on hydration without overwriting the stored baseline. |
+| Accessibility | Interactive controls across sidebar, toolbar, detail views, and inspector have `.accessibilityLabel`, `.accessibilityHint`, `.accessibilityIdentifier`, and `.accessibilityHidden(true)` on decorative icons. |
 | Removable media detection | None. Manual add flows only (Phase 12). |
+
 
 ## Final App Experience Target
 
@@ -571,14 +573,15 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - Implementation plan created on May 7, 2026: `Plans/Phase7BasicAppOwnedTrackLabels.md`.
 - Implemented on May 7, 2026. Added `TrackAnnotationRecord` SwiftData model keyed by song fingerprint + track number. `TrackAnnotationStore` is a `@MainActor @Observable` service that owns load/upsert/clear for track names and song display-name override. `SongAnnotationContext` carries identity and editability state (`isEditable` requires `.exact` fingerprint match). `SourceLibraryStore.selectedSongAnnotationContext()` builds and exposes context for the selected song. `ContentView` owns `annotationStore` and reloads context on selection change. `TrackTableView` adds a "Name" column from live annotation data. `TrackRegionInspectorView` shows `TrackLabelEditorView` — an editable text field that saves on Return and on focus loss, with read-only fallback and an orange warning when the fingerprint has changed. `ProjectDetailView` navigation title and overview section show the song display-name override when set. No source folders are ever modified; all annotation data is app-owned SwiftData. 15 new tests in `TrackAnnotationStoreTests`; all tests pass.
 
-#### Phase 8: First-Round Polish and Validation
+#### Phase 8: First-Round Polish and Validation ✅
 
 - Add search/filter for sources and songs.
 - Polish toolbar/menu commands and keyboard shortcuts.
 - Add native empty states, missing-folder states, and accessibility labels.
 - Add focused tests for source classification, remembered locations, selected song loading, and annotation persistence.
 - Validate build and test with the documented `xcodebuild` commands.
-- Implementation plan created on May 7, 2026: `Plans/Phase8FirstRoundPolishAndValidation.md`. The plan scopes Phase 8 to first-round polish and validation only: pure sidebar search/filter using localized standard matching, command/toolbar help and keyboard discoverability, lightweight native empty and missing states, accessibility labels/identifiers where useful, and focused tests for the existing source-library and annotation seams. Backup/export, automatic removable-media detection, media browsing, waveforms, advanced metadata, and Portastudio write workflows remain future phases.
+- Implementation plan: `Plans/Phase8FirstRoundPolishAndValidation.md`.
+- **Implemented**: Sidebar `.searchable` with `SourceLibrarySearch` filter helper; `SourceSelectedView` for source-row detail state; toolbar `.help()` and `.accessibilityIdentifier`; accessibility labels/hints/identifiers across views; 20 new search tests, 2 new classifier tests, 5 new store tests, 3 new annotation store tests. All tests passing.
 
 ### Part 2: Pre-Release / After-Release Considerations
 
