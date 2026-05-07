@@ -13,6 +13,8 @@ This plan splits the roadmap into **Part 1: first shippable product experience**
 
 Replace the current summary sidebar with a source library using `NavigationSplitView`, `List(selection:)`, `Section`, and expandable source rows. Include groups for SD card/backups, individual songs, and missing remembered items.
 
+Status (implemented on May 7, 2026): in-memory source library shell is now active with `Open Individual Song...` wired through the existing read-only loader flow.
+
 ### Phase 2: Manual Add Flows
 
 Add "Add SD Card or Backup" and "Open Individual Song" actions. Classify selected folders as media roots, backup roots, or song folders using expected Portastudio files and folders, but keep this user-driven.

@@ -1,15 +1,16 @@
 # PortastudioPreview
 
-PortastudioPreview is a macOS SwiftUI prototype for read-only preview of TASCAM DP-32SD project folders.
+PortastudioPreview is a macOS SwiftUI prototype for read-only preview of TASCAM DP-32SD song folders, with an in-app source-library sidebar shell.
 
 The app is designed for safe inspection and approximate playback during reverse-engineering. It does not write to project folders.
 
 ## Goals
 
-- Open a DP-32SD project folder.
+- Open an individual DP-32SD song folder.
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
 - Show track-level mixer bytes and candidate WAV inventory.
 - Provide approximate stereo playback for quick validation.
+- Keep a read-only in-memory source library shell with `SD Cards & Backups`, `Individual Songs`, and `Missing` sections.
 
 ## Non-Goals
 
@@ -31,6 +32,13 @@ xcodebuild -list -project PortastudioPreview.xcodeproj
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' build
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
+
+## Current App Shell (Phase 1)
+
+- `NavigationSplitView` uses a source-library sidebar with native `List(selection:)`, `Section`, and `DisclosureGroup` structure.
+- `Command-O` and toolbar action `Open Individual Song...` load a selected folder via `ProjectFolderLoader`.
+- Opened folders are inserted/updated under `Individual Songs`, selected, and shown in the existing project detail UI.
+- `SD Cards & Backups` and `Missing` remain visible as structural placeholder sections for later phases.
 
 Run focused suites:
 

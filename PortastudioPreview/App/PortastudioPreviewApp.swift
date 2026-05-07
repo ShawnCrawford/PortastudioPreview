@@ -24,7 +24,7 @@ struct ProjectCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            Button("Open Project Folder...") {
+            Button("Open Individual Song...") {
                 openProjectAction?()
             }
             .keyboardShortcut("o", modifiers: [.command])

@@ -7,34 +7,32 @@ import AppKit
 import SwiftUI
 
 struct ContentView: View {
-    @State private var project: PortastudioProject?
-    @State private var isLoading = false
-    @State private var loadError: String?
+    @State private var sourceLibraryStore = SourceLibraryStore()
 
     var body: some View {
         NavigationSplitView {
-            ProjectSummaryView(project: project, isLoading: isLoading, loadError: loadError)
+            SourceLibrarySidebarView(store: sourceLibraryStore)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260)
         } detail: {
-            if let project {
+            if let project = sourceLibraryStore.selectedProject {
                 ProjectDetailView(project: project)
             } else {
-                ProjectOpenView(openAction: openProjectFolder)
+                ProjectOpenView(openAction: openIndividualSongFolder)
             }
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(action: openProjectFolder) {
-                    Label("Open Project Folder", systemImage: "folder")
+                Button(action: openIndividualSongFolder) {
+                    Label("Open Individual Song...", systemImage: "folder")
                 }
             }
         }
-        .focusedValue(\.openProjectAction, openProjectFolder)
+        .focusedValue(\.openProjectAction, openIndividualSongFolder)
     }
 
-    private func openProjectFolder() {
+    private func openIndividualSongFolder() {
         let panel = NSOpenPanel()
-        panel.title = "Open DP-32SD Project Folder"
+        panel.title = "Open DP-32SD Song Folder"
         panel.prompt = "Open"
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -44,23 +42,8 @@ struct ContentView: View {
             return
         }
 
-        loadProject(at: url)
-    }
-
-    private func loadProject(at url: URL) {
-        isLoading = true
-        loadError = nil
-
         Task {
-            do {
-                let loadedProject = try await ProjectFolderLoader().loadProject(at: url)
-                project = loadedProject
-                isLoading = false
-            } catch {
-                project = nil
-                loadError = error.localizedDescription
-                isLoading = false
-            }
+            await sourceLibraryStore.openIndividualSongFolder(at: url)
         }
     }
 }

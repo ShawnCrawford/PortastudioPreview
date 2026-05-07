@@ -49,9 +49,9 @@ The current app already has the right native macOS foundation:
 | --- | --- |
 | App shell | Uses a native SwiftUI `WindowGroup`. |
 | Main layout | Uses `NavigationSplitView`. |
-| Sidebar | Shows a project summary in a native sidebar `List`. |
-| Opening | Lets the user open one DP-32SD project folder with `NSOpenPanel`. |
-| Commands | Supports an Open command and Command-O shortcut. |
+| Sidebar | Uses a source-library sidebar shell with native `List(selection:)`, `Section`, and structural `DisclosureGroup` rows (`SD Cards & Backups`, `Individual Songs`, `Missing`). |
+| Opening | Lets the user open one DP-32SD individual song folder with `NSOpenPanel`, then inserts/updates it under `Individual Songs`. |
+| Commands | Supports `Open Individual Song...` and `Command-O`. |
 | Project detail | Shows validation, track information, unassigned regions, and transport. |
 | Track display | Uses SwiftUI `Table` for parsed track and mixer data. |
 | Region display | Uses SwiftUI `Table` for unassigned WAV/timeline regions. |

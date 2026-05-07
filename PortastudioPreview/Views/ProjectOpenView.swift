@@ -14,11 +14,11 @@ struct ProjectOpenView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(.secondary)
 
-            Text("Open a DP-32SD project folder")
+            Text("Open an individual DP-32SD song folder")
                 .font(.title3)
 
             Button(action: openAction) {
-                Label("Open Project Folder", systemImage: "folder")
+                Label("Open Individual Song...", systemImage: "folder")
             }
             .buttonStyle(.borderedProminent)
         }
