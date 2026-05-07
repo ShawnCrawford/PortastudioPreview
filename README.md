@@ -76,14 +76,14 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
 - The inspector remains read-only toward Portastudio files. Phase 7 annotation edits are app-owned SwiftData writes only; no sidecar files or source-folder mutations are created.
 
-### Planned Next: First-Round Polish and Validation (Phase 8)
+### Planned Next: Waveform and Timeline Visualization (Phase 15)
 
-- Detailed handoff plan: `Plans/Phase8FirstRoundPolishAndValidation.md`.
-- Search/filter for sources and songs.
-- Polish toolbar/menu commands and keyboard shortcuts.
-- Native empty states, missing-folder states, and accessibility labels.
-- Focused tests for source classification, remembered locations, selected song loading, and annotation persistence.
-- Validate build and test with the documented `xcodebuild` commands.
+- Detailed handoff plan: `Plans/Phase15WaveformAndTimelineVisualization.md`.
+- Phase 15 has been promoted into the first-release visual polish path so the selected-song workspace can show a credible waveform/timeline view before shipping.
+- Visual target: resemble the supplied native macOS audio-editor reference with a source sidebar, selected-song header, central colored waveform lanes, ruler/playhead, transport/time area, and compact inspector, while preserving SwiftUI-native controls and materials.
+- Planned implementation: derived in-memory waveform peak summaries, custom SwiftUI `Canvas` waveform strips, region lanes, time ruler, zoom controls, selected-region highlighting, and playhead display.
+- Current baseline: `RegionsTimelineGroupBoxView` is table-only, using `project.unassignedAudioRegions` plus `EDLSummaryView`; `TimelineRegion` already carries start/end/length/source/evidence; `PreviewPlaybackPlanner` identifies playable and suppressed regions.
+- Guardrails: keep Portastudio folders read-only, do not write waveform caches or sidecars, keep track-to-WAV assignment and timeline inference labeled `Hypothesis`, and defer editing/scrubbing/export/backup/AudioDepot/restore workflows.
 
 ### Song Detail Workspace (Phase 5)
 

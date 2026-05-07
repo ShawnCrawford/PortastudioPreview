@@ -2,6 +2,8 @@
 
 This plan splits the roadmap into **Part 1: first shippable product experience** and **Part 2: pre-release/after-release expansion**. Part 1 focuses on making the current parser MVP feel like a useful native macOS app. Part 2 keeps the larger management workflows planned, but avoids blocking the first round of implementation.
 
+Update on May 7, 2026: Phase 15 is promoted into the first-release visual polish path because waveform and timeline presentation are needed for the app to feel credible at release. The phase number is preserved so it stays aligned with the broader roadmap, but its implementation should happen before the first release while backup/export/restore work remains separate.
+
 ## Scope
 
 - In: A phased roadmap that can be turned into separate implementation plans by AI agents.
@@ -88,6 +90,8 @@ Add first-class browsing for master mixes, exported tracks, project WAVs, and `A
 ### Phase 15: Waveform and Timeline Visualization
 
 Add custom SwiftUI `Canvas` waveform strips, region lanes, zoom, playhead display, and evidence-scoped timeline visualization. This is high-value polish but custom enough to defer.
+
+Plan status (created on May 7, 2026): detailed first-release handoff saved at `Plans/Phase15WaveformAndTimelineVisualization.md`. The plan keeps Phase 15 read-only and UI-focused: derive in-memory waveform peak summaries from selected-song WAVs, render a custom SwiftUI timeline above the existing region table, add zoom/ruler/selection/playhead affordances, and preserve all current `Hypothesis` evidence caveats. A supplied visual reference should guide the look: native macOS source sidebar, selected-song header, transport/time display, central colored waveform lanes with ruler and playhead, and a compact inspector. It explicitly defers editing, scrubbing, backup/export, media asset browsing, AudioDepot workflows, restore, source-folder waveform caches, and any promotion of track-to-WAV assignment evidence.
 
 ### Phase 16: AudioDepot Import Staging
 

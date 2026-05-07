@@ -59,6 +59,7 @@ The core safety rule remains: the app should not modify Portastudio project file
 | Project detail | Uses a scrollable selected-song workspace with grouped sections for Overview, Validation, Tracks, Regions/Timeline, and Preview while keeping `navigationTitle(project.folderName)`. |
 | Track display | `TrackTableView` is the canonical raw track/mixer SwiftUI `Table` (raw bytes and evidence labels) inside the Tracks section. Single-row selection enabled via `@Binding`; selecting a row opens the track inspector. |
 | Region display | Unassigned WAV/timeline table data in a dedicated Regions/Timeline section with approximate-time labels. Single-row selection enabled via `@Binding`; selecting a row opens the region inspector. |
+| Waveform/timeline visualization | Not implemented yet. Phase 15 has been promoted into first-release polish, with a detailed handoff plan at `Plans/Phase15WaveformAndTimelineVisualization.md`. Current implementation remains table-only for regions and EDL timeline candidates. Visual direction should resemble the supplied native-macOS audio-editor reference: source sidebar, selected-song header, central colored waveform lanes with ruler/playhead, and compact inspector. |
 | Inspector | `TrackRegionInspectorView` is a native right-side `.inspector` panel. Track view: mapped level/pan/mute values, raw byte offsets, mirror mismatch warnings, active-take byte (track 1), candidate WAV evidence, identity context, editable track-name field (Phase 7). Region view: source filename/path, start/length samples with approximate time, evidence, EDL file-list match, and assignment note. Toolbar toggle controls visibility. |
 | Preview playback | Uses AVFoundation through `StereoPreviewEngine`; Preview section keeps existing Play/Stop semantics and adds clearer empty-state messaging when no playable regions exist. |
 | Parser stance | Read-only and evidence-labeled. |
@@ -589,6 +590,8 @@ Part 2 contains important product features, but they carry more risk because the
 
 Each Part 2 phase should become its own dedicated plan before implementation.
 
+Release-planning update on May 7, 2026: Phase 15 is an exception to the original "after first round" positioning. It is now a first-release visual polish requirement, while its original phase number is preserved for roadmap continuity.
+
 #### Phase 9: Backup MVP
 
 - Add backup actions for sources and individual songs.
@@ -641,6 +644,9 @@ Each Part 2 phase should become its own dedicated plan before implementation.
 - Add region lanes, zoom, playhead display, and evidence-scoped timeline visualization.
 - Keep ambiguous regions visually distinct.
 - Avoid implying physical track mapping when it remains `Hypothesis`.
+- Implementation plan created on May 7, 2026: `Plans/Phase15WaveformAndTimelineVisualization.md`.
+- Promoted into the first-release visual polish path. The plan keeps this work read-only and selected-song scoped, using derived waveform peaks and custom SwiftUI timeline rendering while deferring editing, scrubbing, media asset browsing, export, backup, AudioDepot staging, restore, and source-folder waveform caches.
+- Visual target: carry forward the supplied reference's compact audio-workstation structure, colored waveform lanes, ruler/playhead, transport/time header, and right inspector while keeping controls, materials, typography, and sidebar behavior native SwiftUI/macOS.
 
 #### Phase 16: AudioDepot Import Staging
 
