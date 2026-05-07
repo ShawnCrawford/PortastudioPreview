@@ -67,6 +67,9 @@ The current app already has the right native macOS foundation:
 | Sidebar context menus | Available rows: Reveal in Finder, Forget. Missing rows: Relocate…, Forget. |
 | Relocate | Opens `NSOpenPanel`, classifies folder, validates kind-compatibility (source accepts `.mediaRoot`/`.backupRoot`; song accepts `.songFolder`), updates bookmark/path/displayName, moves row out of Missing. Wrong-kind selection leaves missing record intact and sets a load error. |
 | Forget | Removes only the app-owned SwiftData record. Never modifies source files. |
+| Fingerprinting | `FingerprintService` computes SHA-256 hashes for `dp-24.sys`, `song.sys`, `edltable.sys`, and metadata-only WAV inventory fingerprints. WAV contents are never hashed. Hidden Apple metadata is excluded. |
+| Match states | `FingerprintMatchState`: `.exact`, `.changedSinceLastSeen`, `.ambiguous` (reserved), `.unknown`. Sidebar secondary labels show `· Exact match` or `· Changed since last seen` when match state is resolved. |
+| Fingerprint persistence | `LibrarySourceRecord` and `LibrarySongRecord` store `aggregateFingerprintString`, `wavInventorySummaryString`, `fingerprintGeneratedAt`, `matchStateRawValue`. Fingerprints stored as `.exact` on add/open/relocate; match state recomputed on hydration without overwriting the stored baseline. |
 | Removable media detection | None. Manual add flows only (Phase 12). |
 
 ## Final App Experience Target
@@ -484,7 +487,7 @@ Decisions:
 - Keep all Portastudio files read-only. User labels, colors, notes, tags, source history, and backup history belong in SwiftData.
 - Start with manual "Add SD Card or Backup" and "Open Individual Song" flows. Automatic removable-media detection can be added after the library model is stable.
 - Classify SD card roots by root shape: `dp-24.sys`, `MUSIC/`, and candidate song folders with `song.sys` plus `edltable.sys`.
-- Use source manifests and song manifests for identity. Hash `dp-24.sys`, `song.sys`, and `edltable.sys`; summarize WAV inventory with normalized names, sizes, dates, and optional partial hashes.
+- Use source manifests and song manifests for identity. Hash `dp-24.sys`, `song.sys`, and `edltable.sys` with SHA-256; summarize WAV inventory with normalized names, sizes, dates, and optional partial hashes. WAV contents are not hashed during routine scans (Phase 4 implemented; partial/whole-WAV hashing may be added later).
 - Treat `dp-24.sys` as card-family/root-state evidence, not as a confirmed durable media ID.
 - Treat master WAVs and `AudioDepot` files as first-class `MediaAsset` records in SwiftData.
 - Keep project-region WAVs, rendered master WAVs, exported track WAVs, and import-staged depot WAVs separate in the data model and UI.
@@ -530,13 +533,15 @@ Part 1 should result in an app that feels useful even without backup/export: use
 - Do not automatically delete missing remembered items.
 - Keep missing-state language plain and user-facing.
 
-#### Phase 4: Source/Song Fingerprint MVP
+#### Phase 4: Source/Song Fingerprint MVP ✓ Implemented
 
 - Create lightweight fingerprints for source roots and songs.
 - Use folder names, root structure, `dp-24.sys` metadata/hash, `song.sys`, `edltable.sys`, and normalized WAV inventory metadata.
 - Ignore hidden Apple metadata such as `.Spotlight-V100`, `.fseventsd`, and AppleDouble `._*` files.
 - Use fingerprints for display and conservative matching only, not backup safety yet.
 - Represent match states such as exact, changed since last seen, ambiguous, and unknown.
+- WAV files are never content-hashed; only metadata (relative path, byte count, modification date) is used.
+- Fingerprints persist to SwiftData; match state is recomputed on hydration against the stored "last seen" baseline.
 
 #### Phase 5: Song Detail UI Refresh
 

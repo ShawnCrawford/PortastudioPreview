@@ -29,6 +29,8 @@ Status (implemented on May 7, 2026): SwiftData persistence is now active. `Libra
 
 Create lightweight fingerprints for source roots and songs using folder names, root structure, `song.sys`, `edltable.sys`, and WAV inventory metadata. Use this only for display and conservative matching, not backup safety yet.
 
+Status (implemented on May 7, 2026): `FingerprintService` computes SHA-256 hashes for `dp-24.sys`, `song.sys`, and `edltable.sys`, and builds metadata-only WAV inventory fingerprints (relative path, byte count, modification date; no WAV content hashing). `FingerprintMatchState` enum covers `.exact`, `.changedSinceLastSeen`, `.ambiguous` (reserved), and `.unknown`. Fingerprint fields added to `LibrarySourceRecord` and `LibrarySongRecord` via SwiftData lightweight migration. `SourceLibraryStore` persists fingerprints on add/open/relocate and computes match state on hydration. Sidebar rows show `· Exact match` or `· Changed since last seen` in secondary labels. All source folders remain read-only; no sidecar files or manifests are written.
+
 ### Phase 5: Song Detail UI Refresh
 
 Turn the current parser table view into a more polished selected-song workspace with sections for overview, tracks, regions/timeline summary, validation, and preview transport.

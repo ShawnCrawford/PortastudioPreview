@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftData
 import Testing
 @testable import PortastudioPreview
 
@@ -186,5 +187,130 @@ struct SourceLibraryStoreTests {
 
     private func writeMinimumEdlTable(to url: URL) throws {
         try Data(count: EdlTableParser.track1ActiveTakeCandidateOffset + 1).write(to: url)
+    }
+
+    // MARK: - In-memory SwiftData helpers
+
+    private func makeTestContainer() throws -> ModelContainer {
+        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self])
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: config)
+    }
+
+    // MARK: - Fingerprint persistence tests
+
+    @Test func addSourceRootPersistsSourceAndSongFingerprints() async throws {
+        let container = try makeTestContainer()
+        let root = try TemporaryFolder()
+        try Data([0x10, 0x20]).write(to: root.url.appendingPathComponent("dp-24.sys"))
+        let musicURL = root.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try makeMinimalSongFolder(in: musicURL, name: "SONG_0001")
+
+        let store = SourceLibraryStore(
+            modelContext: container.mainContext,
+            projectLoader: { _ in fatalError("Should not load.") }
+        )
+        await store.addSourceRoot(at: root.url)
+
+        let sourceDesc = FetchDescriptor<LibrarySourceRecord>()
+        let sources = try container.mainContext.fetch(sourceDesc)
+        let source = try #require(sources.first)
+        #expect(source.aggregateFingerprintString != nil)
+        #expect(source.fingerprintGeneratedAt != nil)
+        #expect(source.matchStateRawValue == FingerprintMatchState.exact.rawValue)
+
+        let songDesc = FetchDescriptor<LibrarySongRecord>()
+        let songs = try container.mainContext.fetch(songDesc)
+        let song = try #require(songs.first)
+        #expect(song.aggregateFingerprintString != nil)
+        #expect(song.matchStateRawValue == FingerprintMatchState.exact.rawValue)
+    }
+
+    @Test func openIndividualSongPersistsSongFingerprint() async throws {
+        let container = try makeTestContainer()
+        let folder = try TemporaryFolder()
+        try writeMinimumSongSys(to: folder.url.appendingPathComponent("song.sys"))
+        try writeMinimumEdlTable(to: folder.url.appendingPathComponent("edltable.sys"))
+
+        let store = SourceLibraryStore(modelContext: container.mainContext)
+        await store.openIndividualSongFolder(at: folder.url)
+
+        let desc = FetchDescriptor<LibrarySongRecord>()
+        let songs = try container.mainContext.fetch(desc)
+        let song = try #require(songs.first)
+        #expect(song.aggregateFingerprintString != nil)
+        #expect(song.fingerprintGeneratedAt != nil)
+        #expect(song.matchStateRawValue == FingerprintMatchState.exact.rawValue)
+    }
+
+    @Test func hydrationMarksUnchangedSourceExact() async throws {
+        let container = try makeTestContainer()
+        let root = try TemporaryFolder()
+        let musicURL = root.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try makeMinimalSongFolder(in: musicURL, name: "SONG_0001")
+
+        // First load persists fingerprints
+        let store = SourceLibraryStore(
+            modelContext: container.mainContext,
+            projectLoader: { _ in fatalError("Should not load.") }
+        )
+        await store.addSourceRoot(at: root.url)
+
+        // Simulate hydration by creating a fresh store with the same container
+        let store2 = SourceLibraryStore(
+            modelContext: container.mainContext,
+            projectLoader: { _ in fatalError("Should not load.") }
+        )
+        await store2.hydrateFromPersistence()
+
+        let source = try #require(store2.sources.first)
+        #expect(source.matchState == .exact)
+    }
+
+    @Test func hydrationMarksChangedKeyFileAsChangedSinceLastSeen() async throws {
+        let container = try makeTestContainer()
+        let root = try TemporaryFolder()
+        let musicURL = root.url.appendingPathComponent("MUSIC", isDirectory: true)
+        let songURL = musicURL.appendingPathComponent("SONG_0001", isDirectory: true)
+        try FileManager.default.createDirectory(at: songURL, withIntermediateDirectories: true)
+        try Data([0xAA]).write(to: songURL.appendingPathComponent("song.sys"))
+        try Data().write(to: songURL.appendingPathComponent("edltable.sys"))
+
+        let store = SourceLibraryStore(
+            modelContext: container.mainContext,
+            projectLoader: { _ in fatalError("Should not load.") }
+        )
+        await store.addSourceRoot(at: root.url)
+
+        // Mutate song.sys after fingerprint stored
+        try Data([0xBB]).write(to: songURL.appendingPathComponent("song.sys"))
+
+        let store2 = SourceLibraryStore(
+            modelContext: container.mainContext,
+            projectLoader: { _ in fatalError("Should not load.") }
+        )
+        await store2.hydrateFromPersistence()
+
+        let source = try #require(store2.sources.first)
+        // Source aggregate includes song summaries; changed song.sys changes it
+        #expect(source.matchState == .changedSinceLastSeen)
+    }
+
+    @Test func fingerprintScanDoesNotWriteToSourceFolder() async throws {
+        let container = try makeTestContainer()
+        let root = try TemporaryFolder()
+        try Data([0x01]).write(to: root.url.appendingPathComponent("dp-24.sys"))
+        let musicURL = root.url.appendingPathComponent("MUSIC", isDirectory: true)
+        try makeMinimalSongFolder(in: musicURL, name: "SONG_0001")
+        let before = try FileReadOnlyGuard.snapshot(of: root.url)
+
+        let store = SourceLibraryStore(
+            modelContext: container.mainContext,
+            projectLoader: { _ in fatalError("Should not load.") }
+        )
+        await store.addSourceRoot(at: root.url)
+        let after = try FileReadOnlyGuard.snapshot(of: root.url)
+
+        #expect(after == before)
     }
 }

@@ -17,6 +17,15 @@ final class LibrarySourceRecord {
     var lastSeenAt: Date?
     @Relationship(deleteRule: .cascade, inverse: \LibrarySongRecord.source) var songs: [LibrarySongRecord]
 
+    // MARK: - Phase 4: Fingerprint Fields
+
+    /// Aggregate fingerprint string computed at last scan; nil until first fingerprint pass.
+    var aggregateFingerprintString: String?
+    /// Date when the stored fingerprint was last computed.
+    var fingerprintGeneratedAt: Date?
+    /// Raw value of `FingerprintMatchState` set during hydration or explicit re-scan.
+    var matchStateRawValue: String?
+
     init(
         id: UUID = UUID(),
         displayName: String,

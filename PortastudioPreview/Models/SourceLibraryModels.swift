@@ -32,6 +32,8 @@ struct SourceLibrarySource: Identifiable, Hashable, Sendable {
     var loadState: LoadState
     var isMissing: Bool
     var bookmarkData: Data?
+    /// Identity match state computed from stored vs current fingerprint; nil before first fingerprint pass.
+    var matchState: FingerprintMatchState?
 
     init(
         id: UUID = UUID(),
@@ -42,7 +44,8 @@ struct SourceLibrarySource: Identifiable, Hashable, Sendable {
         isExpanded: Bool = true,
         loadState: LoadState = .loaded,
         isMissing: Bool = false,
-        bookmarkData: Data? = nil
+        bookmarkData: Data? = nil,
+        matchState: FingerprintMatchState? = nil
     ) {
         self.id = id
         self.folderURL = folderURL
@@ -53,6 +56,7 @@ struct SourceLibrarySource: Identifiable, Hashable, Sendable {
         self.loadState = loadState
         self.isMissing = isMissing
         self.bookmarkData = bookmarkData
+        self.matchState = matchState
     }
 }
 
@@ -71,6 +75,8 @@ struct SourceLibrarySong: Identifiable, Hashable, Sendable {
     var bookmarkData: Data?
     /// Non-nil for songs nested under a source root; the value is the parent source's `id`.
     var sourceID: UUID?
+    /// Identity match state computed from stored vs current fingerprint; nil before first fingerprint pass.
+    var matchState: FingerprintMatchState?
 
     init(
         id: UUID = UUID(),
@@ -79,7 +85,8 @@ struct SourceLibrarySong: Identifiable, Hashable, Sendable {
         loadState: LoadState,
         isMissing: Bool = false,
         bookmarkData: Data? = nil,
-        sourceID: UUID? = nil
+        sourceID: UUID? = nil,
+        matchState: FingerprintMatchState? = nil
     ) {
         self.id = id
         self.folderURL = folderURL
@@ -88,6 +95,7 @@ struct SourceLibrarySong: Identifiable, Hashable, Sendable {
         self.isMissing = isMissing
         self.bookmarkData = bookmarkData
         self.sourceID = sourceID
+        self.matchState = matchState
     }
 }
 

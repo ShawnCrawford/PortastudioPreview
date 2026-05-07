@@ -166,7 +166,11 @@ struct SourceLibrarySidebarView: View {
         case .mediaRoot: kindName = "SD Card"
         case .backupRoot: kindName = "Backup"
         }
-        return "\(kindName) · \(source.folderURL.path)"
+        var label = "\(kindName) · \(source.folderURL.path)"
+        if let matchLabel = fingerprintMatchStateLabel(source.matchState) {
+            label += " · \(matchLabel)"
+        }
+        return label
     }
 
     private func performRelocateSource(_ source: SourceLibrarySource) {
@@ -207,11 +211,16 @@ private struct SourceLibrarySongRow: View {
     }
 
     private var secondaryText: String {
+        var base: String
         switch song.loadState {
-        case .loading: return "Loading..."
-        case .loaded: return song.folderURL.path
-        case let .failed(message): return "Failed: \(message)"
+        case .loading: base = "Loading..."
+        case .loaded: base = song.folderURL.path
+        case let .failed(message): base = "Failed: \(message)"
         }
+        if case .loaded = song.loadState, let matchLabel = fingerprintMatchStateLabel(song.matchState) {
+            base += " · \(matchLabel)"
+        }
+        return base
     }
 }
 
@@ -247,6 +256,15 @@ private struct MissingSongRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+private func fingerprintMatchStateLabel(_ state: FingerprintMatchState?) -> String? {
+    switch state {
+    case .exact: return "Exact match"
+    case .changedSinceLastSeen: return "Changed since last seen"
+    case .ambiguous: return "Ambiguous"
+    case .unknown, nil: return nil
     }
 }
 

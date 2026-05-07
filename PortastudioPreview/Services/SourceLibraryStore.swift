@@ -21,12 +21,14 @@ final class SourceLibraryStore {
     private var modelContext: ModelContext?
     let bookmarkService: any BookmarkServiceProtocol
     private let classifier: SourceFolderClassifier
+    let fingerprintService: FingerprintService
     private let projectLoader: @Sendable (URL) async throws -> PortastudioProject
 
     init(
         modelContext: ModelContext? = nil,
         bookmarkService: any BookmarkServiceProtocol = SecurityScopedBookmarkService(),
         classifier: SourceFolderClassifier = SourceFolderClassifier(),
+        fingerprintService: FingerprintService = FingerprintService(),
         projectLoader: @escaping @Sendable (URL) async throws -> PortastudioProject = { url in
             try await ProjectFolderLoader().loadProject(at: url)
         }
@@ -34,6 +36,7 @@ final class SourceLibraryStore {
         self.modelContext = modelContext
         self.bookmarkService = bookmarkService
         self.classifier = classifier
+        self.fingerprintService = fingerprintService
         self.projectLoader = projectLoader
     }
 
@@ -60,7 +63,37 @@ final class SourceLibraryStore {
                 let secured = url.startAccessingSecurityScopedResource()
                 let musicURL = url.appendingPathComponent("MUSIC", isDirectory: true)
                 let songURLs = scanSongFolders(in: musicURL)
-                let songs = persistAndBuildSongs(songURLs: songURLs, sourceRecord: record, context: context)
+                var songs = persistAndBuildSongs(songURLs: songURLs, sourceRecord: record, context: context)
+
+                // Compute fingerprints and set match state while security scope is open.
+                let sourceFP = fingerprintService.buildSourceFingerprint(at: url, kind: kind)
+                let sourceMatchState: FingerprintMatchState
+                if let stored = record.aggregateFingerprintString {
+                    sourceMatchState = sourceFP.aggregateString == stored ? .exact : .changedSinceLastSeen
+                } else {
+                    sourceMatchState = .unknown
+                }
+                record.matchStateRawValue = sourceMatchState.rawValue
+
+                let songFPByName = Dictionary(uniqueKeysWithValues: sourceFP.songSummaries.map { ($0.folderName, $0) })
+                songs = songs.map { song in
+                    var s = song
+                    guard let songFP = songFPByName[song.folderURL.lastPathComponent],
+                          let songRec = record.songs.first(where: { $0.lastKnownPath == song.folderURL.path }) else {
+                        s.matchState = .unknown
+                        return s
+                    }
+                    let songMatchState: FingerprintMatchState
+                    if let stored = songRec.aggregateFingerprintString {
+                        songMatchState = songFP.aggregateString == stored ? .exact : .changedSinceLastSeen
+                    } else {
+                        songMatchState = .unknown
+                    }
+                    songRec.matchStateRawValue = songMatchState.rawValue
+                    s.matchState = songMatchState
+                    return s
+                }
+
                 if secured { url.stopAccessingSecurityScopedResource() }
 
                 upsertSourceInMemory(
@@ -72,6 +105,9 @@ final class SourceLibraryStore {
                     isMissing: false,
                     bookmarkData: record.bookmarkData
                 )
+                if let idx = sources.firstIndex(where: { $0.id == record.id }) {
+                    sources[idx].matchState = sourceMatchState
+                }
                 record.isMissing = false
                 record.lastSeenAt = Date()
             } else {
@@ -101,6 +137,16 @@ final class SourceLibraryStore {
 
             if let url = resolvedURL {
                 let secured = url.startAccessingSecurityScopedResource()
+                let songMatchState: FingerprintMatchState
+                if let stored = record.aggregateFingerprintString {
+                    let current = fingerprintService.buildSongFingerprint(at: url)
+                    songMatchState = current.aggregateString == stored ? .exact : .changedSinceLastSeen
+                } else {
+                    songMatchState = .unknown
+                }
+                record.matchStateRawValue = songMatchState.rawValue
+                if secured { url.stopAccessingSecurityScopedResource() }
+
                 upsertIndividualSongInMemory(
                     id: record.id,
                     folderURL: url,
@@ -108,7 +154,9 @@ final class SourceLibraryStore {
                     isMissing: false,
                     bookmarkData: record.bookmarkData
                 )
-                if secured { url.stopAccessingSecurityScopedResource() }
+                if let idx = individualSongs.firstIndex(where: { $0.id == record.id }) {
+                    individualSongs[idx].matchState = songMatchState
+                }
                 record.isMissing = false
                 record.lastSeenAt = Date()
             } else {
@@ -207,6 +255,17 @@ final class SourceLibraryStore {
             selectedProject = project
             if let index = individualSongs.firstIndex(where: { $0.id == songID }) {
                 individualSongs[index].loadState = .loaded
+            }
+            let songFP = fingerprintService.buildSongFingerprint(at: canonicalURL)
+            if let context = modelContext, let songRecord = fetchSongRecord(by: canonicalURL.path, context: context) {
+                songRecord.aggregateFingerprintString = songFP.aggregateString
+                songRecord.wavInventorySummaryString = songFP.wavInventory.summaryString
+                songRecord.fingerprintGeneratedAt = songFP.generatedAt
+                songRecord.matchStateRawValue = FingerprintMatchState.exact.rawValue
+                try? context.save()
+            }
+            if let index = individualSongs.firstIndex(where: { $0.id == songID }) {
+                individualSongs[index].matchState = .exact
             }
             selection = .individualSong(songID)
             isLoading = false
@@ -411,6 +470,17 @@ final class SourceLibraryStore {
             if let index = individualSongs.firstIndex(where: { $0.id == id }) {
                 individualSongs[index].loadState = .loaded
             }
+            let songFP = fingerprintService.buildSongFingerprint(at: canonicalURL)
+            if let context = modelContext, let songRecord = fetchSongRecord(by: canonicalURL.path, context: context) {
+                songRecord.aggregateFingerprintString = songFP.aggregateString
+                songRecord.wavInventorySummaryString = songFP.wavInventory.summaryString
+                songRecord.fingerprintGeneratedAt = songFP.generatedAt
+                songRecord.matchStateRawValue = FingerprintMatchState.exact.rawValue
+                try? context.save()
+            }
+            if let index = individualSongs.firstIndex(where: { $0.id == id }) {
+                individualSongs[index].matchState = .exact
+            }
             selection = .individualSong(id)
             isLoading = false
         } catch {
@@ -479,6 +549,34 @@ final class SourceLibraryStore {
             isMissing: false,
             bookmarkData: bookmarkData
         )
+
+        // Compute and persist fingerprints; newly added/re-scanned sources are .exact.
+        if let context = modelContext, let sourceRecord = fetchSourceRecord(by: url.path, context: context) {
+            let sourceFP = fingerprintService.buildSourceFingerprint(at: url, kind: kind)
+            sourceRecord.aggregateFingerprintString = sourceFP.aggregateString
+            sourceRecord.fingerprintGeneratedAt = sourceFP.generatedAt
+            sourceRecord.matchStateRawValue = FingerprintMatchState.exact.rawValue
+            let songFPByName = Dictionary(uniqueKeysWithValues: sourceFP.songSummaries.map { ($0.folderName, $0) })
+            for songRecord in sourceRecord.songs {
+                let name = URL(fileURLWithPath: songRecord.lastKnownPath).lastPathComponent
+                if let songFP = songFPByName[name] {
+                    songRecord.aggregateFingerprintString = songFP.aggregateString
+                    songRecord.wavInventorySummaryString = songFP.wavInventory.summaryString
+                    songRecord.fingerprintGeneratedAt = songFP.generatedAt
+                    songRecord.matchStateRawValue = FingerprintMatchState.exact.rawValue
+                }
+            }
+            try? context.save()
+        }
+        if let idx = sources.firstIndex(where: { $0.id == sourceID }) {
+            sources[idx].matchState = .exact
+            sources[idx].songs = sources[idx].songs.map { s in
+                var updated = s
+                updated.matchState = .exact
+                return updated
+            }
+        }
+
         selection = .source(sourceID)
         isLoading = false
     }

@@ -21,7 +21,7 @@ The app is designed for safe inspection and approximate playback during reverse-
 - No destructive operations on sample folders.
 - No claims above documented evidence levels.
 - No automatic removable-media detection (Phase 12).
-- No source/song fingerprinting or identity matching (Phase 4).
+- No whole-WAV content hashing during routine scans (WAV identity uses metadata only).
 
 ## Repository Layout
 
@@ -38,7 +38,18 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -destination 'platform=macOS' test
 ```
 
-## Current App Shell (Phase 3)
+## Current App Shell (Phase 4)
+
+### Source and Song Fingerprints (Phase 4)
+
+- `FingerprintService` computes deterministic fingerprints for source roots and individual songs without writing to source folders.
+- Key files hashed with SHA-256: `dp-24.sys` (source root), `song.sys`, `edltable.sys` (song folders). WAV files are never content-hashed; only relative path (lowercased), byte count, and modification date are used.
+- Hidden Apple metadata is excluded from all fingerprint inputs: `.DS_Store`, `.Spotlight-V100`, `.fseventsd`, and AppleDouble `._*` files.
+- `FingerprintMatchState`: `.exact` (stored aggregate matches current), `.changedSinceLastSeen` (stored aggregate exists but differs), `.unknown` (no stored aggregate or location missing), `.ambiguous` (reserved; not actively resolved in Phase 4).
+- `LibrarySourceRecord` and `LibrarySongRecord` carry `aggregateFingerprintString`, `wavInventorySummaryString`, `fingerprintGeneratedAt`, and `matchStateRawValue` fields (all optional; SwiftData lightweight migration).
+- Fingerprints are computed on add/open/relocate and stored as `.exact`. On hydration, the stored aggregate is compared against a freshly computed aggregate; only `matchStateRawValue` is updated during hydration (stored fingerprint is preserved as the "last seen" baseline).
+- Sidebar source rows and song rows append `· Exact match` or `· Changed since last seen` to secondary labels when match state is non-nil and non-unknown.
+- No writes, renames, sidecar files, or backup manifests are created in source folders. SwiftData updates are app-owned.
 
 ### Persistence and Remembered Locations
 
