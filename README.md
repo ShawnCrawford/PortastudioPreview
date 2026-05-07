@@ -76,14 +76,20 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
 - The inspector remains read-only toward Portastudio files. Phase 7 annotation edits are app-owned SwiftData writes only; no sidecar files or source-folder mutations are created.
 
-### Planned Next: Waveform and Timeline Visualization (Phase 15)
+### Waveform and Timeline Visualization (Phase 15)
 
 - Detailed handoff plan: `Plans/Phase15WaveformAndTimelineVisualization.md`.
-- Phase 15 has been promoted into the first-release visual polish path so the selected-song workspace can show a credible waveform/timeline view before shipping.
-- Visual target: resemble the supplied native macOS audio-editor reference with a source sidebar, selected-song header, central colored waveform lanes, ruler/playhead, transport/time area, and compact inspector, while preserving SwiftUI-native controls and materials.
-- Planned implementation: derived in-memory waveform peak summaries, custom SwiftUI `Canvas` waveform strips, region lanes, time ruler, zoom controls, selected-region highlighting, and playhead display.
-- Current baseline: `RegionsTimelineGroupBoxView` is table-only, using `project.unassignedAudioRegions` plus `EDLSummaryView`; `TimelineRegion` already carries start/end/length/source/evidence; `PreviewPlaybackPlanner` identifies playable and suppressed regions.
-- Guardrails: keep Portastudio folders read-only, do not write waveform caches or sidecars, keep track-to-WAV assignment and timeline inference labeled `Hypothesis`, and defer editing/scrubbing/export/backup/AudioDepot/restore workflows.
+- Phase 15 has been promoted into the first-release visual polish path so the selected-song workspace shows a credible waveform/timeline view before shipping.
+- **`TimelineVisualizationView`**: Inserted above the existing region table in `RegionsTimelineGroupBoxView`. Shows colored waveform lanes per region, a time ruler, zoom controls (Fit / Zoom In / Zoom Out), and a playhead overlay while audio is playing.
+- **Waveform rendering**: `WaveformCanvasView` uses SwiftUI `Canvas` to render per-region peak summaries. Peak data is derived in-memory from the source WAV via `WaveformPeakBuilder` (AVAudioFile, 8192-frame chunk reads). Playable regions show colored waveforms; suppressed regions show a muted dashed-border lane with reason badge; missing-source and ambiguous-timing lanes are styled distinctly.
+- **Playback controller refactor**: `PreviewPlaybackController` (`@Observable @MainActor`) now owns the `StereoPreviewEngine` instance and exposes `isPlaying`, `elapsedSeconds`, and `playbackError`. It is held as `@State` in `ProjectDetailView` and shared to both the transport view and the timeline view.
+- **Playhead**: Drawn as a ZStack overlay in `TimelineVisualizationView` only when `isPlaying`. Position derived from `elapsedSeconds × sampleRate` mapped through `sampleToX(...)`.
+- **Selection wiring**: Lane rows are tappable; selecting a lane sets `selectedRegionID` and clears `selectedTrackID` via the existing binding. The inspector shows the selected region.
+- **Zoom range**: `[1.0, 10.0]×`; base canvas width 900 pt. Zoom state is local to `TimelineVisualizationView`.
+- **Evidence guardrails**: Timeline builder uses `.ambiguousTiming` when all regions share `startSample == 0`. A "Hypothesis" badge in the view header marks track-to-WAV assignment. No waveform caches or sidecar files are ever written to source folders.
+- **Tests added** (all passing):
+  - `WaveformPeakBuilderTests` (7 tests): silent WAV → zero peaks, non-silent → non-zero, bucket count capped, single frame, unreadable file throws, metadata correctness, read-only safety.
+  - `TimelineVisualizationBuilderTests` (24 tests): empty project, zero/delayed/multi-region extent, missing length, ambiguous/suppressed/missing-source states, selection marking and lane order, zoom clamp, ruler ticks, `sampleToX` at boundary/midpoint values.
 
 ### Song Detail Workspace (Phase 5)
 

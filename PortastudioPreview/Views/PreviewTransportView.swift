@@ -7,28 +7,29 @@ import SwiftUI
 
 struct PreviewTransportView: View {
     let project: PortastudioProject
-
-    @State private var engine = StereoPreviewEngine()
-    @State private var isPlaying = false
-    @State private var playbackError: String?
+    let playbackController: PreviewPlaybackController
 
     private var canPlay: Bool {
-        StereoPreviewEngine.hasPlayableTracks(project)
+        playbackController.canPlay(project)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Button(action: startPreview) {
-                    Label(isPlaying ? "Playing…" : "Play", systemImage: "play.fill")
+                Button {
+                    playbackController.startPreview(for: project)
+                } label: {
+                    Label(playbackController.isPlaying ? "Playing…" : "Play", systemImage: "play.fill")
                 }
-                .disabled(isPlaying || !canPlay)
-                .accessibilityLabel(isPlaying ? "Playback in progress" : "Play approximate stereo preview")
+                .disabled(playbackController.isPlaying || !canPlay)
+                .accessibilityLabel(playbackController.isPlaying ? "Playback in progress" : "Play approximate stereo preview")
 
-                Button(action: stopPreview) {
+                Button {
+                    playbackController.stop()
+                } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
-                .disabled(!isPlaying)
+                .disabled(!playbackController.isPlaying)
                 .accessibilityLabel("Stop playback")
             }
 
@@ -36,7 +37,7 @@ struct PreviewTransportView: View {
                 Label("No playable WAV regions found for this song.", systemImage: "waveform.slash")
                     .foregroundStyle(.secondary)
                     .font(.callout)
-            } else if let playbackError {
+            } else if let playbackError = playbackController.playbackError {
                 Label(playbackError, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.red)
                     .font(.callout)
@@ -53,27 +54,7 @@ struct PreviewTransportView: View {
             }
         }
         .onDisappear {
-            stopPreview()
+            playbackController.stop()
         }
-    }
-
-    private func startPreview() {
-        do {
-            try engine.startPreview(for: project) {
-                Task { @MainActor in
-                    isPlaying = false
-                }
-            }
-            isPlaying = true
-            playbackError = nil
-        } catch {
-            isPlaying = false
-            playbackError = error.localizedDescription
-        }
-    }
-
-    private func stopPreview() {
-        engine.stop()
-        isPlaying = false
     }
 }

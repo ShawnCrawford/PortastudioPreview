@@ -12,6 +12,7 @@ struct ProjectDetailView: View {
     @State private var selectedTrackID: TrackPreview.ID?
     @State private var selectedRegionID: TimelineRegion.ID?
     @State private var isInspectorPresented = true
+    @State private var playbackController = PreviewPlaybackController()
 
     var body: some View {
         ScrollView {
@@ -25,9 +26,10 @@ struct ProjectDetailView: View {
                 )
                 RegionsTimelineGroupBoxView(
                     project: project,
-                    selectedRegionID: $selectedRegionID
+                    selectedRegionID: $selectedRegionID,
+                    playbackController: playbackController
                 )
-                PreviewGroupBoxView(project: project)
+                PreviewGroupBoxView(project: project, playbackController: playbackController)
             }
             .padding()
         }
@@ -63,6 +65,7 @@ struct ProjectDetailView: View {
         .onChange(of: project.folderURL) { _, _ in
             selectedTrackID = nil
             selectedRegionID = nil
+            playbackController.stop()
         }
     }
 }
@@ -248,6 +251,7 @@ private struct TracksGroupBoxView: View {
 private struct RegionsTimelineGroupBoxView: View {
     let project: PortastudioProject
     @Binding var selectedRegionID: TimelineRegion.ID?
+    let playbackController: PreviewPlaybackController
 
     var body: some View {
         GroupBox {
@@ -260,6 +264,18 @@ private struct RegionsTimelineGroupBoxView: View {
                     Text("No unassigned regions parsed.")
                         .foregroundStyle(.secondary)
                 } else {
+                    // Visual timeline above the data table.
+                    TimelineVisualizationView(
+                        project: project,
+                        selectedRegionID: $selectedRegionID,
+                        playbackController: playbackController
+                    )
+                    .background(.background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .frame(minHeight: 80)
+
+                    Divider()
+
                     UnassignedRegionsTableView(
                         regions: project.unassignedAudioRegions,
                         selectedRegionID: $selectedRegionID
@@ -396,10 +412,11 @@ private struct EDLSummaryView: View {
 
 private struct PreviewGroupBoxView: View {
     let project: PortastudioProject
+    let playbackController: PreviewPlaybackController
 
     var body: some View {
         GroupBox {
-            PreviewTransportView(project: project)
+            PreviewTransportView(project: project, playbackController: playbackController)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
             Label("Preview", systemImage: "waveform")
