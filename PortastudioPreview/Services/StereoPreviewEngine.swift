@@ -13,6 +13,7 @@ final class StereoPreviewEngine {
     private var trackMixerNodes: [Int: AVAudioMixerNode] = [:]
     private var isOutputLevelTapInstalled = false
     private let completionCoordinator = PlaybackCompletionCoordinator()
+    private let meterUpdateThrottler = MeterUpdateThrottler()
     private var activePlaybackID: UUID?
     private static let previewSampleRate: Double = 48_000
 
@@ -65,7 +66,6 @@ final class StereoPreviewEngine {
             let file = try AVAudioFile(forReading: region.url)
             let playerNode = AVAudioPlayerNode()
             playerNode.volume = region.volume
-            playerNode.pan = region.pan
 
             engine.attach(playerNode)
             if let trackNumber = region.trackNumber {
@@ -135,6 +135,7 @@ final class StereoPreviewEngine {
         playerNodes.removeAll()
         playerNodesByTrackNumber.removeAll()
         trackMixerNodes.removeAll()
+        meterUpdateThrottler.reset()
         engine.stop()
     }
 
@@ -148,9 +149,6 @@ final class StereoPreviewEngine {
     func updateTrackPan(trackNumber: Int, panPosition: Double) {
         let pan = Float(min(max(panPosition, -1), 1))
         trackMixerNodes[trackNumber]?.pan = pan
-        for playerNode in playerNodesByTrackNumber[trackNumber] ?? [] {
-            playerNode.pan = pan
-        }
     }
 
     func updateTrackMute(trackNumber: Int, isMuted: Bool) {
@@ -265,7 +263,7 @@ final class StereoPreviewEngine {
 
         // Unassigned regions go through the planner for virtual-take filtering and
         // any evidence-backed mute suppression that still applies.
-        if !project.unassignedAudioRegions.isEmpty {
+        if result.isEmpty, !project.unassignedAudioRegions.isEmpty {
             let plan = PreviewPlaybackPlanner.plan(for: project)
             result.append(contentsOf: plan.playableRegions.map { scheduled in
                 PlayableRegion(
@@ -338,6 +336,9 @@ final class StereoPreviewEngine {
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void
     ) {
         mixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
+            guard self.meterUpdateThrottler.shouldEmitTrackLevel(for: trackNumber) else {
+                return
+            }
             onTrackLevelChanged(trackNumber, Self.normalizedPeakLevel(for: buffer))
         }
     }
@@ -346,6 +347,9 @@ final class StereoPreviewEngine {
         onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void
     ) {
         engine.mainMixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
+            guard self.meterUpdateThrottler.shouldEmitOutputLevel() else {
+                return
+            }
             onOutputLevelChanged(Self.normalizedStereoPeakLevels(for: buffer))
         }
         isOutputLevelTapInstalled = true
@@ -499,6 +503,51 @@ final class StereoPreviewEngine {
         let hostNow = mach_absolute_time()
 
         return AVAudioTime(hostTime: hostNow + hostDelta)
+    }
+}
+
+final class MeterUpdateThrottler {
+    private let lock = NSLock()
+    private let minimumInterval: TimeInterval = 1.0 / 15.0
+    private let clock = ContinuousClock()
+    private var lastOutputUpdate: ContinuousClock.Instant?
+    private var lastTrackUpdates: [Int: ContinuousClock.Instant] = [:]
+
+    func shouldEmitTrackLevel(for trackNumber: Int) -> Bool {
+        shouldEmit(lastUpdate: lastTrackUpdates[trackNumber]) { instant in
+            lastTrackUpdates[trackNumber] = instant
+        }
+    }
+
+    func shouldEmitOutputLevel() -> Bool {
+        shouldEmit(lastUpdate: lastOutputUpdate) { instant in
+            lastOutputUpdate = instant
+        }
+    }
+
+    func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+
+        lastOutputUpdate = nil
+        lastTrackUpdates.removeAll()
+    }
+
+    private func shouldEmit(
+        lastUpdate: ContinuousClock.Instant?,
+        update: (ContinuousClock.Instant) -> Void
+    ) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let now = clock.now
+        if let lastUpdate,
+           lastUpdate.duration(to: now) < .seconds(minimumInterval) {
+            return false
+        }
+
+        update(now)
+        return true
     }
 }
 

@@ -72,6 +72,32 @@ struct StereoPreviewEngineTests {
         #expect(StereoPreviewEngine.playableRegionPans(for: project, trackPanOverrides: [1: -1.0]) == [0.0])
     }
 
+    @Test func assignedTrackPlaybackDoesNotAlsoIncludeSpeculativeUnassignedRegions() {
+        let project = PortastudioProject(
+            folderURL: URL(fileURLWithPath: "/tmp/project"),
+            validationIssues: [],
+            wavInventory: [],
+            unassignedAudioRegions: [timelineRegion(filename: "ZZ9999_1.wav")],
+            tracks: [
+                TrackPreview(
+                    trackNumber: 1,
+                    candidateWAV: wavInventoryItem(),
+                    mixerSetting: TrackMixerSetting(
+                        trackNumber: 1,
+                        level: setting(name: "Level", primaryOffset: 0x00C4, primaryByte: 0x6A),
+                        pan: setting(name: "Pan", primaryOffset: 0x00C6, primaryByte: 0x40),
+                        mute: setting(name: "Mute", primaryOffset: 0x0268, primaryByte: 0x00)
+                    ),
+                    track1ActiveTakeCandidate: nil,
+                    timeline: trackTimeline(trackNumber: 1, startSample: 0)
+                )
+            ],
+            edlTableSummary: nil
+        )
+
+        #expect(StereoPreviewEngine.playableRegionSourceFilenames(for: project) == ["ZZ0000_1.wav"])
+    }
+
     @Test func approximateVolumeUsesConfirmedSongLevelScale() {
         #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x00)) == 0.0)
         #expect(abs(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x6A)) - 1.0) < 0.0001)
