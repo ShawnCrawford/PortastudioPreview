@@ -65,12 +65,12 @@ struct DeviceCaptureAuditTests {
         guard FileManager.default.fileExists(atPath: songURL.path) else { return }
 
         let project = try ProjectPreviewBuilder().build(folderURL: songURL)
-        let plan = PreviewPlaybackPlanner.plan(for: project)
 
         // No mutes set; all three EDL entries [ZZ0002_1.wav, ZZ0001_1.wav, ZZ0000_1.wav]
-        // should be playable in EDL order.
-        #expect(plan.playableFilenames == ["ZZ0002_1.wav", "ZZ0001_1.wav", "ZZ0000_1.wav"])
-        #expect(plan.suppressedFilenames.isEmpty)
+        // should be playable in EDL order. WAVs are now assigned to tracks, so verify
+        // via the engine which combines assigned-track output and planner for unassigned.
+        let playable = StereoPreviewEngine.playableRegionSourceFilenames(for: project)
+        #expect(playable == ["ZZ0002_1.wav", "ZZ0001_1.wav", "ZZ0000_1.wav"])
     }
 
     @Test func song0090Track2MuteSuppressesMiddleEDLEntry() throws {
@@ -78,12 +78,14 @@ struct DeviceCaptureAuditTests {
         guard FileManager.default.fileExists(atPath: songURL.path) else { return }
 
         let project = try ProjectPreviewBuilder().build(folderURL: songURL)
-        let plan = PreviewPlaybackPlanner.plan(for: project)
 
         // EDL order: [ZZ0002_1.wav, ZZ0001_1.wav, ZZ0000_1.wav].
-        // Track 2 mute byte 0x01 at 0x0269; EDL position 1 → Track 2. Evidence: Observed.
-        #expect(plan.playableFilenames == ["ZZ0002_1.wav", "ZZ0000_1.wav"])
-        #expect(plan.suppressedFilenames == ["ZZ0001_1.wav"])
+        // Track 2 mute byte 0x01 at 0x0269. With track assignment, track 2 holds
+        // ZZ0001_1.wav and the engine suppresses it directly via isMuted.
+        // Evidence: Observed (SONG_0090).
+        let playable = StereoPreviewEngine.playableRegionSourceFilenames(for: project)
+        #expect(playable == ["ZZ0002_1.wav", "ZZ0000_1.wav"])
+        #expect(!playable.contains("ZZ0001_1.wav"))
     }
 
     @Test func song0084PreviewKeepsOnlyActiveVirtualTake2() throws {

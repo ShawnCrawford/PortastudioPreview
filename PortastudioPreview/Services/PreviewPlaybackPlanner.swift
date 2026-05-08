@@ -185,6 +185,13 @@ struct PreviewPlaybackPlanner {
         guard project.tracks.indices.contains(position) else { return nil }
 
         let track = project.tracks[position]
+
+        // If this track has an assigned candidateWAV its region is no longer in
+        // unassignedAudioRegions; the engine handles mute via the direct assignment path.
+        // Applying positional mute suppression here would incorrectly silence a different
+        // unassigned WAV that happens to land at this index after the assigned ones are removed.
+        guard track.candidateWAV == nil else { return nil }
+
         guard let mute = track.mixerSetting?.mute, mute.primaryByte != 0 else { return nil }
 
         return position == 0 ? .track1Mute : .track2Mute

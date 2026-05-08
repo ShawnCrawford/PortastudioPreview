@@ -63,11 +63,6 @@ struct ProjectDetailView: View {
 
     private func toggleInspector() {
         isInspectorPresented.toggle()
-        if isInspectorPresented {
-            workspaceMode = .inspector
-        } else {
-            workspaceMode = .tracks
-        }
     }
 
     private func showInspector() {

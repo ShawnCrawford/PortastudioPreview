@@ -91,6 +91,16 @@ private struct ProjectHeaderView: View {
                 canPlay: canPlay
             )
 
+            if let error = playbackController.playbackError {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(minWidth: 80, maxWidth: 160)
+                    .accessibilityLabel("Playback error: \(error)")
+            }
+
             VStack(alignment: .trailing, spacing: 2) {
                 Text(elapsedLabel)
                     .font(.system(.title3, design: .monospaced))
@@ -195,12 +205,12 @@ private struct PreviewActivityMeter: View {
     let playbackController: PreviewPlaybackController
 
     private var leftLevel: Double {
-        guard playbackController.isPlaying else { return 0.08 }
+        guard playbackController.isPlaying else { return 0 }
         return 0.35 + 0.45 * abs(sin(playbackController.elapsedSeconds * 4.2))
     }
 
     private var rightLevel: Double {
-        guard playbackController.isPlaying else { return 0.06 }
+        guard playbackController.isPlaying else { return 0 }
         return 0.30 + 0.42 * abs(sin(playbackController.elapsedSeconds * 3.4 + 0.6))
     }
 
@@ -258,9 +268,6 @@ private struct ProjectModeBarView: View {
             ForEach(ProjectWorkspaceMode.allCases) { mode in
                 Button {
                     selection = mode
-                    if mode == .inspector {
-                        showInspector()
-                    }
                 } label: {
                     VStack(spacing: 7) {
                         Label(mode.title, systemImage: mode.systemImage)
@@ -317,10 +324,6 @@ private struct ProjectEditorSurface: View {
                 playbackController: playbackController
             )
             .accessibilityIdentifier("editor-surface-timeline")
-
-        case .inspector:
-            InspectorPromptSurface()
-                .accessibilityIdentifier("editor-surface-inspector")
         }
     }
 }
@@ -365,25 +368,6 @@ private struct TimelineSurface: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(.background.secondary.opacity(0.35))
-    }
-}
-
-private struct InspectorPromptSurface: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sidebar.right")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text("Inspector")
-                .font(.headline)
-            Text("Select a track or region to view details in the Inspector panel.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(18)
         .background(.background.secondary.opacity(0.35))
     }
 }

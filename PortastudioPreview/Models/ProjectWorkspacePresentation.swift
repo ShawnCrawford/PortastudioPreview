@@ -8,7 +8,6 @@ import Foundation
 enum ProjectWorkspaceMode: String, CaseIterable, Identifiable {
     case tracks
     case timeline
-    case inspector
 
     var id: String { rawValue }
 
@@ -16,7 +15,6 @@ enum ProjectWorkspaceMode: String, CaseIterable, Identifiable {
         switch self {
         case .tracks: return "Tracks"
         case .timeline: return "Timeline"
-        case .inspector: return "Inspector"
         }
     }
 
@@ -24,7 +22,6 @@ enum ProjectWorkspaceMode: String, CaseIterable, Identifiable {
         switch self {
         case .tracks: return "slider.horizontal.3"
         case .timeline: return "timeline.selection"
-        case .inspector: return "sidebar.right"
         }
     }
 }
@@ -78,7 +75,13 @@ struct ProjectHeaderSummary: Equatable {
     }
 
     private static func durationLabel(for project: PortastudioProject) -> String {
-        let maxEnd = project.unassignedAudioRegions.compactMap { region -> Int? in
+        // Include both assigned-track timelines and unassigned regions so that moving
+        // regions into tracks doesn't silently shorten the reported duration.
+        let allRegions: [TimelineRegion] =
+            project.tracks.compactMap { $0.timeline?.regions.first } +
+            project.unassignedAudioRegions
+
+        let maxEnd = allRegions.compactMap { region -> Int? in
             if let endSample = region.endSample {
                 return endSample
             }

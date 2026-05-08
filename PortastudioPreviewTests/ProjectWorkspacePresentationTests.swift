@@ -8,6 +8,47 @@ import Testing
 @testable import PortastudioPreview
 
 struct ProjectWorkspacePresentationTests {
+    @Test func inspectorModeRemovedFromWorkspaceModes() {
+        let modes = ProjectWorkspaceMode.allCases
+        #expect(modes == [.tracks, .timeline])
+        #expect(modes.count == 2)
+    }
+
+    @Test func headerIncludesAssignedTrackTimelinesInDurationLabel() {
+        // Duration must include tracks with timelines, not only unassigned regions.
+        let region = TimelineRegion(
+            startSample: 0,
+            endSample: 192_000,
+            lengthSample: 192_000,
+            sourceFilename: "ZZ0001_1.wav",
+            sourceURL: URL(fileURLWithPath: "/tmp/SONG_0001/ZZ0001_1.wav"),
+            evidenceLevel: .hypothesis
+        )
+        let track = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/SONG_0001/ZZ0001_1.wav"),
+                rawFilename: "ZZ0001_1.wav",
+                byteCount: nil
+            ),
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: TrackTimeline(trackNumber: 1, regions: [region], evidenceLevel: .hypothesis)
+        )
+        let project = PortastudioProject(
+            folderURL: URL(fileURLWithPath: "/tmp/SONG_0001"),
+            validationIssues: [],
+            wavInventory: [],
+            unassignedAudioRegions: [],   // region is assigned — not here
+            tracks: [track],
+            edlTableSummary: nil
+        )
+
+        let summary = ProjectHeaderSummary(project: project, displayName: nil)
+
+        #expect(summary.durationLabel != "Duration unknown")
+    }
+
     @Test func headerUsesDisplayNameAndDerivedStatus() {
         let project = makeProject(
             validationIssues: [],

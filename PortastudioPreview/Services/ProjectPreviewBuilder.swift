@@ -47,21 +47,18 @@ struct ProjectPreviewBuilder {
             }
         }
 
-        let unassignedAudioRegions = buildUnassignedAudioRegions(
+        let allRegions = buildUnassignedAudioRegions(
             wavInventory: wavInventory,
             edlTableSummary: edlTableSummary,
             edlTableData: edlTableData
         )
 
-        let tracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
-            return TrackPreview(
-                trackNumber: trackIndex + 1,
-                candidateWAV: nil,
-                mixerSetting: mixerSettings.indices.contains(trackIndex) ? mixerSettings[trackIndex] : nil,
-                track1ActiveTakeCandidate: trackIndex == 0 ? edlTableSummary?.track1ActiveTakeCandidate : nil,
-                timeline: nil
-            )
-        }
+        let (tracks, unassignedAudioRegions) = buildTracksWithAssignments(
+            wavInventory: wavInventory,
+            allRegions: allRegions,
+            edlTableSummary: edlTableSummary,
+            mixerSettings: mixerSettings
+        )
 
         return PortastudioProject(
             folderURL: folderURL,
@@ -143,6 +140,95 @@ struct ProjectPreviewBuilder {
             )
             return nil
         }
+    }
+
+    // MARK: - Track assignment
+
+    /// Maps EDL file-list positions to physical tracks and builds `TrackTimeline` entries.
+    ///
+    /// Evidence: Hypothesis — EDL file-list position index correlates with device track number
+    /// (0-based: position 0 → Track 1, position 1 → Track 2, …). Mute suppression evidence
+    /// confirms the mapping for positions 0–1; all positions are labeled Hypothesis here.
+    ///
+    /// WAVs present in the inventory but absent from the EDL file list remain in
+    /// `unassignedAudioRegions`; they have no evidence-backed track association.
+    private func buildTracksWithAssignments(
+        wavInventory: [WAVInventoryItem],
+        allRegions: [TimelineRegion],
+        edlTableSummary: EdlTableSummary?,
+        mixerSettings: [TrackMixerSetting]
+    ) -> (tracks: [TrackPreview], unassignedRegions: [TimelineRegion]) {
+
+        // When the active-take selector byte is non-zero, the EDL file list represents
+        // alternative recordings of the same performance rather than independent tracks.
+        // Leave all regions unassigned so the planner can apply virtual-take filtering.
+        // Evidence: Correlated (SONG_0084 — activeTakeCandidate 0x01 → single-take output).
+        let activeTakeCandidate = edlTableSummary?.track1ActiveTakeCandidate ?? 0
+        if activeTakeCandidate > 0 {
+            let unassignedTracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
+                TrackPreview(
+                    trackNumber: trackIndex + 1,
+                    candidateWAV: nil,
+                    mixerSetting: mixerSettings.indices.contains(trackIndex) ? mixerSettings[trackIndex] : nil,
+                    track1ActiveTakeCandidate: trackIndex == 0 ? activeTakeCandidate : nil,
+                    timeline: nil
+                )
+            }
+            return (unassignedTracks, allRegions)
+        }
+
+        // Keyed lookups (case-insensitive) for fast matching.
+        var regionByFilename: [String: TimelineRegion] = [:]
+        for region in allRegions {
+            if let name = region.sourceFilename {
+                regionByFilename[name.lowercased()] = region
+            }
+        }
+        var wavByFilename: [String: WAVInventoryItem] = [:]
+        for wav in wavInventory {
+            wavByFilename[wav.rawFilename.lowercased()] = wav
+        }
+
+        // Build per-track assignments from the EDL file list (Hypothesis).
+        var trackAssignments: [Int: (wav: WAVInventoryItem, region: TimelineRegion)] = [:]
+        let fileListEntries = edlTableSummary?.fileListEntries ?? []
+
+        for (index, entry) in fileListEntries.enumerated() {
+            guard index < MixerMapOffsets.trackCount else { break }
+            let key = entry.filename.lowercased()
+            guard let wav = wavByFilename[key], let region = regionByFilename[key] else {
+                continue
+            }
+            trackAssignments[index] = (wav: wav, region: region)
+        }
+
+        // Build tracks — assigned ones carry candidateWAV and a single-region timeline.
+        let tracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
+            let assignment = trackAssignments[trackIndex]
+            let timeline: TrackTimeline? = assignment.map { a in
+                TrackTimeline(
+                    trackNumber: trackIndex + 1,
+                    regions: [a.region],
+                    evidenceLevel: .hypothesis
+                )
+            }
+            return TrackPreview(
+                trackNumber: trackIndex + 1,
+                candidateWAV: assignment?.wav,
+                mixerSetting: mixerSettings.indices.contains(trackIndex) ? mixerSettings[trackIndex] : nil,
+                track1ActiveTakeCandidate: trackIndex == 0 ? edlTableSummary?.track1ActiveTakeCandidate : nil,
+                timeline: timeline
+            )
+        }
+
+        // Regions not assigned to any track remain unassigned.
+        let assignedFilenames = Set(trackAssignments.values.map { $0.region.sourceFilename?.lowercased() ?? "" })
+        let unassignedRegions = allRegions.filter { region in
+            guard let name = region.sourceFilename?.lowercased() else { return true }
+            return !assignedFilenames.contains(name)
+        }
+
+        return (tracks, unassignedRegions)
     }
 
     private func buildUnassignedAudioRegions(

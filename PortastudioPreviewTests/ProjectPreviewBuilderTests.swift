@@ -35,7 +35,7 @@ struct ProjectPreviewBuilderTests {
         #expect(starts == [0, 0, 0])
     }
 
-    @Test func builderDoesNotAssignSortedWAVInventoryToPhysicalTracks() throws {
+    @Test func builderAssignsEDLOrderedWAVsToTracksByPosition() throws {
         let folder = try TemporaryFolder()
         try Data(count: MixerMapOffsets.minimumSongSysLength).write(to: folder.url.appendingPathComponent("song.sys"))
         try writeEdlTable(
@@ -48,20 +48,59 @@ struct ProjectPreviewBuilderTests {
 
         let project = try ProjectPreviewBuilder().build(folderURL: folder.url)
 
-        #expect(project.tracks.allSatisfy { track in
-            if case nil = track.candidateWAV {
-                return true
-            }
-            return false
-        })
-        #expect(project.tracks.allSatisfy { track in
-            if case nil = track.timeline {
-                return true
-            }
-            return false
-        })
-        #expect(project.unassignedAudioRegions.map(\.sourceFilename) == ["ZZ0002_1.wav", "ZZ0001_1.wav", "ZZ0000_1.wav"])
+        // EDL position 0 → track 1 (Hypothesis)
+        #expect(project.tracks[0].candidateWAV?.rawFilename == "ZZ0002_1.wav")
+        #expect(project.tracks[0].timeline != nil)
+        #expect(project.tracks[0].timeline?.evidenceLevel == .hypothesis)
+        // EDL position 1 → track 2 (Hypothesis)
+        #expect(project.tracks[1].candidateWAV?.rawFilename == "ZZ0001_1.wav")
+        #expect(project.tracks[1].timeline != nil)
+        // EDL position 2 → track 3 (Hypothesis)
+        #expect(project.tracks[2].candidateWAV?.rawFilename == "ZZ0000_1.wav")
+        #expect(project.tracks[2].timeline != nil)
+        // Tracks beyond the EDL list remain unassigned
+        #expect(project.tracks[3].candidateWAV == nil)
+        #expect(project.tracks[3].timeline == nil)
+        // All three WAVs are assigned → unassigned regions is empty
+        #expect(project.unassignedAudioRegions.isEmpty)
         #expect(StereoPreviewEngine.hasPlayableTracks(project))
+    }
+
+    @Test func builderLeavesWAVsNotInEDLAsUnassignedRegions() throws {
+        // WAVs present on disk but absent from the EDL file list should stay unassigned.
+        let folder = try TemporaryFolder()
+        try Data(count: MixerMapOffsets.minimumSongSysLength).write(to: folder.url.appendingPathComponent("song.sys"))
+        try writeEdlTable(
+            fileList: ["ZZ0000_1.wav"],
+            to: folder.url.appendingPathComponent("edltable.sys")
+        )
+        try Data([0x01]).write(to: folder.url.appendingPathComponent("ZZ0000_1.wav"))
+        // ZZ0001_1.wav exists on disk but is NOT in the EDL file list.
+        try Data([0x02]).write(to: folder.url.appendingPathComponent("ZZ0001_1.wav"))
+
+        let project = try ProjectPreviewBuilder().build(folderURL: folder.url)
+
+        #expect(project.tracks[0].candidateWAV?.rawFilename == "ZZ0000_1.wav")
+        #expect(project.tracks[0].timeline != nil)
+        #expect(project.unassignedAudioRegions.map(\.sourceFilename) == ["ZZ0001_1.wav"])
+    }
+
+    @Test func builderLeavesAllWAVsUnassignedWhenNoEdlFileList() throws {
+        let folder = try TemporaryFolder()
+        try Data(count: MixerMapOffsets.minimumSongSysLength).write(to: folder.url.appendingPathComponent("song.sys"))
+        // edltable with no File List entries (just the header bytes).
+        try writeEdlTable(
+            fileList: [],
+            to: folder.url.appendingPathComponent("edltable.sys")
+        )
+        try Data([0x01]).write(to: folder.url.appendingPathComponent("ZZ0000_1.wav"))
+        try Data([0x02]).write(to: folder.url.appendingPathComponent("ZZ0001_1.wav"))
+
+        let project = try ProjectPreviewBuilder().build(folderURL: folder.url)
+
+        #expect(project.tracks.allSatisfy { $0.candidateWAV == nil })
+        #expect(project.tracks.allSatisfy { $0.timeline == nil })
+        #expect(project.unassignedAudioRegions.count == 2)
     }
 
     @Test func builderPairsImplicitZeroRegionWithDelayedTimelineAnchor() throws {
@@ -77,8 +116,14 @@ struct ProjectPreviewBuilderTests {
 
         let project = try ProjectPreviewBuilder().build(folderURL: folder.url)
 
-        #expect(project.unassignedAudioRegions.map(\.sourceFilename) == ["ZZ0000_1.wav", "ZZ0001_1.wav"])
-        #expect(project.unassignedAudioRegions.map(\.startSample) == [0, 441_000])
+        // Both WAVs are in the EDL file list → assigned to tracks, not unassigned.
+        #expect(project.unassignedAudioRegions.isEmpty)
+        // Track 1 (EDL position 0) gets the implicit-zero start.
+        #expect(project.tracks[0].candidateWAV?.rawFilename == "ZZ0000_1.wav")
+        #expect(project.tracks[0].timeline?.regions.first?.startSample == 0)
+        // Track 2 (EDL position 1) gets the delayed anchor.
+        #expect(project.tracks[1].candidateWAV?.rawFilename == "ZZ0001_1.wav")
+        #expect(project.tracks[1].timeline?.regions.first?.startSample == 441_000)
     }
 
     // MARK: - Sequential start-time helpers
@@ -143,20 +188,24 @@ struct ProjectPreviewBuilderTests {
 
         let project = try ProjectPreviewBuilder().build(folderURL: songURL)
 
-        // ZZ0000_1 should start at 0 and ZZ0001_1 should start after it.
-        let regions = project.unassignedAudioRegions
-        #expect(!regions.isEmpty)
+        // Collect all regions from both assigned tracks and unassigned regions.
+        let allRegions: [TimelineRegion] =
+            project.tracks.compactMap { $0.timeline?.regions.first } +
+            project.unassignedAudioRegions
 
-        let zz0000 = regions.first(where: { $0.sourceFilename == "ZZ0000_1.wav" })
-        let zz0001 = regions.first(where: { $0.sourceFilename == "ZZ0001_1.wav" })
+        // ZZ0000_1 should start at 0 and ZZ0001_1 should start after it.
+        #expect(!allRegions.isEmpty)
+
+        let zz0000 = allRegions.first(where: { $0.sourceFilename == "ZZ0000_1.wav" })
+        let zz0001 = allRegions.first(where: { $0.sourceFilename == "ZZ0001_1.wav" })
         #expect(zz0000?.startSample == 0)
         // ZZ0001_1 must start after ZZ0000_1 ends (sequential layout).
         let zz0000End = zz0000?.endSample ?? 0
         #expect((zz0001?.startSample ?? 0) >= zz0000End - 442)
 
         // Stereo pairs share their primary file's start position.
-        let zz0008_1 = regions.first(where: { $0.sourceFilename == "ZZ0008_1.wav" })
-        let zz0008_2 = regions.first(where: { $0.sourceFilename == "ZZ0008_2.wav" })
+        let zz0008_1 = allRegions.first(where: { $0.sourceFilename == "ZZ0008_1.wav" })
+        let zz0008_2 = allRegions.first(where: { $0.sourceFilename == "ZZ0008_2.wav" })
         if let s1 = zz0008_1?.startSample, let s2 = zz0008_2?.startSample {
             #expect(s1 == s2)
         }

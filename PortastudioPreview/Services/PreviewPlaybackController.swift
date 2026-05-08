@@ -48,6 +48,7 @@ final class PreviewPlaybackController {
         engine.stop()
         isPlaying = false
         elapsedSeconds = 0
+        playbackError = nil
     }
 
     // MARK: - Private

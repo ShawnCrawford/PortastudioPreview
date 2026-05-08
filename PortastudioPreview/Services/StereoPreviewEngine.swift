@@ -135,35 +135,43 @@ final class StereoPreviewEngine {
     }
 
     private static func playableRegions(for project: PortastudioProject) -> [PlayableRegion] {
-        if project.unassignedAudioRegions.isEmpty {
-            // No unassigned regions — fall back to candidateWAV tracks.
-            return project.tracks.compactMap { track in
-                guard let sourceURL = track.candidateWAV?.url,
-                      !Self.isMuted(track) else {
-                    return nil
-                }
+        var result: [PlayableRegion] = []
 
-                return PlayableRegion(
-                    key: "track-\(track.trackNumber)",
-                    url: sourceURL,
-                    startSample: max(track.timeline?.regions.first?.startSample ?? 0, 0),
-                    volume: Self.approximateVolume(for: track),
-                    pan: Self.approximatePan(for: track)
-                )
+        // Assigned tracks with known timelines use their mixer settings directly.
+        // This path correctly applies mute, approximate volume, and pan without relying
+        // on positional EDL-index inference.
+        for track in project.tracks {
+            guard let sourceURL = track.candidateWAV?.url,
+                  track.timeline != nil,
+                  let firstRegion = track.timeline?.regions.first,
+                  !isMuted(track) else {
+                continue
             }
+            result.append(PlayableRegion(
+                key: "track-\(track.trackNumber)",
+                url: sourceURL,
+                startSample: max(firstRegion.startSample, 0),
+                volume: approximateVolume(for: track),
+                pan: approximatePan(for: track)
+            ))
         }
 
-        // Delegate to the planner for all active-take filtering and mute suppression.
-        let plan = PreviewPlaybackPlanner.plan(for: project)
-        return plan.playableRegions.map { scheduled in
-            PlayableRegion(
-                key: scheduled.filename,
-                url: scheduled.url,
-                startSample: scheduled.startSample,
-                volume: scheduled.volume,
-                pan: scheduled.pan
-            )
+        // Unassigned regions go through the planner for virtual-take filtering and
+        // any evidence-backed mute suppression that still applies.
+        if !project.unassignedAudioRegions.isEmpty {
+            let plan = PreviewPlaybackPlanner.plan(for: project)
+            result.append(contentsOf: plan.playableRegions.map { scheduled in
+                PlayableRegion(
+                    key: scheduled.filename,
+                    url: scheduled.url,
+                    startSample: scheduled.startSample,
+                    volume: scheduled.volume,
+                    pan: scheduled.pan
+                )
+            })
         }
+
+        return result
     }
 
     private func handlePlaybackNodeCompleted(playbackID: UUID) {
