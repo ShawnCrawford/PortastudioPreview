@@ -9,8 +9,6 @@ struct ProjectWorkspaceView: View {
     let project: PortastudioProject
     let annotationStore: TrackAnnotationStore
     @Binding var selectedTrackID: TrackPreview.ID?
-    @Binding var selectedRegionID: TimelineRegion.ID?
-    @Binding var workspaceMode: ProjectWorkspaceMode
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
@@ -27,21 +25,15 @@ struct ProjectWorkspaceView: View {
 
             Divider()
 
-            ProjectModeBarView(
-                selection: $workspaceMode
-            )
-
-            Divider()
-
-            ProjectEditorSurface(
-                project: project,
+            TrackMixerDeckView(
+                tracks: project.visibleTracks,
                 selectedTrackID: $selectedTrackID,
-                selectedRegionID: $selectedRegionID,
-                workspaceMode: workspaceMode,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
                 mixState: mixState
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("editor-surface-mixer")
         }
         .frame(minWidth: 760, minHeight: 620)
         .background(.background)
@@ -245,118 +237,6 @@ private struct MeterRow: View {
     }
 }
 
-// MARK: - Mode Bar
-
-private struct ProjectModeBarView: View {
-    @Binding var selection: ProjectWorkspaceMode
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(ProjectWorkspaceMode.allCases) { mode in
-                Button {
-                    selection = mode
-                } label: {
-                    VStack(spacing: 7) {
-                        Label(mode.title, systemImage: mode.systemImage)
-                            .labelStyle(.titleAndIcon)
-                            .font(.callout)
-                        Rectangle()
-                            .fill(selection == mode ? Color.teal : Color.clear)
-                            .frame(height: 2)
-                    }
-                    .frame(minWidth: 112)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(selection == mode ? .primary : .secondary)
-                .accessibilityIdentifier("project-mode-\(mode.rawValue)")
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 9)
-    }
-}
-
-// MARK: - Editor
-
-private struct ProjectEditorSurface: View {
-    let project: PortastudioProject
-    @Binding var selectedTrackID: TrackPreview.ID?
-    @Binding var selectedRegionID: TimelineRegion.ID?
-    let workspaceMode: ProjectWorkspaceMode
-    let annotationStore: TrackAnnotationStore
-    let playbackController: PreviewPlaybackController
-    let mixState: PreviewMixState
-
-    var body: some View {
-        switch workspaceMode {
-        case .tracks:
-            TrackMixerDeckView(
-                tracks: project.visibleTracks,
-                selectedTrackID: $selectedTrackID,
-                annotationStore: annotationStore,
-                playbackController: playbackController,
-                mixState: mixState
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityIdentifier("editor-surface-tracks")
-
-        case .timeline:
-            TimelineSurface(
-                project: project,
-                selectedRegionID: $selectedRegionID,
-                playbackController: playbackController
-            )
-            .accessibilityIdentifier("editor-surface-timeline")
-        }
-    }
-}
-
-private struct TimelineSurface: View {
-    let project: PortastudioProject
-    @Binding var selectedRegionID: TimelineRegion.ID?
-    let playbackController: PreviewPlaybackController
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("Timeline", systemImage: "timeline.selection")
-                    .font(.headline)
-                Spacer()
-                Text("\(project.unassignedAudioRegions.count) region\(project.unassignedAudioRegions.count == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if project.unassignedAudioRegions.isEmpty {
-                ContentUnavailableView(
-                    "No Timeline Regions",
-                    systemImage: "waveform.slash",
-                    description: Text("No unassigned WAV regions were parsed for this song.")
-                )
-                .frame(maxWidth: .infinity, minHeight: 300)
-            } else {
-                TimelineVisualizationView(
-                    project: project,
-                    selectedRegionID: $selectedRegionID,
-                    playbackController: playbackController
-                )
-                .background(.background.secondary)
-                .clipShape(.rect(cornerRadius: 8))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
-                }
-                .frame(minHeight: 360)
-            }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(.background.secondary.opacity(0.35))
-    }
-}
-
 // MARK: - Mixer Deck
 
 struct TrackMixerDeckView: View {
@@ -367,59 +247,86 @@ struct TrackMixerDeckView: View {
     let mixState: PreviewMixState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label("Tracks", systemImage: "slider.horizontal.3")
+                Label("Mixer", systemImage: "slider.horizontal.3")
                     .font(.headline)
                 Spacer()
                 Text("\(tracks.count) track\(tracks.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, MixerDeckMetrics.edgePadding)
             .padding(.top, 18)
+            .padding(.bottom, 12)
 
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 16) {
-                    ForEach(tracks) { track in
-                        let presentation = TrackMixerStripPresentation(
-                            track: track,
-                            displayName: annotationStore.trackName(for: track.trackNumber),
-                            isSelected: selectedTrackID == track.id,
-                            panPositionOverride: mixState.panPosition(for: track.trackNumber),
-                            levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
-                            meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
-                        )
-                        TrackMixerStripView(
-                            presentation: presentation,
-                            selectAction: {
-                                selectedTrackID = track.id
-                            },
-                            setLevelPosition: { newValue in
-                                selectedTrackID = track.id
-                                mixState.setLevelPosition(newValue, for: track.trackNumber)
-                                playbackController.setTrackVolume(newValue, for: track.trackNumber)
-                            },
-                            setPanPosition: { newValue in
-                                selectedTrackID = track.id
-                                mixState.setPanPosition(newValue, for: track.trackNumber)
-                                playbackController.setTrackPan(newValue, for: track.trackNumber)
-                            }
-                        )
+            GeometryReader { proxy in
+                ScrollView(.horizontal) {
+                    HStack(alignment: .center, spacing: MixerDeckMetrics.stripSpacing) {
+                        ForEach(tracks) { track in
+                            let presentation = TrackMixerStripPresentation(
+                                track: track,
+                                displayName: annotationStore.trackName(for: track.trackNumber),
+                                isSelected: selectedTrackID == track.id,
+                                panPositionOverride: mixState.panPosition(for: track.trackNumber),
+                                levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
+                                meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
+                            )
+                            TrackMixerStripView(
+                                presentation: presentation,
+                                selectAction: {
+                                    selectedTrackID = track.id
+                                },
+                                setLevelPosition: { newValue in
+                                    selectedTrackID = track.id
+                                    mixState.setLevelPosition(newValue, for: track.trackNumber)
+                                    playbackController.setTrackVolume(newValue, for: track.trackNumber)
+                                },
+                                setPanPosition: { newValue in
+                                    selectedTrackID = track.id
+                                    mixState.setPanPosition(newValue, for: track.trackNumber)
+                                    playbackController.setTrackPan(newValue, for: track.trackNumber)
+                                }
+                            )
+                            .frame(
+                                width: MixerDeckMetrics.stripWidth,
+                                height: stripHeight(availableHeight: proxy.size.height)
+                            )
+                        }
                     }
+                    .padding(.horizontal, MixerDeckMetrics.edgePadding)
+                    .padding(.vertical, MixerDeckMetrics.channelVerticalPadding)
+                    .frame(
+                        minWidth: proxy.size.width,
+                        minHeight: proxy.size.height,
+                        alignment: .center
+                    )
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 20)
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
             .frame(maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(.regularMaterial, in: .rect(cornerRadius: 12))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(.regularMaterial, in: .rect(cornerRadius: 8))
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .accessibilityIdentifier("track-mixer-deck")
     }
+
+    private func stripHeight(availableHeight: CGFloat) -> CGFloat {
+        max(
+            MixerDeckMetrics.minimumStripHeight,
+            availableHeight - (MixerDeckMetrics.channelVerticalPadding * 2)
+        )
+    }
+}
+
+private enum MixerDeckMetrics {
+    static let edgePadding: CGFloat = 28
+    static let channelVerticalPadding: CGFloat = 18
+    static let stripSpacing: CGFloat = 18
+    static let stripWidth: CGFloat = 148
+    static let minimumStripHeight: CGFloat = 390
 }
 
 private struct TrackMixerStripView: View {
@@ -504,7 +411,7 @@ private struct TrackMixerStripView: View {
                 )
                 OutputLevelView(value: presentation.isMuted ? 0 : presentation.meterLevel)
             }
-            .frame(height: 180)
+            .frame(minHeight: 220, maxHeight: .infinity)
 
             Text(presentation.levelLabel)
                 .font(.caption)
@@ -515,7 +422,7 @@ private struct TrackMixerStripView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
-        .frame(width: 136, height: 330)
+        .frame(maxHeight: .infinity)
         .background(presentation.isSelected ? trackColor.opacity(0.13) : Color.clear)
         .clipShape(.rect(cornerRadius: 10))
         .overlay {

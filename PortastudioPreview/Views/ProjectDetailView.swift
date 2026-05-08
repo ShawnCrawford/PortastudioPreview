@@ -10,9 +10,7 @@ struct ProjectDetailView: View {
     let annotationStore: TrackAnnotationStore
 
     @State private var selectedTrackID: TrackPreview.ID?
-    @State private var selectedRegionID: TimelineRegion.ID?
     @State private var isInspectorPresented = true
-    @State private var workspaceMode: ProjectWorkspaceMode = .tracks
     @State private var playbackController = PreviewPlaybackController()
     @State private var mixState: PreviewMixState
     @State private var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
@@ -28,8 +26,6 @@ struct ProjectDetailView: View {
             project: project,
             annotationStore: annotationStore,
             selectedTrackID: $selectedTrackID,
-            selectedRegionID: $selectedRegionID,
-            workspaceMode: $workspaceMode,
             playbackController: playbackController,
             mixState: mixState,
             selectedVirtualTrackIDs: $selectedVirtualTrackIDs
@@ -51,21 +47,13 @@ struct ProjectDetailView: View {
             TrackRegionInspectorView(
                 project: project,
                 selectedTrack: project.visibleTracks.first { $0.id == selectedTrackID },
-                selectedRegion: project.unassignedAudioRegions.first { $0.id == selectedRegionID },
+                selectedRegion: nil,
                 annotationStore: annotationStore
             )
             .inspectorColumnWidth(min: 240, ideal: 300, max: 360)
         }
-        .onChange(of: selectedTrackID) { _, newValue in
-            if newValue != nil { selectedRegionID = nil }
-        }
-        .onChange(of: selectedRegionID) { _, newValue in
-            if newValue != nil { selectedTrackID = nil }
-        }
         .onChange(of: project.folderURL) { _, _ in
             selectedTrackID = nil
-            selectedRegionID = nil
-            workspaceMode = .tracks
             mixState = PreviewMixState(project: project)
             selectedVirtualTrackIDs = [:]
             playbackController.stop()
@@ -260,168 +248,6 @@ private struct TracksGroupBoxView: View {
                 .font(.headline)
         }
         .accessibilityLabel("Track and mixer data")
-    }
-}
-
-// MARK: - Regions / Timeline
-
-private struct RegionsTimelineGroupBoxView: View {
-    let project: PortastudioProject
-    @Binding var selectedRegionID: TimelineRegion.ID?
-    let playbackController: PreviewPlaybackController
-
-    var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Regions from edltable.sys not yet matched to a specific track. Track-to-WAV assignment is Hypothesis.")
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
-
-                if project.unassignedAudioRegions.isEmpty {
-                    Text("No unassigned regions parsed.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    // Visual timeline above the data table.
-                    TimelineVisualizationView(
-                        project: project,
-                        selectedRegionID: $selectedRegionID,
-                        playbackController: playbackController
-                    )
-                    .background(.background.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .frame(minHeight: 80)
-
-                    Divider()
-
-                    UnassignedRegionsTableView(
-                        regions: project.unassignedAudioRegions,
-                        selectedRegionID: $selectedRegionID
-                    )
-                }
-
-                if let edl = project.edlTableSummary {
-                    Divider()
-                    EDLSummaryView(edl: edl)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            HStack {
-                Label("Regions / Timeline", systemImage: "timeline.selection")
-                    .font(.headline)
-                Spacer()
-                if !project.unassignedAudioRegions.isEmpty {
-                    Text("\(project.unassignedAudioRegions.count) region\(project.unassignedAudioRegions.count == 1 ? "" : "s")")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .accessibilityLabel("Regions and timeline data")
-    }
-}
-
-private struct UnassignedRegionsTableView: View {
-    let regions: [TimelineRegion]
-    @Binding var selectedRegionID: TimelineRegion.ID?
-
-    var body: some View {
-        Table(regions, selection: $selectedRegionID) {
-            TableColumn("Unassigned WAV") { region in
-                Text(region.sourceFilename ?? "Unknown")
-            }
-            .width(min: 150, ideal: 220)
-
-            TableColumn("Start") { region in
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("\(region.startSample)")
-                        .font(.system(.caption, design: .monospaced))
-                    Text("≈ \(SampleTimeFormatter.displayString(samples: region.startSample))")
-                        .foregroundStyle(.secondary)
-                        .font(.system(.caption2, design: .monospaced))
-                }
-            }
-            .width(min: 110, ideal: 140)
-
-            TableColumn("Length") { region in
-                if let length = region.resolvedLengthSample {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("\(length)")
-                            .font(.system(.caption, design: .monospaced))
-                        Text("≈ \(SampleTimeFormatter.displayString(samples: length))")
-                            .foregroundStyle(.secondary)
-                            .font(.system(.caption2, design: .monospaced))
-                    }
-                } else {
-                    Text("n/a")
-                        .foregroundStyle(.secondary)
-                        .font(.system(.caption, design: .monospaced))
-                }
-            }
-            .width(min: 110, ideal: 140)
-
-            TableColumn("Evidence") { region in
-                Text(region.evidenceLevel.rawValue)
-                    .foregroundStyle(.secondary)
-            }
-            .width(100)
-        }
-        .frame(minHeight: 96, idealHeight: 140)
-    }
-}
-
-private struct EDLSummaryView: View {
-    let edl: EdlTableSummary
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("EDL Summary")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            if !edl.fileListEntries.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("File list — \(edl.fileListEntries.count) entries · \(edl.evidenceLevel.rawValue)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    ForEach(edl.fileListEntries, id: \.self) { entry in
-                        HStack(spacing: 8) {
-                            Text("#\(entry.fileID)")
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 28, alignment: .trailing)
-                            Text(entry.filename)
-                                .font(.system(.caption, design: .monospaced))
-                        }
-                    }
-                }
-            }
-
-            if !edl.timelineCandidates.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Timeline candidates — \(edl.timelineCandidates.count) · Hypothesis")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    ForEach(edl.timelineCandidates.indices, id: \.self) { index in
-                        let candidate = edl.timelineCandidates[index]
-                        HStack(spacing: 8) {
-                            Text("\(candidate.representativeSample)")
-                                .font(.system(.caption, design: .monospaced))
-                                .frame(width: 80, alignment: .trailing)
-                            Text("≈ \(SampleTimeFormatter.displayString(samples: candidate.representativeSample))")
-                                .foregroundStyle(.secondary)
-                                .font(.system(.caption2, design: .monospaced))
-                        }
-                    }
-                }
-            }
-
-            if edl.fileListEntries.isEmpty && edl.timelineCandidates.isEmpty {
-                Text("No file list entries or timeline candidates parsed.")
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
-            }
-        }
     }
 }
 

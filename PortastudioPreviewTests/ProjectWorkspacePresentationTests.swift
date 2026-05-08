@@ -8,12 +8,6 @@ import Testing
 @testable import PortastudioPreview
 
 struct ProjectWorkspacePresentationTests {
-    @Test func inspectorModeRemovedFromWorkspaceModes() {
-        let modes = ProjectWorkspaceMode.allCases
-        #expect(modes == [.tracks, .timeline])
-        #expect(modes.count == 2)
-    }
-
     @Test func headerIncludesAssignedTrackTimelinesInDurationLabel() {
         // Duration must include tracks with timelines, not only unassigned regions.
         let region = TimelineRegion(

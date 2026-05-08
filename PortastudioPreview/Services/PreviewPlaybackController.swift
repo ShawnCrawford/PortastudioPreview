@@ -23,7 +23,7 @@ protocol PreviewPlaybackEngineProtocol {
 /// Shared transport model for approximate stereo preview playback.
 ///
 /// Owns `StereoPreviewEngine` and provides `isPlaying` and `elapsedSeconds`
-/// for playhead display in `TimelineVisualizationView`.
+/// for workspace transport display.
 /// Create one instance per selected-song workspace lifetime.
 @Observable
 @MainActor

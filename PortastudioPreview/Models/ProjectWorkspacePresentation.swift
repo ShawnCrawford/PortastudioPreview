@@ -5,27 +5,6 @@
 
 import Foundation
 
-enum ProjectWorkspaceMode: String, CaseIterable, Identifiable {
-    case tracks
-    case timeline
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .tracks: return "Tracks"
-        case .timeline: return "Timeline"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .tracks: return "slider.horizontal.3"
-        case .timeline: return "timeline.selection"
-        }
-    }
-}
-
 struct ProjectHeaderSummary: Equatable {
     let title: String
     let folderName: String
