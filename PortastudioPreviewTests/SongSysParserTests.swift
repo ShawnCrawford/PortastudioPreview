@@ -40,8 +40,8 @@ struct SongSysParserTests {
         for i in 0..<MixerMapOffsets.confirmedLowBankMuteCount {
             data[MixerMapOffsets.muteBase + i] = 0x01
         }
-        // Set mirror bytes for mono tracks T1–T8 (indices 0–7)
-        for i in 0..<MixerMapOffsets.correlatedLevelPanTrackCount {
+        // Set mirror bytes for all logical channels (T1–T8 + T9/10–T31/32).
+        for i in 0..<MixerMapOffsets.confirmedMirrorMuteCount {
             data[MixerMapOffsets.muteMirrorBase + i] = 0x01
         }
 
@@ -64,15 +64,16 @@ struct SongSysParserTests {
         #expect(tracks[7].mute?.primaryOffset == 0x026F)
         #expect(tracks[7].mute?.mirrorOffset == 0x0A34)
 
-        // T9–T18: confirmed low-bank only; mirror not read (stereo-pair logical mapping)
-        #expect(tracks[8].mute?.primaryOffset == 0x0270)
+        // T9–T18: effective mute prefers mirror logical pair entries.
+        #expect(tracks[8].mute?.primaryOffset == 0x0A35)
         #expect(tracks[8].mute?.primaryByte == 0x01)
         #expect(tracks[8].mute?.mirrorOffset == nil)
-        #expect(tracks[17].mute?.primaryOffset == 0x0279)
+        #expect(tracks[9].mute?.primaryOffset == 0x0A35)
+        #expect(tracks[17].mute?.primaryOffset == 0x0A41)
 
-        // T19+: beyond confirmed low-bank range
-        #expect(tracks[18].mute == nil)
-        #expect(tracks[31].mute == nil)
+        // T19+ still reads confirmed mirror mute entries.
+        #expect(tracks[18].mute?.primaryOffset == 0x0A42)
+        #expect(tracks[31].mute?.primaryOffset == 0x0A40)
     }
 
     @Test func trackIndexOffsetCalculationUsesCorrelatedStride() throws {
@@ -82,10 +83,30 @@ struct SongSysParserTests {
         #expect(tracks[4].pan.primaryOffset == 0x00C6 + 4 * 0x14)
         #expect(tracks[7].level.mirrorOffset == 0x081C + 7 * 0x14)
         #expect(tracks[7].pan.mirrorOffset == 0x081E + 7 * 0x14)
-        #expect(tracks[31].level.primaryOffset == 0x00C4 + 31 * 0x14)
-        #expect(tracks[31].pan.primaryOffset == 0x00C6 + 31 * 0x14)
+        #expect(tracks[31].level.primaryOffset == 0x081C + 19 * 0x14)
+        #expect(tracks[31].pan.primaryOffset == 0x081E + 19 * 0x14)
         #expect(tracks[31].level.mirrorOffset == nil)
         #expect(tracks[31].pan.mirrorOffset == nil)
+    }
+
+    @Test func stereoPairUsesSharedMirrorLevelAndPan() throws {
+        var data = makeMinimumSongSysData()
+        let logicalOffset = 8 * MixerMapOffsets.trackStride
+        data[MixerMapOffsets.levelMirrorBase + logicalOffset] = 0x4C
+        data[MixerMapOffsets.panMirrorBase + logicalOffset] = 0x55
+
+        // Different low-bank values should not affect effective paired controls.
+        data[MixerMapOffsets.levelOffset(trackIndex: 8)] = 0x10
+        data[MixerMapOffsets.levelOffset(trackIndex: 9)] = 0x20
+        data[MixerMapOffsets.panOffset(trackIndex: 8)] = 0x01
+        data[MixerMapOffsets.panOffset(trackIndex: 9)] = 0x7F
+
+        let tracks = try SongSysParser().parse(data)
+
+        #expect(tracks[8].level.primaryByte == 0x4C)
+        #expect(tracks[9].level.primaryByte == 0x4C)
+        #expect(tracks[8].pan.primaryByte == 0x55)
+        #expect(tracks[9].pan.primaryByte == 0x55)
     }
 
     @Test func mirrorMismatchReturnsWarningWithoutPromotion() throws {
@@ -103,13 +124,13 @@ struct SongSysParserTests {
     @Test func unsupportedMirrorRowsDoNotReturnWarnings() throws {
         var data = makeMinimumSongSysData()
         data[0x022E] = 0x00
-        data[0x0986] = 0x40
+        data[0x081E + 13 * 0x14] = 0x40
 
         let tracks = try SongSysParser().parse(data)
 
-        #expect(tracks[18].pan.primaryOffset == 0x022E)
+        #expect(tracks[18].pan.primaryOffset == 0x081E + 13 * 0x14)
         #expect(tracks[18].pan.mirrorOffset == nil)
-        #expect(tracks[18].pan.evidenceLevel == .hypothesis)
+        #expect(tracks[18].pan.evidenceLevel == .confirmed)
         #expect(tracks[18].warnings.isEmpty)
     }
 

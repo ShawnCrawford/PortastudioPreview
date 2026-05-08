@@ -76,6 +76,7 @@ struct ProjectHeaderSummary: Equatable {
 struct TrackMixerStripPresentation: Identifiable, Equatable {
     let id: Int
     let trackNumber: Int
+    let trackNumberLabel: String
     let displayName: String
     let candidateWAVLabel: String
     let candidateDetailLabel: String
@@ -90,7 +91,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
     let colorIndex: Int
 
     init(
-        track: TrackPreview,
+        channel: MixerChannel,
         displayName: String?,
         isSelected: Bool,
         panPositionOverride: Double? = nil,
@@ -98,21 +99,23 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         muteOverride: Bool? = nil,
         meterLevel: Double = 0
     ) {
-        id = track.trackNumber
-        trackNumber = track.trackNumber
+        let track = channel.controlTrack
+        id = channel.id
+        trackNumber = channel.id
+        trackNumberLabel = channel.trackNumberLabel
         if let displayName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
            !displayName.isEmpty {
             self.displayName = displayName
         } else {
-            self.displayName = "Track \(track.trackNumber)"
+            self.displayName = "Track \(channel.trackNumberLabel)"
         }
-        candidateWAVLabel = track.candidateWAV?.rawFilename ?? "No Audio File"
-        candidateDetailLabel = track.candidateWAV == nil ? "Not assigned" : "Audio file"
+        candidateWAVLabel = track?.candidateWAV?.rawFilename ?? "No Audio File"
+        candidateDetailLabel = track?.candidateWAV == nil ? "Not assigned" : "Audio file"
 
         if let panPositionOverride {
             panPosition = min(max(panPositionOverride, -1), 1)
             panDisplayLabel = PanMapper.previewDisplayValue(forNormalizedPosition: panPosition)
-        } else if let pan = track.mixerSetting?.pan {
+        } else if let pan = track?.mixerSetting?.pan {
             panPosition = PanMapper.normalizedPosition(for: pan.primaryByte)
             panDisplayLabel = PanMapper.previewDisplayValue(forNormalizedPosition: panPosition)
         } else {
@@ -123,7 +126,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         if let levelPositionOverride {
             levelLabel = LevelMapper.previewDisplayValue(forNormalizedPosition: levelPositionOverride)
             levelPosition = levelPositionOverride
-        } else if let level = track.mixerSetting?.level {
+        } else if let level = track?.mixerSetting?.level {
             levelLabel = LevelMapper.displayValue(for: level.primaryByte)
             levelPosition = Self.levelPosition(rawByte: level.primaryByte)
         } else {
@@ -132,10 +135,10 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         }
         self.meterLevel = min(max(meterLevel, 0), 1)
 
-        isMuted = muteOverride ?? ((track.mixerSetting?.mute?.primaryByte ?? 0) != 0)
+        isMuted = muteOverride ?? ((track?.mixerSetting?.mute?.primaryByte ?? 0) != 0)
         muteLabel = isMuted ? "Muted" : "Live"
         self.isSelected = isSelected
-        colorIndex = (track.trackNumber - 1) % Self.paletteCount
+        colorIndex = (channel.id - 1) % Self.paletteCount
     }
 
     private static let paletteCount = 8

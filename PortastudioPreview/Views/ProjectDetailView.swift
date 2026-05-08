@@ -46,7 +46,9 @@ struct ProjectDetailView: View {
         .inspector(isPresented: $isInspectorPresented) {
             TrackRegionInspectorView(
                 project: project,
-                selectedTrack: project.visibleTracks.first { $0.id == selectedTrackID },
+                selectedTrack: project.visibleMixerChannels
+                    .first { $0.id == selectedTrackID }?
+                    .controlTrack,
                 selectedRegion: nil,
                 annotationStore: annotationStore
             )
@@ -234,10 +236,22 @@ private struct TracksGroupBoxView: View {
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let annotationStore: TrackAnnotationStore
 
+    private var channels: [MixerChannel] {
+        let tracksByNumber = Dictionary(uniqueKeysWithValues: tracks.map { ($0.trackNumber, $0) })
+        return MixerChannelLayout.allLeadingTrackNumbers.compactMap { leadingTrackNumber in
+            let members = MixerChannelLayout.memberTrackNumbers(forLeadingTrackNumber: leadingTrackNumber)
+                .compactMap { tracksByNumber[$0] }
+            guard !members.isEmpty else {
+                return nil
+            }
+            return MixerChannel(leadingTrackNumber: leadingTrackNumber, memberTracks: members)
+        }
+    }
+
     var body: some View {
         GroupBox {
             TrackTableView(
-                tracks: tracks,
+                channels: channels,
                 selectedTrackID: $selectedTrackID,
                 selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
                 annotationStore: annotationStore

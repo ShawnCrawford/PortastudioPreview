@@ -107,8 +107,39 @@ enum MixerMapOffsets {
         muteMirrorBase + trackIndex
     }
 
+    static func mirrorLogicalTrackIndex(forPhysicalTrackIndex trackIndex: Int) -> Int? {
+        MixerChannelLayout.mirrorBankLogicalIndex(forTrackIndex: trackIndex)
+    }
+
+    static func levelPanMirrorOffsetForPhysicalTrack(trackIndex: Int) -> Int? {
+        guard let logicalIndex = mirrorLogicalTrackIndex(forPhysicalTrackIndex: trackIndex),
+              logicalIndex < confirmedMirrorLevelPanCount else {
+            return nil
+        }
+
+        return levelMirrorOffset(trackIndex: logicalIndex)
+    }
+
+    static func panMirrorOffsetForPhysicalTrack(trackIndex: Int) -> Int? {
+        guard let logicalIndex = mirrorLogicalTrackIndex(forPhysicalTrackIndex: trackIndex),
+              logicalIndex < confirmedMirrorLevelPanCount else {
+            return nil
+        }
+
+        return panMirrorOffset(trackIndex: logicalIndex)
+    }
+
+    static func muteMirrorOffsetForPhysicalTrack(trackIndex: Int) -> Int? {
+        guard let logicalIndex = mirrorLogicalTrackIndex(forPhysicalTrackIndex: trackIndex),
+              logicalIndex < confirmedMirrorMuteCount else {
+            return nil
+        }
+
+        return muteMirrorBase + logicalIndex
+    }
+
     static func hasCorrelatedLevelPanMirror(trackIndex: Int) -> Bool {
-        (0..<correlatedLevelPanTrackCount).contains(trackIndex)
+        levelPanMirrorOffsetForPhysicalTrack(trackIndex: trackIndex) != nil
     }
 
     static func hasConfirmedLowBankMute(trackIndex: Int) -> Bool {

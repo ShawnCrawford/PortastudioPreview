@@ -10,41 +10,39 @@ struct SongSysParser {
         let reader = ByteReader(data: data)
 
         return try (0..<MixerMapOffsets.trackCount).map { trackIndex in
+            let levelPrimaryOffset = MixerMapOffsets.levelOffset(trackIndex: trackIndex)
+            let panPrimaryOffset = MixerMapOffsets.panOffset(trackIndex: trackIndex)
+            let levelMirrorOffset = MixerMapOffsets.levelPanMirrorOffsetForPhysicalTrack(trackIndex: trackIndex)
+            let panMirrorOffset = MixerMapOffsets.panMirrorOffsetForPhysicalTrack(trackIndex: trackIndex)
+
+            let preferredLevelOffset = preferredPrimaryOffset(
+                forTrackIndex: trackIndex,
+                lowBankOffset: levelPrimaryOffset,
+                mirrorOffset: levelMirrorOffset
+            )
+            let preferredPanOffset = preferredPrimaryOffset(
+                forTrackIndex: trackIndex,
+                lowBankOffset: panPrimaryOffset,
+                mirrorOffset: panMirrorOffset
+            )
+
             let level = try readMirroredSetting(
                 name: "Level",
                 reader: reader,
-                primaryOffset: MixerMapOffsets.levelOffset(trackIndex: trackIndex),
-                mirrorOffset: MixerMapOffsets.hasCorrelatedLevelPanMirror(trackIndex: trackIndex)
-                    ? MixerMapOffsets.levelMirrorOffset(trackIndex: trackIndex)
-                    : nil
+                primaryOffset: preferredLevelOffset,
+                mirrorOffset: preferredLevelOffset == levelPrimaryOffset ? levelMirrorOffset : nil,
+                evidenceLevel: levelMirrorOffset == nil ? .hypothesis : .confirmed
             )
 
             let pan = try readMirroredSetting(
                 name: "Pan",
                 reader: reader,
-                primaryOffset: MixerMapOffsets.panOffset(trackIndex: trackIndex),
-                mirrorOffset: MixerMapOffsets.hasCorrelatedLevelPanMirror(trackIndex: trackIndex)
-                    ? MixerMapOffsets.panMirrorOffset(trackIndex: trackIndex)
-                    : nil
+                primaryOffset: preferredPanOffset,
+                mirrorOffset: preferredPanOffset == panPrimaryOffset ? panMirrorOffset : nil,
+                evidenceLevel: panMirrorOffset == nil ? .hypothesis : .confirmed
             )
 
-            let mute: MixerSetting?
-            if MixerMapOffsets.hasConfirmedLowBankMute(trackIndex: trackIndex) {
-                // Low-bank mute confirmed for T1–T18 (SONG_0093). Mirror is 1:1 for mono
-                // tracks T1–T8 (indices 0–7) only; stereo-pair tracks T9–T18 use a different
-                // logical-index mapping in the mirror bank and are read without mirror for now.
-                let mirrorOffset = MixerMapOffsets.hasConfirmedMirrorMuteForMonoTrack(trackIndex: trackIndex)
-                    ? MixerMapOffsets.muteMirrorOffsetForMonoTrack(trackIndex: trackIndex)
-                    : nil
-                mute = try readMirroredSetting(
-                    name: "Mute",
-                    reader: reader,
-                    primaryOffset: MixerMapOffsets.muteOffset(trackIndex: trackIndex),
-                    mirrorOffset: mirrorOffset
-                )
-            } else {
-                mute = nil
-            }
+            let mute = try parseMuteSetting(trackIndex: trackIndex, reader: reader)
 
             return TrackMixerSetting(
                 trackNumber: trackIndex + 1,
@@ -59,7 +57,8 @@ struct SongSysParser {
         name: String,
         reader: ByteReader,
         primaryOffset: Int,
-        mirrorOffset: Int?
+        mirrorOffset: Int?,
+        evidenceLevel: EvidenceLevel
     ) throws -> MixerSetting {
         let primaryByte = try reader.readUInt8(at: primaryOffset)
         let mirrorByte: UInt8?
@@ -76,7 +75,49 @@ struct SongSysParser {
             primaryByte: primaryByte,
             mirrorOffset: mirrorOffset,
             mirrorByte: mirrorByte,
-            evidenceLevel: mirrorOffset == nil ? .hypothesis : .correlated
+            evidenceLevel: evidenceLevel
         )
+    }
+
+    private func parseMuteSetting(trackIndex: Int, reader: ByteReader) throws -> MixerSetting? {
+        let mirrorOffset = MixerMapOffsets.muteMirrorOffsetForPhysicalTrack(trackIndex: trackIndex)
+        let lowBankOffset = MixerMapOffsets.hasConfirmedLowBankMute(trackIndex: trackIndex)
+            ? MixerMapOffsets.muteOffset(trackIndex: trackIndex)
+            : nil
+
+        guard mirrorOffset != nil || lowBankOffset != nil else {
+            return nil
+        }
+
+        let primaryOffset: Int
+        let secondaryOffset: Int?
+        if trackIndex >= MixerChannelLayout.monoTrackRange.count, let mirrorOffset {
+            primaryOffset = mirrorOffset
+            secondaryOffset = nil
+        } else if let lowBankOffset {
+            primaryOffset = lowBankOffset
+            secondaryOffset = mirrorOffset
+        } else if let mirrorOffset {
+            primaryOffset = mirrorOffset
+            secondaryOffset = nil
+        } else {
+            return nil
+        }
+
+        return try readMirroredSetting(
+            name: "Mute",
+            reader: reader,
+            primaryOffset: primaryOffset,
+            mirrorOffset: secondaryOffset,
+            evidenceLevel: mirrorOffset == nil ? .observed : .confirmed
+        )
+    }
+
+    private func preferredPrimaryOffset(forTrackIndex trackIndex: Int, lowBankOffset: Int, mirrorOffset: Int?) -> Int {
+        guard trackIndex >= MixerChannelLayout.monoTrackRange.count, let mirrorOffset else {
+            return lowBankOffset
+        }
+
+        return mirrorOffset
     }
 }

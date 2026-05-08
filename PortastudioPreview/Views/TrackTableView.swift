@@ -6,20 +6,20 @@
 import SwiftUI
 
 struct TrackTableView: View {
-    let tracks: [TrackPreview]
+    let channels: [MixerChannel]
     @Binding var selectedTrackID: TrackPreview.ID?
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     var annotationStore: TrackAnnotationStore? = nil
 
     var body: some View {
-        Table(tracks, selection: $selectedTrackID) {
-            TableColumn("Track") { track in
-                Text("\(track.trackNumber)")
+        Table(channels, selection: $selectedTrackID) {
+            TableColumn("Track") { channel in
+                Text(channel.trackNumberLabel)
             }
-            .width(48)
+            .width(64)
 
-            TableColumn("Name") { track in
-                if let name = annotationStore?.trackName(for: track.trackNumber) {
+            TableColumn("Name") { channel in
+                if let name = annotationStore?.trackName(for: channel.annotationTrackNumber) {
                     Text(name)
                 } else {
                     Text("–")
@@ -28,22 +28,23 @@ struct TrackTableView: View {
             }
             .width(min: 80, ideal: 120)
 
-            TableColumn("Mapped WAV") { track in
-                let selected = track.selectedVirtualTrackOption(
-                    selectedOptionID: selectedVirtualTrackIDs[track.trackNumber]
+            TableColumn("Mapped WAV") { channel in
+                let controlTrack = channel.controlTrack
+                let selected = controlTrack?.selectedVirtualTrackOption(
+                    selectedOptionID: selectedVirtualTrackIDs[channel.annotationTrackNumber]
                 )
-                Text(selected?.wavItem.rawFilename ?? track.candidateWAV?.rawFilename ?? "Unassigned")
-                    .foregroundStyle((selected == nil && track.candidateWAV == nil) ? .secondary : .primary)
+                Text(selected?.wavItem.rawFilename ?? controlTrack?.candidateWAV?.rawFilename ?? "Unassigned")
+                    .foregroundStyle((selected == nil && controlTrack?.candidateWAV == nil) ? .secondary : .primary)
             }
             .width(min: 150, ideal: 220)
 
-            TableColumn("Mute") { track in
-                Text(settingDisplay(track.mixerSetting?.mute))
+            TableColumn("Mute") { channel in
+                Text(settingDisplay(channel.controlTrack?.mixerSetting?.mute))
             }
             .width(72)
 
-            TableColumn("Pan") { track in
-                if let pan = track.mixerSetting?.pan {
+            TableColumn("Pan") { channel in
+                if let pan = channel.controlTrack?.mixerSetting?.pan {
                     Text(PanMapper.displayValue(for: pan.primaryByte))
                 } else {
                     Text("n/a")
@@ -52,8 +53,8 @@ struct TrackTableView: View {
             }
             .width(84)
 
-            TableColumn("Level") { track in
-                if let level = track.mixerSetting?.level {
+            TableColumn("Level") { channel in
+                if let level = channel.controlTrack?.mixerSetting?.level {
                     Text(LevelMapper.displayValue(for: level.primaryByte))
                 } else {
                     Text("n/a")
@@ -62,24 +63,25 @@ struct TrackTableView: View {
             }
             .width(84)
 
-            TableColumn("Raw Bytes") { track in
-                Text(rawBytes(for: track))
+            TableColumn("Raw Bytes") { channel in
+                Text(rawBytes(for: channel.controlTrack))
                     .font(.system(.caption, design: .monospaced))
             }
             .width(min: 260, ideal: 420)
 
-            TableColumn("Evidence") { track in
-                let selected = track.selectedVirtualTrackOption(
-                    selectedOptionID: selectedVirtualTrackIDs[track.trackNumber]
+            TableColumn("Evidence") { channel in
+                let controlTrack = channel.controlTrack
+                let selected = controlTrack?.selectedVirtualTrackOption(
+                    selectedOptionID: selectedVirtualTrackIDs[channel.annotationTrackNumber]
                 )
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(track.mixerSetting?.level.evidenceLevel.rawValue ?? EvidenceLevel.observed.rawValue)
+                    Text(controlTrack?.mixerSetting?.level.evidenceLevel.rawValue ?? EvidenceLevel.observed.rawValue)
 
                     if let selected {
                         Text("WAV: \(selected.evidenceLevel.rawValue)")
                             .foregroundStyle(.secondary)
-                    } else if track.candidateWAV != nil {
-                        Text("WAV: \(track.candidateWAVEvidence.rawValue)")
+                    } else if controlTrack?.candidateWAV != nil {
+                        Text("WAV: \(controlTrack?.candidateWAVEvidence.rawValue ?? EvidenceLevel.observed.rawValue)")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -96,14 +98,14 @@ struct TrackTableView: View {
         return HexFormatter.byte(setting.primaryByte)
     }
 
-    private func rawBytes(for track: TrackPreview) -> String {
+    private func rawBytes(for track: TrackPreview?) -> String {
         var parts: [String] = []
 
-        if let mixerSetting = track.mixerSetting {
+        if let mixerSetting = track?.mixerSetting {
             parts.append(mixerSetting.rawBytesDescription)
         }
 
-        if let activeTake = track.track1ActiveTakeCandidate {
+        if let activeTake = track?.track1ActiveTakeCandidate {
             parts.append("\(HexFormatter.offset(EdlTableParser.track1ActiveTakeCandidateOffset))=\(HexFormatter.byte(activeTake))")
         }
 

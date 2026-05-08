@@ -60,27 +60,42 @@ struct PreviewMixStateTests {
         #expect(state.trackMuteOverrides[1] == true)
     }
 
+    @Test func stereoPairSharesSingleOverrideEntry() {
+        let tracks = [
+            makeTrack(trackNumber: 9, panByte: 0x40, muteByte: 0x00),
+            makeTrack(trackNumber: 10, panByte: 0x40, muteByte: 0x00)
+        ]
+        let project = PortastudioProject(
+            folderURL: URL(fileURLWithPath: "/tmp/SONG_mixstate_pair"),
+            validationIssues: [],
+            wavInventory: [],
+            unassignedAudioRegions: [],
+            tracks: tracks,
+            edlTableSummary: nil
+        )
+        let state = PreviewMixState(project: project)
+
+        state.setPanPosition(0.25, for: 9)
+        #expect(state.panPosition(for: 10) == 0.25)
+        #expect(state.trackPanOverrides[9] == 0.25)
+        #expect(state.trackPanOverrides[10] == nil)
+
+        state.setMuted(true, for: 10)
+        #expect(state.isMuted(for: 9))
+        #expect(state.trackMuteOverrides[9] == true)
+        #expect(state.trackMuteOverrides[10] == nil)
+    }
+
     private func makeProject(panBytes: [UInt8]) -> PortastudioProject {
         makeProject(panBytes: panBytes, muteBytes: Array(repeating: 0x00, count: panBytes.count))
     }
 
     private func makeProject(panBytes: [UInt8], muteBytes: [UInt8]) -> PortastudioProject {
         let tracks = panBytes.enumerated().map { index, panByte in
-            TrackPreview(
+            makeTrack(
                 trackNumber: index + 1,
-                candidateWAV: nil,
-                mixerSetting: TrackMixerSetting(
-                    trackNumber: index + 1,
-                    level: setting(name: "Level", primaryOffset: 0x00C4, primaryByte: 0x6A),
-                    pan: setting(name: "Pan", primaryOffset: 0x00C6, primaryByte: panByte),
-                    mute: setting(
-                        name: "Mute",
-                        primaryOffset: 0x0268,
-                        primaryByte: muteBytes.indices.contains(index) ? muteBytes[index] : 0x00
-                    )
-                ),
-                track1ActiveTakeCandidate: nil,
-                timeline: nil
+                panByte: panByte,
+                muteByte: muteBytes.indices.contains(index) ? muteBytes[index] : 0x00
             )
         }
 
@@ -91,6 +106,25 @@ struct PreviewMixStateTests {
             unassignedAudioRegions: [],
             tracks: tracks,
             edlTableSummary: nil
+        )
+    }
+
+    private func makeTrack(trackNumber: Int, panByte: UInt8, muteByte: UInt8) -> TrackPreview {
+        TrackPreview(
+            trackNumber: trackNumber,
+            candidateWAV: nil,
+            mixerSetting: TrackMixerSetting(
+                trackNumber: trackNumber,
+                level: setting(name: "Level", primaryOffset: 0x00C4, primaryByte: 0x6A),
+                pan: setting(name: "Pan", primaryOffset: 0x00C6, primaryByte: panByte),
+                mute: setting(
+                    name: "Mute",
+                    primaryOffset: 0x0268,
+                    primaryByte: muteByte
+                )
+            ),
+            track1ActiveTakeCandidate: nil,
+            timeline: nil
         )
     }
 

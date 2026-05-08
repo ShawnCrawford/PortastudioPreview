@@ -117,13 +117,14 @@ struct ProjectWorkspacePresentationTests {
         )
 
         let strip = TrackMixerStripPresentation(
-            track: track,
+            channel: MixerChannel(leadingTrackNumber: 3, memberTracks: [track]),
             displayName: "Lead Vocal",
             isSelected: true,
             meterLevel: 0.42
         )
 
         #expect(strip.id == 3)
+        #expect(strip.trackNumberLabel == "3")
         #expect(strip.displayName == "Lead Vocal")
         #expect(strip.candidateWAVLabel == "ZZ0003_1.wav")
         #expect(strip.candidateDetailLabel == "Audio file")
@@ -148,9 +149,14 @@ struct ProjectWorkspacePresentationTests {
             defaultVirtualTrackOptionID: nil
         )
 
-        let strip = TrackMixerStripPresentation(track: track, displayName: nil, isSelected: false)
+        let strip = TrackMixerStripPresentation(
+            channel: MixerChannel(leadingTrackNumber: 4, memberTracks: [track]),
+            displayName: nil,
+            isSelected: false
+        )
 
         #expect(strip.displayName == "Track 4")
+        #expect(strip.trackNumberLabel == "4")
         #expect(strip.candidateWAVLabel == "No Audio File")
         #expect(strip.candidateDetailLabel == "Not assigned")
         #expect(strip.panDisplayLabel == "C")
@@ -172,14 +178,17 @@ struct ProjectWorkspacePresentationTests {
             displayName: nil
         )
         let noFileStrip = TrackMixerStripPresentation(
-            track: TrackPreview(
-                trackNumber: 8,
-                candidateWAV: nil,
-                mixerSetting: nil,
-                track1ActiveTakeCandidate: nil,
-                timeline: nil,
-                virtualTrackOptions: [],
-                defaultVirtualTrackOptionID: nil
+            channel: MixerChannel(
+                leadingTrackNumber: 8,
+                memberTracks: [TrackPreview(
+                    trackNumber: 8,
+                    candidateWAV: nil,
+                    mixerSetting: nil,
+                    track1ActiveTakeCandidate: nil,
+                    timeline: nil,
+                    virtualTrackOptions: [],
+                    defaultVirtualTrackOptionID: nil
+                )]
             ),
             displayName: nil,
             isSelected: false
@@ -202,6 +211,21 @@ struct ProjectWorkspacePresentationTests {
         for term in blockedTerms {
             #expect(!primaryCopy.contains(term))
         }
+    }
+
+    @Test func visibleMixerChannelsGroupTrack9And10IntoSingleRow() {
+        let project = makeProject(
+            validationIssues: [],
+            regions: [],
+            tracks: [
+                makeTrack(trackNumber: 9, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false),
+                makeTrack(trackNumber: 10, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false)
+            ]
+        )
+
+        #expect(project.visibleMixerChannels.count == 1)
+        #expect(project.visibleMixerChannels[0].id == 9)
+        #expect(project.visibleMixerChannels[0].trackNumberLabel == "9/10")
     }
 
     // MARK: - Helpers

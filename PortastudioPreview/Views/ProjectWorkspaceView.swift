@@ -26,7 +26,7 @@ struct ProjectWorkspaceView: View {
             Divider()
 
             TrackMixerDeckView(
-                tracks: project.visibleTracks,
+                channels: project.visibleMixerChannels,
                 selectedTrackID: $selectedTrackID,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
@@ -239,7 +239,7 @@ private struct MeterRow: View {
 // MARK: - Mixer Deck
 
 struct TrackMixerDeckView: View {
-    let tracks: [TrackPreview]
+    let channels: [MixerChannel]
     @Binding var selectedTrackID: TrackPreview.ID?
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
@@ -251,7 +251,7 @@ struct TrackMixerDeckView: View {
                 Label("Mixer", systemImage: "slider.horizontal.3")
                     .font(.headline)
                 Spacer()
-                Text("\(tracks.count) track\(tracks.count == 1 ? "" : "s")")
+                Text("\(channels.count) track\(channels.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -262,35 +262,36 @@ struct TrackMixerDeckView: View {
             GeometryReader { proxy in
                 ScrollView(.horizontal) {
                     HStack(alignment: .center, spacing: MixerDeckMetrics.stripSpacing) {
-                        ForEach(tracks) { track in
+                        ForEach(channels) { channel in
+                            let trackNumber = channel.id
                             let presentation = TrackMixerStripPresentation(
-                                track: track,
-                                displayName: annotationStore.trackName(for: track.trackNumber),
-                                isSelected: selectedTrackID == track.id,
-                                panPositionOverride: mixState.panPosition(for: track.trackNumber),
-                                levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
-                                muteOverride: mixState.isMuted(for: track.trackNumber),
-                                meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
+                                channel: channel,
+                                displayName: annotationStore.trackName(for: trackNumber),
+                                isSelected: selectedTrackID == trackNumber,
+                                panPositionOverride: mixState.panPosition(for: trackNumber),
+                                levelPositionOverride: mixState.levelPosition(for: trackNumber),
+                                muteOverride: mixState.isMuted(for: trackNumber),
+                                meterLevel: playbackController.trackMeterLevel(for: trackNumber)
                             )
                             TrackMixerStripView(
                                 presentation: presentation,
                                 selectAction: {
-                                    selectedTrackID = track.id
+                                    selectedTrackID = trackNumber
                                 },
                                 setLevelPosition: { newValue in
-                                    selectedTrackID = track.id
-                                    mixState.setLevelPosition(newValue, for: track.trackNumber)
-                                    playbackController.setTrackVolume(newValue, for: track.trackNumber)
+                                    selectedTrackID = trackNumber
+                                    mixState.setLevelPosition(newValue, for: trackNumber)
+                                    playbackController.setTrackVolume(newValue, for: trackNumber)
                                 },
                                 setPanPosition: { newValue in
-                                    selectedTrackID = track.id
-                                    mixState.setPanPosition(newValue, for: track.trackNumber)
-                                    playbackController.setTrackPan(newValue, for: track.trackNumber)
+                                    selectedTrackID = trackNumber
+                                    mixState.setPanPosition(newValue, for: trackNumber)
+                                    playbackController.setTrackPan(newValue, for: trackNumber)
                                 },
                                 setMuted: { isMuted in
-                                    selectedTrackID = track.id
-                                    mixState.setMuted(isMuted, for: track.trackNumber)
-                                    playbackController.setTrackMute(isMuted, for: track.trackNumber)
+                                    selectedTrackID = trackNumber
+                                    mixState.setMuted(isMuted, for: trackNumber)
+                                    playbackController.setTrackMute(isMuted, for: trackNumber)
                                 }
                             )
                             .frame(
@@ -360,7 +361,7 @@ private struct TrackMixerStripView: View {
         VStack(spacing: 12) {
             Button(action: selectAction) {
                 VStack(spacing: 4) {
-                    Text("Track \(presentation.trackNumber)")
+                    Text("Track \(presentation.trackNumberLabel)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Text(presentation.displayName)
@@ -454,7 +455,7 @@ private struct TrackMixerStripView: View {
         }
         .contentShape(.rect)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Track \(presentation.trackNumber), \(presentation.displayName)")
+        .accessibilityLabel("Track \(presentation.trackNumberLabel), \(presentation.displayName)")
         .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel)")
     }
 }

@@ -7,12 +7,12 @@ import Foundation
 import Observation
 
 struct PreviewTrackMixSetting: Identifiable, Hashable, Sendable {
-    let trackNumber: Int
+    let channelTrackNumber: Int
     var levelPosition: Double
     var panPosition: Double
     var isMuted: Bool
 
-    var id: Int { trackNumber }
+    var id: Int { channelTrackNumber }
 }
 
 @MainActor
@@ -21,49 +21,54 @@ final class PreviewMixState {
     var trackSettings: [PreviewTrackMixSetting]
 
     init(project: PortastudioProject) {
-        trackSettings = project.tracks.map { track in
+        trackSettings = project.visibleMixerChannels.compactMap { channel in
+            guard let controlTrack = channel.controlTrack else {
+                return nil
+            }
+
             let levelPosition: Double
-            if let rawLevel = track.mixerSetting?.level.primaryByte {
+            if let rawLevel = controlTrack.mixerSetting?.level.primaryByte {
                 levelPosition = LevelMapper.normalizedPosition(for: rawLevel)
             } else {
                 levelPosition = LevelMapper.normalizedPosition(for: LevelMapper.rawUnity)
             }
 
             let panPosition: Double
-            if let rawPan = track.mixerSetting?.pan.primaryByte {
+            if let rawPan = controlTrack.mixerSetting?.pan.primaryByte {
                 panPosition = PanMapper.normalizedPosition(for: rawPan)
             } else {
                 panPosition = 0
             }
 
             return PreviewTrackMixSetting(
-                trackNumber: track.trackNumber,
+                channelTrackNumber: channel.id,
                 levelPosition: levelPosition,
                 panPosition: panPosition,
-                isMuted: StereoPreviewEngine.isMuted(track)
+                isMuted: StereoPreviewEngine.isMuted(controlTrack)
             )
         }
     }
 
     var trackVolumeOverrides: [Int: Double] {
-        Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.trackNumber, $0.levelPosition) })
+        Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.channelTrackNumber, $0.levelPosition) })
     }
 
     var trackPanOverrides: [Int: Double] {
-        Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.trackNumber, $0.panPosition) })
+        Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.channelTrackNumber, $0.panPosition) })
     }
 
     var trackMuteOverrides: [Int: Bool] {
-        Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.trackNumber, $0.isMuted) })
+        Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.channelTrackNumber, $0.isMuted) })
     }
 
     func levelPosition(for trackNumber: Int) -> Double {
-        trackSettings.first(where: { $0.trackNumber == trackNumber })?.levelPosition
+        trackSettings.first(where: { $0.channelTrackNumber == logicalChannelTrackNumber(for: trackNumber) })?.levelPosition
             ?? LevelMapper.normalizedPosition(for: LevelMapper.rawUnity)
     }
 
     func setLevelPosition(_ levelPosition: Double, for trackNumber: Int) {
-        guard let index = trackSettings.firstIndex(where: { $0.trackNumber == trackNumber }) else {
+        let channelTrackNumber = logicalChannelTrackNumber(for: trackNumber)
+        guard let index = trackSettings.firstIndex(where: { $0.channelTrackNumber == channelTrackNumber }) else {
             return
         }
 
@@ -71,11 +76,12 @@ final class PreviewMixState {
     }
 
     func panPosition(for trackNumber: Int) -> Double {
-        trackSettings.first(where: { $0.trackNumber == trackNumber })?.panPosition ?? 0
+        trackSettings.first(where: { $0.channelTrackNumber == logicalChannelTrackNumber(for: trackNumber) })?.panPosition ?? 0
     }
 
     func setPanPosition(_ panPosition: Double, for trackNumber: Int) {
-        guard let index = trackSettings.firstIndex(where: { $0.trackNumber == trackNumber }) else {
+        let channelTrackNumber = logicalChannelTrackNumber(for: trackNumber)
+        guard let index = trackSettings.firstIndex(where: { $0.channelTrackNumber == channelTrackNumber }) else {
             return
         }
 
@@ -83,14 +89,19 @@ final class PreviewMixState {
     }
 
     func isMuted(for trackNumber: Int) -> Bool {
-        trackSettings.first(where: { $0.trackNumber == trackNumber })?.isMuted ?? false
+        trackSettings.first(where: { $0.channelTrackNumber == logicalChannelTrackNumber(for: trackNumber) })?.isMuted ?? false
     }
 
     func setMuted(_ isMuted: Bool, for trackNumber: Int) {
-        guard let index = trackSettings.firstIndex(where: { $0.trackNumber == trackNumber }) else {
+        let channelTrackNumber = logicalChannelTrackNumber(for: trackNumber)
+        guard let index = trackSettings.firstIndex(where: { $0.channelTrackNumber == channelTrackNumber }) else {
             return
         }
 
         trackSettings[index].isMuted = isMuted
+    }
+
+    private func logicalChannelTrackNumber(for trackNumber: Int) -> Int {
+        MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
     }
 }

@@ -13,12 +13,11 @@ final class StereoPreviewEngine {
     private var trackMixerNodes: [Int: AVAudioMixerNode] = [:]
     private var isOutputLevelTapInstalled = false
     private let completionCoordinator = PlaybackCompletionCoordinator()
-    private let meterUpdateThrottler = MeterUpdateThrottler()
     private var activePlaybackID: UUID?
     private static let previewSampleRate: Double = 48_000
 
     private struct PlayableRegion {
-        let trackNumber: Int?
+        let channelTrackNumber: Int?
         let url: URL
         let startSample: Int
         let volume: Float
@@ -66,11 +65,12 @@ final class StereoPreviewEngine {
             let file = try AVAudioFile(forReading: region.url)
             let playerNode = AVAudioPlayerNode()
             playerNode.volume = region.volume
+            playerNode.pan = region.pan
 
             engine.attach(playerNode)
-            if let trackNumber = region.trackNumber {
+            if let channelTrackNumber = region.channelTrackNumber {
                 let trackMixerNode = trackMixerNode(
-                    for: trackNumber,
+                    for: channelTrackNumber,
                     format: file.processingFormat,
                     pan: region.pan,
                     isMuted: region.isMuted,
@@ -92,8 +92,8 @@ final class StereoPreviewEngine {
             }
 
             playerNodes.append(playerNode)
-            if let trackNumber = region.trackNumber {
-                playerNodesByTrackNumber[trackNumber, default: []].append(playerNode)
+            if let channelTrackNumber = region.channelTrackNumber {
+                playerNodesByTrackNumber[channelTrackNumber, default: []].append(playerNode)
             }
         }
 
@@ -135,7 +135,6 @@ final class StereoPreviewEngine {
         playerNodes.removeAll()
         playerNodesByTrackNumber.removeAll()
         trackMixerNodes.removeAll()
-        meterUpdateThrottler.reset()
         engine.stop()
     }
 
@@ -149,6 +148,9 @@ final class StereoPreviewEngine {
     func updateTrackPan(trackNumber: Int, panPosition: Double) {
         let pan = Float(min(max(panPosition, -1), 1))
         trackMixerNodes[trackNumber]?.pan = pan
+        for playerNode in playerNodesByTrackNumber[trackNumber] ?? [] {
+            playerNode.pan = pan
+        }
     }
 
     func updateTrackMute(trackNumber: Int, isMuted: Bool) {
@@ -234,28 +236,29 @@ final class StereoPreviewEngine {
         // This path correctly applies mute, approximate volume, and pan without relying
         // on positional EDL-index inference.
         for track in project.tracks {
+            let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: track.trackNumber) ?? track.trackNumber
             let selectedOption = track.selectedVirtualTrackOption(
                 selectedOptionID: selectedVirtualTrackOptionIDs[track.trackNumber]
             )
             let sourceURL = selectedOption?.wavItem.url ?? track.candidateWAV?.url
             let firstRegion = selectedOption?.timelineRegion ?? track.timeline?.regions.first
-            let isMuted = trackMuteOverrides[track.trackNumber] ?? isMuted(track)
+            let isMuted = trackMuteOverrides[channelTrackNumber] ?? isMuted(track)
             guard let sourceURL,
                   let firstRegion,
                   includeMutedAssignedTracks || !isMuted else {
                 continue
             }
             result.append(PlayableRegion(
-                trackNumber: track.trackNumber,
+                channelTrackNumber: channelTrackNumber,
                 url: sourceURL,
                 startSample: max(firstRegion.startSample, 0),
                 volume: approximateVolume(
                     for: track,
-                    overrideLevelPosition: trackVolumeOverrides[track.trackNumber]
+                    overrideLevelPosition: trackVolumeOverrides[channelTrackNumber]
                 ),
                 pan: approximatePan(
                     for: track,
-                    overridePanPosition: trackPanOverrides[track.trackNumber]
+                    overridePanPosition: trackPanOverrides[channelTrackNumber]
                 ),
                 isMuted: isMuted
             ))
@@ -263,11 +266,11 @@ final class StereoPreviewEngine {
 
         // Unassigned regions go through the planner for virtual-take filtering and
         // any evidence-backed mute suppression that still applies.
-        if result.isEmpty, !project.unassignedAudioRegions.isEmpty {
+        if !project.unassignedAudioRegions.isEmpty {
             let plan = PreviewPlaybackPlanner.plan(for: project)
             result.append(contentsOf: plan.playableRegions.map { scheduled in
                 PlayableRegion(
-                    trackNumber: nil,
+                    channelTrackNumber: nil,
                     url: scheduled.url,
                     startSample: scheduled.startSample,
                     volume: scheduled.volume,
@@ -336,9 +339,6 @@ final class StereoPreviewEngine {
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void
     ) {
         mixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
-            guard self.meterUpdateThrottler.shouldEmitTrackLevel(for: trackNumber) else {
-                return
-            }
             onTrackLevelChanged(trackNumber, Self.normalizedPeakLevel(for: buffer))
         }
     }
@@ -347,9 +347,6 @@ final class StereoPreviewEngine {
         onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void
     ) {
         engine.mainMixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
-            guard self.meterUpdateThrottler.shouldEmitOutputLevel() else {
-                return
-            }
             onOutputLevelChanged(Self.normalizedStereoPeakLevels(for: buffer))
         }
         isOutputLevelTapInstalled = true
@@ -503,51 +500,6 @@ final class StereoPreviewEngine {
         let hostNow = mach_absolute_time()
 
         return AVAudioTime(hostTime: hostNow + hostDelta)
-    }
-}
-
-final class MeterUpdateThrottler {
-    private let lock = NSLock()
-    private let minimumInterval: TimeInterval = 1.0 / 15.0
-    private let clock = ContinuousClock()
-    private var lastOutputUpdate: ContinuousClock.Instant?
-    private var lastTrackUpdates: [Int: ContinuousClock.Instant] = [:]
-
-    func shouldEmitTrackLevel(for trackNumber: Int) -> Bool {
-        shouldEmit(lastUpdate: lastTrackUpdates[trackNumber]) { instant in
-            lastTrackUpdates[trackNumber] = instant
-        }
-    }
-
-    func shouldEmitOutputLevel() -> Bool {
-        shouldEmit(lastUpdate: lastOutputUpdate) { instant in
-            lastOutputUpdate = instant
-        }
-    }
-
-    func reset() {
-        lock.lock()
-        defer { lock.unlock() }
-
-        lastOutputUpdate = nil
-        lastTrackUpdates.removeAll()
-    }
-
-    private func shouldEmit(
-        lastUpdate: ContinuousClock.Instant?,
-        update: (ContinuousClock.Instant) -> Void
-    ) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-
-        let now = clock.now
-        if let lastUpdate,
-           lastUpdate.duration(to: now) < .seconds(minimumInterval) {
-            return false
-        }
-
-        update(now)
-        return true
     }
 }
 

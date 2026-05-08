@@ -68,10 +68,12 @@ private struct SelectedTrackInspectorSection: View {
     var body: some View {
         InspectorSectionCard(title: "Selected Track", systemImage: "slider.horizontal.3") {
             if let track {
-                InspectorInfoRow(label: "Track", value: "Track \(track.trackNumber)")
+                let annotationTrackNumber = MixerChannelLayout.leadingTrackNumber(for: track.trackNumber) ?? track.trackNumber
+                let trackLabel = MixerChannelLayout.trackNumberLabel(forTrackNumber: track.trackNumber)
+                InspectorInfoRow(label: "Track", value: "Track \(trackLabel)")
                 InspectorInfoRow(
                     label: "Name",
-                    value: annotationStore.trackName(for: track.trackNumber) ?? "Track \(track.trackNumber)",
+                    value: annotationStore.trackName(for: annotationTrackNumber) ?? "Track \(trackLabel)",
                     valueStyle: .primary
                 )
                 InspectorInfoRow(
@@ -84,7 +86,7 @@ private struct SelectedTrackInspectorSection: View {
                 InspectorInfoRow(label: "Mute", value: isMuted(track) ? "On" : "Off")
 
                 Divider()
-                TrackLabelEditorView(trackNumber: track.trackNumber, annotationStore: annotationStore)
+                TrackLabelEditorView(trackNumber: annotationTrackNumber, annotationStore: annotationStore)
             } else {
                 Text("Select a track in the mixer to view details.")
                     .font(.caption)

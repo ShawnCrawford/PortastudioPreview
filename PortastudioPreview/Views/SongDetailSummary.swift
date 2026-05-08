@@ -29,8 +29,8 @@ struct SongDetailSummary {
         folderName = project.folderName
         folderPath = project.folderURL.path
 
-        trackCount = project.visibleTracks.count
-        assignedTrackCount = project.visibleTracks.filter { $0.candidateWAV != nil }.count
+        trackCount = project.visibleMixerChannels.count
+        assignedTrackCount = project.visibleMixerChannels.filter { $0.controlTrack?.candidateWAV != nil }.count
         wavCount = project.wavInventory.count
 
         validationIssueCount = project.validationIssues.count

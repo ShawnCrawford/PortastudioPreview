@@ -141,6 +141,17 @@ struct PreviewPlaybackControllerTests {
         #expect(engine.lastUpdatedPanPosition == 0.6)
     }
 
+    @Test func setTrackPanMapsEvenPairTrackToLeadingChannel() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        controller.setTrackPan(0.3, for: 10)
+
+        #expect(engine.lastUpdatedPanTrackNumber == 9)
+        #expect(engine.lastUpdatedPanPosition == 0.3)
+    }
+
     @Test func setTrackPanDoesNotTouchEngineWhenPlaybackIsIdle() {
         let engine = SpyPreviewEngine()
         let controller = PreviewPlaybackController(engine: engine)
@@ -161,6 +172,17 @@ struct PreviewPlaybackControllerTests {
         controller.setTrackMute(true, for: 4)
 
         #expect(engine.lastUpdatedMuteTrackNumber == 4)
+        #expect(engine.lastUpdatedMuteState == true)
+    }
+
+    @Test func setTrackMuteMapsEvenPairTrackToLeadingChannel() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        controller.setTrackMute(true, for: 10)
+
+        #expect(engine.lastUpdatedMuteTrackNumber == 9)
         #expect(engine.lastUpdatedMuteState == true)
     }
 

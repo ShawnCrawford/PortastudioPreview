@@ -93,7 +93,8 @@ final class PreviewPlaybackController {
                 selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs,
                 onTrackLevelChanged: { [weak self] trackNumber, level in
                     Task { @MainActor [weak self] in
-                        self?.trackMeterLevels[trackNumber] = level
+                        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
+                        self?.trackMeterLevels[channelTrackNumber] = level
                     }
                 },
                 onOutputLevelChanged: { [weak self] levels in
@@ -130,37 +131,41 @@ final class PreviewPlaybackController {
     }
 
     func setTrackVolume(_ levelPosition: Double, for trackNumber: Int) {
-        trackVolumeOverrides[trackNumber] = levelPosition
+        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
+        trackVolumeOverrides[channelTrackNumber] = levelPosition
 
         guard isPlaying else {
             return
         }
 
-        engine.updateTrackVolume(trackNumber: trackNumber, levelPosition: levelPosition)
+        engine.updateTrackVolume(trackNumber: channelTrackNumber, levelPosition: levelPosition)
     }
 
     func setTrackPan(_ panPosition: Double, for trackNumber: Int) {
-        trackPanOverrides[trackNumber] = panPosition
+        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
+        trackPanOverrides[channelTrackNumber] = panPosition
 
         guard isPlaying else {
             return
         }
 
-        engine.updateTrackPan(trackNumber: trackNumber, panPosition: panPosition)
+        engine.updateTrackPan(trackNumber: channelTrackNumber, panPosition: panPosition)
     }
 
     func setTrackMute(_ isMuted: Bool, for trackNumber: Int) {
-        trackMuteOverrides[trackNumber] = isMuted
+        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
+        trackMuteOverrides[channelTrackNumber] = isMuted
 
         guard isPlaying else {
             return
         }
 
-        engine.updateTrackMute(trackNumber: trackNumber, isMuted: isMuted)
+        engine.updateTrackMute(trackNumber: channelTrackNumber, isMuted: isMuted)
     }
 
     func trackMeterLevel(for trackNumber: Int) -> Double {
-        trackMeterLevels[trackNumber] ?? 0
+        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
+        return trackMeterLevels[channelTrackNumber] ?? 0
     }
 
     // MARK: - Private
