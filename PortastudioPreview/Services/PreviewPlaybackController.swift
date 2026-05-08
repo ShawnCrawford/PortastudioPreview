@@ -6,6 +6,19 @@
 import Foundation
 import Observation
 
+protocol PreviewPlaybackEngineProtocol {
+    func startPreview(
+        for project: PortastudioProject,
+        trackVolumeOverrides: [Int: Double],
+        trackPanOverrides: [Int: Double],
+        onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
+        onPlaybackCompleted: @escaping () -> Void
+    ) throws
+    func stop()
+    func updateTrackVolume(trackNumber: Int, levelPosition: Double)
+    func updateTrackPan(trackNumber: Int, panPosition: Double)
+}
+
 /// Shared transport model for approximate stereo preview playback.
 ///
 /// Owns `StereoPreviewEngine` and provides `isPlaying` and `elapsedSeconds`
@@ -15,25 +28,40 @@ import Observation
 @MainActor
 final class PreviewPlaybackController {
 
-    private let engine = StereoPreviewEngine()
+    private let engine: any PreviewPlaybackEngineProtocol
     private(set) var isPlaying = false
     private(set) var elapsedSeconds: Double = 0
     private(set) var playbackError: String?
     private(set) var trackMeterLevels: [Int: Double] = [:]
     private var trackVolumeOverrides: [Int: Double] = [:]
+    private var trackPanOverrides: [Int: Double] = [:]
     private var elapsedTask: Task<Void, Never>?
+
+    init() {
+        self.engine = StereoPreviewEngine()
+    }
+
+    init(engine: any PreviewPlaybackEngineProtocol) {
+        self.engine = engine
+    }
 
     func canPlay(_ project: PortastudioProject) -> Bool {
         StereoPreviewEngine.hasPlayableTracks(project)
     }
 
-    func startPreview(for project: PortastudioProject, trackVolumeOverrides: [Int: Double] = [:]) {
+    func startPreview(
+        for project: PortastudioProject,
+        trackVolumeOverrides: [Int: Double] = [:],
+        trackPanOverrides: [Int: Double] = [:]
+    ) {
         stop()
         self.trackVolumeOverrides = trackVolumeOverrides
+        self.trackPanOverrides = trackPanOverrides
         do {
             try engine.startPreview(
                 for: project,
                 trackVolumeOverrides: trackVolumeOverrides,
+                trackPanOverrides: trackPanOverrides,
                 onTrackLevelChanged: { [weak self] trackNumber, level in
                     Task { @MainActor [weak self] in
                         self?.trackMeterLevels[trackNumber] = level
@@ -61,6 +89,8 @@ final class PreviewPlaybackController {
         elapsedSeconds = 0
         playbackError = nil
         trackMeterLevels = [:]
+        trackVolumeOverrides = [:]
+        trackPanOverrides = [:]
     }
 
     func setTrackVolume(_ levelPosition: Double, for trackNumber: Int) {
@@ -71,6 +101,16 @@ final class PreviewPlaybackController {
         }
 
         engine.updateTrackVolume(trackNumber: trackNumber, levelPosition: levelPosition)
+    }
+
+    func setTrackPan(_ panPosition: Double, for trackNumber: Int) {
+        trackPanOverrides[trackNumber] = panPosition
+
+        guard isPlaying else {
+            return
+        }
+
+        engine.updateTrackPan(trackNumber: trackNumber, panPosition: panPosition)
     }
 
     func trackMeterLevel(for trackNumber: Int) -> Double {
@@ -99,3 +139,5 @@ final class PreviewPlaybackController {
         }
     }
 }
+
+extension StereoPreviewEngine: PreviewPlaybackEngineProtocol {}

@@ -186,7 +186,11 @@ private struct HeaderTransportControls: View {
     var body: some View {
         HStack(spacing: 8) {
             Button("Play Preview", systemImage: "play.fill") {
-                playbackController.startPreview(for: project, trackVolumeOverrides: mixState.trackVolumeOverrides)
+                playbackController.startPreview(
+                    for: project,
+                    trackVolumeOverrides: mixState.trackVolumeOverrides,
+                    trackPanOverrides: mixState.trackPanOverrides
+                )
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderedProminent)
@@ -410,6 +414,7 @@ struct TrackMixerDeckView: View {
                             track: track,
                             displayName: annotationStore.trackName(for: track.trackNumber),
                             isSelected: selectedTrackID == track.id,
+                            panPositionOverride: mixState.panPosition(for: track.trackNumber),
                             levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
                             meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
                         )
@@ -422,6 +427,11 @@ struct TrackMixerDeckView: View {
                                 selectedTrackID = track.id
                                 mixState.setLevelPosition(newValue, for: track.trackNumber)
                                 playbackController.setTrackVolume(newValue, for: track.trackNumber)
+                            },
+                            setPanPosition: { newValue in
+                                selectedTrackID = track.id
+                                mixState.setPanPosition(newValue, for: track.trackNumber)
+                                playbackController.setTrackPan(newValue, for: track.trackNumber)
                             }
                         )
                     }
@@ -441,6 +451,7 @@ private struct TrackMixerStripView: View {
     let presentation: TrackMixerStripPresentation
     let selectAction: () -> Void
     let setLevelPosition: (Double) -> Void
+    let setPanPosition: (Double) -> Void
 
     private static let colors: [Color] = [.red, .orange, .yellow, .green, .teal, .blue, .purple, .pink]
 
@@ -475,14 +486,17 @@ private struct TrackMixerStripView: View {
                 .truncationMode(.middle)
                 .frame(height: 16)
 
-            HStack(spacing: 8) {
-                VStack(spacing: 2) {
-                    Text("PAN")
+            HStack(spacing: 6) {
+                VStack(spacing: 3) {
+                    Text(presentation.panDisplayLabel)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(presentation.panLabel)
-                        .font(.caption)
                         .monospacedDigit()
+                    PanControlView(
+                        value: presentation.panPosition,
+                        color: trackColor,
+                        onSelect: selectAction,
+                        onValueChanged: setPanPosition
+                    )
                 }
 
                 VStack(spacing: 2) {
@@ -527,7 +541,72 @@ private struct TrackMixerStripView: View {
         .contentShape(.rect)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Track \(presentation.trackNumber), \(presentation.displayName)")
-        .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panLabel), \(presentation.muteLabel)")
+        .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel)")
+    }
+}
+
+private struct PanControlView: View {
+    let value: Double
+    let color: Color
+    let onSelect: () -> Void
+    let onValueChanged: (Double) -> Void
+
+    private let centerDetent: Double = 0.04
+
+    var body: some View {
+        GeometryReader { proxy in
+            let clamped = min(max(value, -1), 1)
+            let centerX = proxy.size.width / 2
+            let knobX = ((clamped + 1) / 2) * proxy.size.width
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.quaternary)
+                    .frame(height: 4)
+                    .frame(maxHeight: .infinity, alignment: .center)
+
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.35))
+                    .frame(width: 1, height: 10)
+                    .position(x: centerX, y: proxy.size.height / 2)
+
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(.background)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(color.opacity(0.75), lineWidth: 1)
+                    }
+                    .frame(width: 12, height: 12)
+                    .position(x: knobX, y: proxy.size.height / 2)
+            }
+            .contentShape(.rect)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { dragValue in
+                        onSelect()
+                        let mapped = ((dragValue.location.x / proxy.size.width) * 2) - 1
+                        onValueChanged(snapToCenter(mapped))
+                    }
+            )
+        }
+        .frame(width: 52, height: 14)
+        .accessibilityLabel("Pan")
+        .accessibilityAdjustableAction { direction in
+            onSelect()
+            switch direction {
+            case .increment:
+                onValueChanged(snapToCenter(value + 0.05))
+            case .decrement:
+                onValueChanged(snapToCenter(value - 0.05))
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    private func snapToCenter(_ proposedValue: Double) -> Double {
+        let clamped = min(max(proposedValue, -1), 1)
+        return abs(clamped) <= centerDetent ? 0 : clamped
     }
 }
 

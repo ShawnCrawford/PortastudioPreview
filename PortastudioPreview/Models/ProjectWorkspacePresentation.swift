@@ -106,7 +106,8 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
     let displayName: String
     let candidateWAVLabel: String
     let candidateEvidenceLabel: String
-    let panLabel: String
+    let panPosition: Double
+    let panDisplayLabel: String
     let levelLabel: String
     let levelPosition: Double
     let meterLevel: Double
@@ -119,6 +120,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         track: TrackPreview,
         displayName: String?,
         isSelected: Bool,
+        panPositionOverride: Double? = nil,
         levelPositionOverride: Double? = nil,
         meterLevel: Double = 0
     ) {
@@ -133,10 +135,15 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         candidateWAVLabel = track.candidateWAV?.rawFilename ?? "Unassigned"
         candidateEvidenceLabel = track.candidateWAV == nil ? "No WAV" : "WAV: \(track.candidateWAVEvidence.rawValue)"
 
-        if let pan = track.mixerSetting?.pan {
-            panLabel = PanMapper.displayValue(for: pan.primaryByte)
+        if let panPositionOverride {
+            panPosition = min(max(panPositionOverride, -1), 1)
+            panDisplayLabel = PanMapper.previewDisplayValue(forNormalizedPosition: panPosition)
+        } else if let pan = track.mixerSetting?.pan {
+            panPosition = PanMapper.normalizedPosition(for: pan.primaryByte)
+            panDisplayLabel = PanMapper.previewDisplayValue(forNormalizedPosition: panPosition)
         } else {
-            panLabel = "n/a"
+            panPosition = 0
+            panDisplayLabel = "C"
         }
 
         if let levelPositionOverride {

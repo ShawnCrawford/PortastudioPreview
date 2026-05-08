@@ -37,6 +37,41 @@ struct StereoPreviewEngineTests {
         #expect(StereoPreviewEngine.approximatePan(for: makeTrackPreview(mute: 0x00, pan: 0x7F, level: 0x7F)) == 1.0)
     }
 
+    @Test func panMapperNormalizedPositionUsesConfirmedAnchors() {
+        #expect(PanMapper.normalizedPosition(for: 0x01) == -1.0)
+        #expect(PanMapper.normalizedPosition(for: 0x40) == 0.0)
+        #expect(PanMapper.normalizedPosition(for: 0x7F) == 1.0)
+    }
+
+    @Test func assignedTrackPlaybackUsesParsedPanBeforeAnyOverride() {
+        let project = makeAssignedTrackProject(pan: 0x01)
+
+        #expect(StereoPreviewEngine.playableRegionPans(for: project) == [-1.0])
+    }
+
+    @Test func userPanOverrideTakesPrecedenceForAssignedTrackPlayback() {
+        let project = makeAssignedTrackProject(pan: 0x01)
+
+        #expect(StereoPreviewEngine.playableRegionPans(for: project, trackPanOverrides: [1: 0.5]) == [0.5])
+    }
+
+    @Test func panOverridesClampToFullLeftCenterAndFullRight() {
+        let project = makeAssignedTrackProject(pan: 0x40)
+
+        #expect(StereoPreviewEngine.playableRegionPans(for: project, trackPanOverrides: [1: -2.0]) == [-1.0])
+        #expect(StereoPreviewEngine.playableRegionPans(for: project, trackPanOverrides: [1: 0.0]) == [0.0])
+        #expect(StereoPreviewEngine.playableRegionPans(for: project, trackPanOverrides: [1: 2.0]) == [1.0])
+    }
+
+    @Test func unassignedRegionPlaybackStaysCentered() {
+        let project = makeProject(
+            activeTakeCandidate: nil,
+            regions: [timelineRegion(filename: "ZZ0000_1.wav")]
+        )
+
+        #expect(StereoPreviewEngine.playableRegionPans(for: project, trackPanOverrides: [1: -1.0]) == [0.0])
+    }
+
     @Test func approximateVolumeUsesConfirmedSongLevelScale() {
         #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x00)) == 0.0)
         #expect(abs(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x6A)) - 1.0) < 0.0001)
@@ -256,6 +291,30 @@ struct StereoPreviewEngineTests {
                     timelineCandidates: []
                 )
             }
+        )
+    }
+
+    private func makeAssignedTrackProject(pan: UInt8) -> PortastudioProject {
+        PortastudioProject(
+            folderURL: URL(fileURLWithPath: "/tmp/project"),
+            validationIssues: [],
+            wavInventory: [],
+            unassignedAudioRegions: [],
+            tracks: [
+                TrackPreview(
+                    trackNumber: 1,
+                    candidateWAV: wavInventoryItem(),
+                    mixerSetting: TrackMixerSetting(
+                        trackNumber: 1,
+                        level: setting(name: "Level", primaryOffset: 0x00C4, primaryByte: 0x6A),
+                        pan: setting(name: "Pan", primaryOffset: 0x00C6, primaryByte: pan),
+                        mute: setting(name: "Mute", primaryOffset: 0x0268, primaryByte: 0x00)
+                    ),
+                    track1ActiveTakeCandidate: nil,
+                    timeline: trackTimeline(trackNumber: 1, startSample: 0)
+                )
+            ],
+            edlTableSummary: nil
         )
     }
 

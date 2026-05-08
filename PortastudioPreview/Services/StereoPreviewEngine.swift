@@ -30,12 +30,17 @@ final class StereoPreviewEngine {
     func startPreview(
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double] = [:],
+        trackPanOverrides: [Int: Double] = [:],
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws {
         stop()
 
-        let playableRegions = Self.playableRegions(for: project, trackVolumeOverrides: trackVolumeOverrides)
+        let playableRegions = Self.playableRegions(
+            for: project,
+            trackVolumeOverrides: trackVolumeOverrides,
+            trackPanOverrides: trackPanOverrides
+        )
 
         guard !playableRegions.isEmpty else {
             throw StereoPreviewEngineError.noPlayableTracks
@@ -124,6 +129,13 @@ final class StereoPreviewEngine {
         }
     }
 
+    func updateTrackPan(trackNumber: Int, panPosition: Double) {
+        let pan = Float(min(max(panPosition, -1), 1))
+        for playerNode in playerNodesByTrackNumber[trackNumber] ?? [] {
+            playerNode.pan = pan
+        }
+    }
+
     static func hasPlayableTracks(_ project: PortastudioProject) -> Bool {
         !playableRegions(for: project).isEmpty
     }
@@ -157,12 +169,19 @@ final class StereoPreviewEngine {
     }
 
     static func approximatePan(for track: TrackPreview) -> Float {
+        approximatePan(for: track, overridePanPosition: nil)
+    }
+
+    static func approximatePan(for track: TrackPreview, overridePanPosition: Double?) -> Float {
+        if let overridePanPosition {
+            return Float(min(max(overridePanPosition, -1), 1))
+        }
+
         guard let rawPan = track.mixerSetting?.pan.primaryByte else {
             return 0.0
         }
 
-        let centered = (Float(rawPan) - Float(0x40)) / Float(0x3F)
-        return min(max(centered, -1.0), 1.0)
+        return Float(PanMapper.normalizedPosition(for: rawPan))
     }
 
     static func timelineStartSamples(for tracks: [TrackPreview]) -> [Int: Int] {
@@ -174,7 +193,8 @@ final class StereoPreviewEngine {
 
     private static func playableRegions(
         for project: PortastudioProject,
-        trackVolumeOverrides: [Int: Double] = [:]
+        trackVolumeOverrides: [Int: Double] = [:],
+        trackPanOverrides: [Int: Double] = [:]
     ) -> [PlayableRegion] {
         var result: [PlayableRegion] = []
 
@@ -196,7 +216,10 @@ final class StereoPreviewEngine {
                     for: track,
                     overrideLevelPosition: trackVolumeOverrides[track.trackNumber]
                 ),
-                pan: approximatePan(for: track)
+                pan: approximatePan(
+                    for: track,
+                    overridePanPosition: trackPanOverrides[track.trackNumber]
+                )
             ))
         }
 
@@ -216,6 +239,13 @@ final class StereoPreviewEngine {
         }
 
         return result
+    }
+
+    static func playableRegionPans(
+        for project: PortastudioProject,
+        trackPanOverrides: [Int: Double] = [:]
+    ) -> [Float] {
+        playableRegions(for: project, trackPanOverrides: trackPanOverrides).map(\.pan)
     }
 
     private func handlePlaybackNodeCompleted(playbackID: UUID) {

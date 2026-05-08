@@ -108,4 +108,79 @@ struct PreviewPlaybackControllerTests {
 
         #expect(!controller.canPlay(emptyProject))
     }
+
+    @Test func startPreviewForwardsTrackPanOverrides() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(
+            for: sampleProject,
+            trackVolumeOverrides: [1: 0.75],
+            trackPanOverrides: [1: -0.25]
+        )
+
+        #expect(engine.lastStartTrackVolumeOverrides?[1] == 0.75)
+        #expect(engine.lastStartTrackPanOverrides?[1] == -0.25)
+    }
+
+    @Test func setTrackPanUpdatesEngineDuringActivePlayback() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        #expect(controller.isPlaying)
+
+        controller.setTrackPan(0.6, for: 3)
+
+        #expect(engine.lastUpdatedPanTrackNumber == 3)
+        #expect(engine.lastUpdatedPanPosition == 0.6)
+    }
+
+    @Test func setTrackPanDoesNotTouchEngineWhenPlaybackIsIdle() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.setTrackPan(-0.4, for: 2)
+
+        #expect(engine.lastUpdatedPanTrackNumber == nil)
+        #expect(engine.lastUpdatedPanPosition == nil)
+    }
+
+    private var sampleProject: PortastudioProject {
+        PortastudioProject(
+            folderURL: URL(fileURLWithPath: "/tmp/SONG_sample"),
+            validationIssues: [],
+            wavInventory: [],
+            unassignedAudioRegions: [],
+            tracks: [],
+            edlTableSummary: nil
+        )
+    }
+}
+
+private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
+    var lastStartTrackVolumeOverrides: [Int: Double]?
+    var lastStartTrackPanOverrides: [Int: Double]?
+    var lastUpdatedPanTrackNumber: Int?
+    var lastUpdatedPanPosition: Double?
+
+    func startPreview(
+        for project: PortastudioProject,
+        trackVolumeOverrides: [Int: Double],
+        trackPanOverrides: [Int: Double],
+        onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
+        onPlaybackCompleted: @escaping () -> Void
+    ) throws {
+        self.lastStartTrackVolumeOverrides = trackVolumeOverrides
+        self.lastStartTrackPanOverrides = trackPanOverrides
+    }
+
+    func stop() {}
+
+    func updateTrackVolume(trackNumber: Int, levelPosition: Double) {}
+
+    func updateTrackPan(trackNumber: Int, panPosition: Double) {
+        lastUpdatedPanTrackNumber = trackNumber
+        lastUpdatedPanPosition = panPosition
+    }
 }

@@ -46,4 +46,36 @@ enum PanMapper {
         default:           return "raw \(HexFormatter.byte(rawByte))"
         }
     }
+
+    static func normalizedPosition(for rawByte: UInt8) -> Double {
+        let centered = (Double(rawByte) - Double(rawCenter)) / Double(0x3F)
+        return min(max(centered, -1), 1)
+    }
+
+    static func rawByte(forNormalizedPosition position: Double) -> UInt8 {
+        let clamped = min(max(position, -1), 1)
+        let scaled = (clamped * Double(0x3F)) + Double(rawCenter)
+        let rounded = UInt8(scaled.rounded())
+        return min(max(rounded, rawHardLeft), rawHardRight)
+    }
+
+    static func previewDisplayValue(forNormalizedPosition position: Double) -> String {
+        let clamped = min(max(position, -1), 1)
+
+        if abs(clamped) < 0.01 {
+            return "C"
+        }
+
+        if clamped <= -0.99 {
+            return "L"
+        }
+
+        if clamped >= 0.99 {
+            return "R"
+        }
+
+        let side = clamped < 0 ? "L" : "R"
+        let step = Int((abs(clamped) * 8).rounded(.toNearestOrAwayFromZero))
+        return "\(side)\(max(step, 1))"
+    }
 }
