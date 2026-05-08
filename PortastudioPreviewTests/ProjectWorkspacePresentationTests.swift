@@ -119,7 +119,12 @@ struct ProjectWorkspacePresentationTests {
             assigned: true
         )
 
-        let strip = TrackMixerStripPresentation(track: track, displayName: "Lead Vocal", isSelected: true)
+        let strip = TrackMixerStripPresentation(
+            track: track,
+            displayName: "Lead Vocal",
+            isSelected: true,
+            meterLevel: 0.42
+        )
 
         #expect(strip.id == 3)
         #expect(strip.displayName == "Lead Vocal")
@@ -128,6 +133,7 @@ struct ProjectWorkspacePresentationTests {
         #expect(strip.panLabel == "R2")
         #expect(strip.levelLabel == "0 dB")
         #expect(strip.levelPosition > 0.8)
+        #expect(strip.meterLevel == 0.42)
         #expect(strip.isMuted)
         #expect(strip.muteLabel == "Muted")
         #expect(strip.isSelected)
@@ -150,6 +156,7 @@ struct ProjectWorkspacePresentationTests {
         #expect(strip.panLabel == "n/a")
         #expect(strip.levelLabel == "n/a")
         #expect(strip.levelPosition == 0)
+        #expect(strip.meterLevel == 0)
         #expect(!strip.isMuted)
     }
 

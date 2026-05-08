@@ -19,6 +19,7 @@ final class PreviewPlaybackController {
     private(set) var isPlaying = false
     private(set) var elapsedSeconds: Double = 0
     private(set) var playbackError: String?
+    private(set) var trackMeterLevels: [Int: Double] = [:]
     private var trackVolumeOverrides: [Int: Double] = [:]
     private var elapsedTask: Task<Void, Never>?
 
@@ -30,7 +31,15 @@ final class PreviewPlaybackController {
         stop()
         self.trackVolumeOverrides = trackVolumeOverrides
         do {
-            try engine.startPreview(for: project, trackVolumeOverrides: trackVolumeOverrides) { [weak self] in
+            try engine.startPreview(
+                for: project,
+                trackVolumeOverrides: trackVolumeOverrides,
+                onTrackLevelChanged: { [weak self] trackNumber, level in
+                    Task { @MainActor [weak self] in
+                        self?.trackMeterLevels[trackNumber] = level
+                    }
+                }
+            ) { [weak self] in
                 Task { @MainActor [weak self] in
                     self?.handlePlaybackCompleted()
                 }
@@ -51,6 +60,7 @@ final class PreviewPlaybackController {
         isPlaying = false
         elapsedSeconds = 0
         playbackError = nil
+        trackMeterLevels = [:]
     }
 
     func setTrackVolume(_ levelPosition: Double, for trackNumber: Int) {
@@ -63,6 +73,10 @@ final class PreviewPlaybackController {
         engine.updateTrackVolume(trackNumber: trackNumber, levelPosition: levelPosition)
     }
 
+    func trackMeterLevel(for trackNumber: Int) -> Double {
+        trackMeterLevels[trackNumber] ?? 0
+    }
+
     // MARK: - Private
 
     private func handlePlaybackCompleted() {
@@ -70,6 +84,7 @@ final class PreviewPlaybackController {
         elapsedTask = nil
         isPlaying = false
         elapsedSeconds = 0
+        trackMeterLevels = [:]
     }
 
     private func startElapsedTimer() {

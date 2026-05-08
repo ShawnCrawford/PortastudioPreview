@@ -10,6 +10,7 @@ final class StereoPreviewEngine {
     private let engine = AVAudioEngine()
     private var playerNodes: [AVAudioPlayerNode] = []
     private var playerNodesByTrackNumber: [Int: [AVAudioPlayerNode]] = [:]
+    private var trackMixerNodes: [Int: AVAudioMixerNode] = [:]
     private let completionCoordinator = PlaybackCompletionCoordinator()
     private var activePlaybackID: UUID?
     private static let previewSampleRate: Double = 48_000
@@ -29,6 +30,7 @@ final class StereoPreviewEngine {
     func startPreview(
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double] = [:],
+        onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws {
         stop()
@@ -54,7 +56,16 @@ final class StereoPreviewEngine {
             playerNode.pan = region.pan
 
             engine.attach(playerNode)
-            engine.connect(playerNode, to: engine.mainMixerNode, format: file.processingFormat)
+            if let trackNumber = region.trackNumber {
+                let trackMixerNode = trackMixerNode(
+                    for: trackNumber,
+                    format: file.processingFormat,
+                    onTrackLevelChanged: onTrackLevelChanged
+                )
+                engine.connect(playerNode, to: trackMixerNode, format: file.processingFormat)
+            } else {
+                engine.connect(playerNode, to: engine.mainMixerNode, format: file.processingFormat)
+            }
 
             if let startTime = Self.absoluteStartTime(startSample: region.startSample, sampleRate: file.processingFormat.sampleRate) {
                 playerNode.scheduleFile(file, at: startTime) { [weak self] in
@@ -94,8 +105,15 @@ final class StereoPreviewEngine {
             engine.detach(playerNode)
         }
 
+        for (trackNumber, mixerNode) in trackMixerNodes {
+            mixerNode.removeTap(onBus: 0)
+            engine.detach(mixerNode)
+            playerNodesByTrackNumber[trackNumber] = nil
+        }
+
         playerNodes.removeAll()
         playerNodesByTrackNumber.removeAll()
+        trackMixerNodes.removeAll()
         engine.stop()
     }
 
@@ -212,6 +230,97 @@ final class StereoPreviewEngine {
         Task { @MainActor in
             completion()
         }
+    }
+
+    private func trackMixerNode(
+        for trackNumber: Int,
+        format: AVAudioFormat,
+        onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void
+    ) -> AVAudioMixerNode {
+        if let existingNode = trackMixerNodes[trackNumber] {
+            return existingNode
+        }
+
+        let mixerNode = AVAudioMixerNode()
+        engine.attach(mixerNode)
+        engine.connect(mixerNode, to: engine.mainMixerNode, format: format)
+        installLevelTap(on: mixerNode, trackNumber: trackNumber, onTrackLevelChanged: onTrackLevelChanged)
+        trackMixerNodes[trackNumber] = mixerNode
+        return mixerNode
+    }
+
+    private func installLevelTap(
+        on mixerNode: AVAudioMixerNode,
+        trackNumber: Int,
+        onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void
+    ) {
+        mixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
+            onTrackLevelChanged(trackNumber, Self.normalizedPeakLevel(for: buffer))
+        }
+    }
+
+    private static func normalizedPeakLevel(for buffer: AVAudioPCMBuffer) -> Double {
+        let frameLength = Int(buffer.frameLength)
+        guard frameLength > 0 else {
+            return 0
+        }
+
+        switch buffer.format.commonFormat {
+        case .pcmFormatFloat32:
+            guard let channels = buffer.floatChannelData else {
+                return 0
+            }
+            return normalizedPeakLevel(
+                frameLength: frameLength,
+                channelCount: Int(buffer.format.channelCount),
+                sampleAt: { channel, frame in
+                    Double(abs(channels[channel][frame]))
+                }
+            )
+        case .pcmFormatInt16:
+            guard let channels = buffer.int16ChannelData else {
+                return 0
+            }
+            return normalizedPeakLevel(
+                frameLength: frameLength,
+                channelCount: Int(buffer.format.channelCount),
+                sampleAt: { channel, frame in
+                    Double(abs(Int32(channels[channel][frame]))) / Double(Int16.max)
+                }
+            )
+        case .pcmFormatInt32:
+            guard let channels = buffer.int32ChannelData else {
+                return 0
+            }
+            return normalizedPeakLevel(
+                frameLength: frameLength,
+                channelCount: Int(buffer.format.channelCount),
+                sampleAt: { channel, frame in
+                    Double(abs(channels[channel][frame])) / Double(Int32.max)
+                }
+            )
+        default:
+            return 0
+        }
+    }
+
+    private static func normalizedPeakLevel(
+        frameLength: Int,
+        channelCount: Int,
+        sampleAt: (_ channel: Int, _ frame: Int) -> Double
+    ) -> Double {
+        guard channelCount > 0 else {
+            return 0
+        }
+
+        var peakLevel = 0.0
+        for channel in 0..<channelCount {
+            for frame in 0..<frameLength {
+                peakLevel = max(peakLevel, sampleAt(channel, frame))
+            }
+        }
+
+        return min(max(peakLevel, 0), 1)
     }
 
     private static func absoluteStartTime(startSample: Int, sampleRate: Double) -> AVAudioTime? {

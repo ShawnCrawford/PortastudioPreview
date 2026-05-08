@@ -18,6 +18,7 @@ struct PreviewPlaybackControllerTests {
         #expect(!controller.isPlaying)
         #expect(controller.elapsedSeconds == 0)
         #expect(controller.playbackError == nil)
+        #expect(controller.trackMeterLevel(for: 1) == 0)
     }
 
     // MARK: - Error visibility on failure
@@ -81,6 +82,7 @@ struct PreviewPlaybackControllerTests {
         #expect(controller.playbackError == nil)
         #expect(!controller.isPlaying)
         #expect(controller.elapsedSeconds == 0)
+        #expect(controller.trackMeterLevels.isEmpty)
     }
 
     @Test func stopOnIdleControllerKeepsErrorNil() {

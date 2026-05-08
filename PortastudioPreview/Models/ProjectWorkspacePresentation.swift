@@ -109,12 +109,19 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
     let panLabel: String
     let levelLabel: String
     let levelPosition: Double
+    let meterLevel: Double
     let isMuted: Bool
     let muteLabel: String
     let isSelected: Bool
     let colorIndex: Int
 
-    init(track: TrackPreview, displayName: String?, isSelected: Bool, levelPositionOverride: Double? = nil) {
+    init(
+        track: TrackPreview,
+        displayName: String?,
+        isSelected: Bool,
+        levelPositionOverride: Double? = nil,
+        meterLevel: Double = 0
+    ) {
         id = track.trackNumber
         trackNumber = track.trackNumber
         if let displayName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -142,6 +149,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
             levelLabel = "n/a"
             levelPosition = 0
         }
+        self.meterLevel = min(max(meterLevel, 0), 1)
 
         isMuted = (track.mixerSetting?.mute?.primaryByte ?? 0) != 0
         muteLabel = isMuted ? "Muted" : "Live"

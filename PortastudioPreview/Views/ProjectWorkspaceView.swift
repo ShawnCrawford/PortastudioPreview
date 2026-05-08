@@ -410,7 +410,8 @@ struct TrackMixerDeckView: View {
                             track: track,
                             displayName: annotationStore.trackName(for: track.trackNumber),
                             isSelected: selectedTrackID == track.id,
-                            levelPositionOverride: mixState.levelPosition(for: track.trackNumber)
+                            levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
+                            meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
                         )
                         TrackMixerStripView(
                             presentation: presentation,
@@ -501,7 +502,7 @@ private struct TrackMixerStripView: View {
                     onSelect: selectAction,
                     onValueChanged: setLevelPosition
                 )
-                OutputLevelView(value: presentation.isMuted ? 0 : max(presentation.levelPosition, 0.08))
+                OutputLevelView(value: presentation.isMuted ? 0 : presentation.meterLevel)
             }
             .frame(height: 86)
 
