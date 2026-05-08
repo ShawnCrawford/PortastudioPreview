@@ -103,6 +103,44 @@ struct ProjectPreviewBuilderTests {
         #expect(project.unassignedAudioRegions.count == 2)
     }
 
+    @Test func builderGroupsVirtualTakeAlternativesIntoSinglePhysicalTrackRow() throws {
+        let folder = try TemporaryFolder()
+        try Data(count: MixerMapOffsets.minimumSongSysLength).write(to: folder.url.appendingPathComponent("song.sys"))
+        try writeEdlTable(
+            fileList: ["ZZ0000_1.wav", "ZZ0000_2.wav"],
+            activeTakeCandidate: 0x01,
+            to: folder.url.appendingPathComponent("edltable.sys")
+        )
+        try Data([0x01]).write(to: folder.url.appendingPathComponent("ZZ0000_1.wav"))
+        try Data([0x02]).write(to: folder.url.appendingPathComponent("ZZ0000_2.wav"))
+
+        let project = try ProjectPreviewBuilder().build(folderURL: folder.url)
+
+        #expect(project.tracks[0].virtualTrackOptions.count == 2)
+        #expect(project.tracks[0].defaultVirtualTrackOption?.takeNumber == 2)
+        #expect(project.tracks[0].candidateWAV?.rawFilename == "ZZ0000_2.wav")
+        #expect(project.tracks[1].virtualTrackOptions.isEmpty)
+        #expect(project.tracks[1].candidateWAV == nil)
+        #expect(project.unassignedAudioRegions.isEmpty)
+    }
+
+    @Test func builderKeepsSongFileSelectedTakeAsDefaultVirtualOption() throws {
+        let folder = try TemporaryFolder()
+        try Data(count: MixerMapOffsets.minimumSongSysLength).write(to: folder.url.appendingPathComponent("song.sys"))
+        try writeEdlTable(
+            fileList: ["ZZ0003_1.wav", "ZZ0003_2.wav"],
+            activeTakeCandidate: 0x00,
+            to: folder.url.appendingPathComponent("edltable.sys")
+        )
+        try Data([0x01]).write(to: folder.url.appendingPathComponent("ZZ0003_1.wav"))
+        try Data([0x02]).write(to: folder.url.appendingPathComponent("ZZ0003_2.wav"))
+
+        let project = try ProjectPreviewBuilder().build(folderURL: folder.url)
+
+        #expect(project.tracks[0].defaultVirtualTrackOption?.takeNumber == 1)
+        #expect(project.tracks[0].candidateWAV?.rawFilename == "ZZ0003_1.wav")
+    }
+
     @Test func builderPairsImplicitZeroRegionWithDelayedTimelineAnchor() throws {
         let folder = try TemporaryFolder()
         try Data(count: MixerMapOffsets.minimumSongSysLength).write(to: folder.url.appendingPathComponent("song.sys"))
@@ -211,10 +249,16 @@ struct ProjectPreviewBuilderTests {
         }
     }
 
-    private func writeEdlTable(fileList: [String], timelineAnchors: [UInt32] = [], to url: URL) throws {
+    private func writeEdlTable(
+        fileList: [String],
+        timelineAnchors: [UInt32] = [],
+        activeTakeCandidate: UInt8 = 0x00,
+        to url: URL
+    ) throws {
         let text = "File List\0" + fileList.joined(separator: "\0") + "\0"
         var data = Data(count: EdlTableParser.track1ActiveTakeCandidateOffset + 1)
         data.replaceSubrange(0x100..<(0x100 + text.utf8.count), with: text.utf8)
+        data[EdlTableParser.track1ActiveTakeCandidateOffset] = activeTakeCandidate
 
         for (index, anchor) in timelineAnchors.enumerated() {
             writeUInt32LE(anchor, to: &data, at: 0x41858 + index * 0x40)
@@ -228,5 +272,212 @@ struct ProjectPreviewBuilderTests {
         data[offset + 1] = UInt8((value >> 8) & 0xFF)
         data[offset + 2] = UInt8((value >> 16) & 0xFF)
         data[offset + 3] = UInt8((value >> 24) & 0xFF)
+    }
+
+    // MARK: - Virtual Track Picker Tests
+
+    @Test func pickerIsHiddenForTracksWithNoOptions() {
+        let track = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: nil,
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: nil,
+            virtualTrackOptions: [],
+            defaultVirtualTrackOptionID: nil
+        )
+        
+        #expect(!track.showsVirtualTrackPicker)
+    }
+
+    @Test func pickerIsHiddenForTracksWithSingleOption() {
+        let option = VirtualTrackOption(
+            id: "track1#zz0000_1.wav",
+            takeNumber: 1,
+            takeLabel: "Take 1",
+            wavItem: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                rawFilename: "ZZ0000_1.wav",
+                byteCount: nil
+            ),
+            timelineRegion: TimelineRegion(
+                startSample: 0,
+                endSample: nil,
+                lengthSample: nil,
+                sourceFilename: "ZZ0000_1.wav",
+                sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                evidenceLevel: .hypothesis
+            ),
+            evidenceLevel: .hypothesis
+        )
+        let track = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: option.wavItem,
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: nil,
+            virtualTrackOptions: [option],
+            defaultVirtualTrackOptionID: option.id
+        )
+        
+        #expect(!track.showsVirtualTrackPicker)
+    }
+
+    @Test func pickerIsShownForTracksWithMultipleOptions() {
+        let option1 = VirtualTrackOption(
+            id: "track1#zz0000_1.wav",
+            takeNumber: 1,
+            takeLabel: "Take 1",
+            wavItem: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                rawFilename: "ZZ0000_1.wav",
+                byteCount: nil
+            ),
+            timelineRegion: TimelineRegion(
+                startSample: 0,
+                endSample: nil,
+                lengthSample: nil,
+                sourceFilename: "ZZ0000_1.wav",
+                sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                evidenceLevel: .hypothesis
+            ),
+            evidenceLevel: .hypothesis
+        )
+        let option2 = VirtualTrackOption(
+            id: "track1#zz0000_2.wav",
+            takeNumber: 2,
+            takeLabel: "Take 2",
+            wavItem: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/ZZ0000_2.wav"),
+                rawFilename: "ZZ0000_2.wav",
+                byteCount: nil
+            ),
+            timelineRegion: TimelineRegion(
+                startSample: 0,
+                endSample: nil,
+                lengthSample: nil,
+                sourceFilename: "ZZ0000_2.wav",
+                sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_2.wav"),
+                evidenceLevel: .hypothesis
+            ),
+            evidenceLevel: .hypothesis
+        )
+        let track = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: option2.wavItem,
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: nil,
+            virtualTrackOptions: [option1, option2],
+            defaultVirtualTrackOptionID: option2.id
+        )
+        
+        #expect(track.showsVirtualTrackPicker)
+    }
+
+    @Test func selectedVirtualTrackOptionFallsBackToDefaultWhenNotFound() {
+        let option1 = VirtualTrackOption(
+            id: "track1#zz0000_1.wav",
+            takeNumber: 1,
+            takeLabel: "Take 1",
+            wavItem: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                rawFilename: "ZZ0000_1.wav",
+                byteCount: nil
+            ),
+            timelineRegion: TimelineRegion(
+                startSample: 0,
+                endSample: nil,
+                lengthSample: nil,
+                sourceFilename: "ZZ0000_1.wav",
+                sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                evidenceLevel: .hypothesis
+            ),
+            evidenceLevel: .hypothesis
+        )
+        let option2 = VirtualTrackOption(
+            id: "track1#zz0000_2.wav",
+            takeNumber: 2,
+            takeLabel: "Take 2",
+            wavItem: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/ZZ0000_2.wav"),
+                rawFilename: "ZZ0000_2.wav",
+                byteCount: nil
+            ),
+            timelineRegion: TimelineRegion(
+                startSample: 0,
+                endSample: nil,
+                lengthSample: nil,
+                sourceFilename: "ZZ0000_2.wav",
+                sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_2.wav"),
+                evidenceLevel: .hypothesis
+            ),
+            evidenceLevel: .hypothesis
+        )
+        let track = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: option2.wavItem,
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: nil,
+            virtualTrackOptions: [option1, option2],
+            defaultVirtualTrackOptionID: option2.id
+        )
+        
+        let selected = track.selectedVirtualTrackOption(selectedOptionID: "invalid-id")
+        #expect(selected?.id == option2.id)
+    }
+
+    @Test func selectedVirtualTrackOptionReturnsSelectedWhenValid() {
+        let option1 = VirtualTrackOption(
+            id: "track1#zz0000_1.wav",
+            takeNumber: 1,
+            takeLabel: "Take 1",
+            wavItem: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                rawFilename: "ZZ0000_1.wav",
+                byteCount: nil
+            ),
+            timelineRegion: TimelineRegion(
+                startSample: 0,
+                endSample: nil,
+                lengthSample: nil,
+                sourceFilename: "ZZ0000_1.wav",
+                sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_1.wav"),
+                evidenceLevel: .hypothesis
+            ),
+            evidenceLevel: .hypothesis
+        )
+        let option2 = VirtualTrackOption(
+            id: "track1#zz0000_2.wav",
+            takeNumber: 2,
+            takeLabel: "Take 2",
+            wavItem: WAVInventoryItem(
+                url: URL(fileURLWithPath: "/tmp/ZZ0000_2.wav"),
+                rawFilename: "ZZ0000_2.wav",
+                byteCount: nil
+            ),
+            timelineRegion: TimelineRegion(
+                startSample: 0,
+                endSample: nil,
+                lengthSample: nil,
+                sourceFilename: "ZZ0000_2.wav",
+                sourceURL: URL(fileURLWithPath: "/tmp/ZZ0000_2.wav"),
+                evidenceLevel: .hypothesis
+            ),
+            evidenceLevel: .hypothesis
+        )
+        let track = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: option2.wavItem,
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: nil,
+            virtualTrackOptions: [option1, option2],
+            defaultVirtualTrackOptionID: option2.id
+        )
+        
+        let selected = track.selectedVirtualTrackOption(selectedOptionID: option1.id)
+        #expect(selected?.id == option1.id)
     }
 }

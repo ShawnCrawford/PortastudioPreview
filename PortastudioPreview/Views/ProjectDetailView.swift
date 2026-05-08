@@ -15,6 +15,7 @@ struct ProjectDetailView: View {
     @State private var workspaceMode: ProjectWorkspaceMode = .tracks
     @State private var playbackController = PreviewPlaybackController()
     @State private var mixState: PreviewMixState
+    @State private var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
 
     init(project: PortastudioProject, annotationStore: TrackAnnotationStore) {
         self.project = project
@@ -31,6 +32,7 @@ struct ProjectDetailView: View {
             workspaceMode: $workspaceMode,
             playbackController: playbackController,
             mixState: mixState,
+            selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
             showInspector: showInspector
         )
         .navigationTitle(annotationStore.annotationContext?.effectiveDisplayName ?? project.folderName)
@@ -66,7 +68,11 @@ struct ProjectDetailView: View {
             selectedRegionID = nil
             workspaceMode = .tracks
             mixState = PreviewMixState(project: project)
+            selectedVirtualTrackIDs = [:]
             playbackController.stop()
+        }
+        .onChange(of: annotationStore.annotationContext?.songFingerprintString) { _, _ in
+            selectedVirtualTrackIDs = [:]
         }
     }
 
@@ -241,11 +247,17 @@ private struct ValidationGroupBoxView: View {
 private struct TracksGroupBoxView: View {
     let tracks: [TrackPreview]
     @Binding var selectedTrackID: TrackPreview.ID?
+    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let annotationStore: TrackAnnotationStore
 
     var body: some View {
         GroupBox {
-            TrackTableView(tracks: tracks, selectedTrackID: $selectedTrackID, annotationStore: annotationStore)
+            TrackTableView(
+                tracks: tracks,
+                selectedTrackID: $selectedTrackID,
+                selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+                annotationStore: annotationStore
+            )
                 .frame(minHeight: 200, idealHeight: 300)
         } label: {
             Label("Tracks", systemImage: "slider.horizontal.3")

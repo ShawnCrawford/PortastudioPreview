@@ -158,25 +158,6 @@ struct ProjectPreviewBuilder {
         edlTableSummary: EdlTableSummary?,
         mixerSettings: [TrackMixerSetting]
     ) -> (tracks: [TrackPreview], unassignedRegions: [TimelineRegion]) {
-
-        // When the active-take selector byte is non-zero, the EDL file list represents
-        // alternative recordings of the same performance rather than independent tracks.
-        // Leave all regions unassigned so the planner can apply virtual-take filtering.
-        // Evidence: Correlated (SONG_0084 — activeTakeCandidate 0x01 → single-take output).
-        let activeTakeCandidate = edlTableSummary?.track1ActiveTakeCandidate ?? 0
-        if activeTakeCandidate > 0 {
-            let unassignedTracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
-                TrackPreview(
-                    trackNumber: trackIndex + 1,
-                    candidateWAV: nil,
-                    mixerSetting: mixerSettings.indices.contains(trackIndex) ? mixerSettings[trackIndex] : nil,
-                    track1ActiveTakeCandidate: trackIndex == 0 ? activeTakeCandidate : nil,
-                    timeline: nil
-                )
-            }
-            return (unassignedTracks, allRegions)
-        }
-
         // Keyed lookups (case-insensitive) for fast matching.
         var regionByFilename: [String: TimelineRegion] = [:]
         for region in allRegions {
@@ -189,40 +170,76 @@ struct ProjectPreviewBuilder {
             wavByFilename[wav.rawFilename.lowercased()] = wav
         }
 
-        // Build per-track assignments from the EDL file list (Hypothesis).
-        var trackAssignments: [Int: (wav: WAVInventoryItem, region: TimelineRegion)] = [:]
+        // Group EDL list entries by physical-track candidate (Hypothesis).
         let fileListEntries = edlTableSummary?.fileListEntries ?? []
+        var groupedAssignments: [String: [VirtualTrackOption]] = [:]
+        var groupedOrder: [String] = []
 
-        for (index, entry) in fileListEntries.enumerated() {
-            guard index < MixerMapOffsets.trackCount else { break }
+        for entry in fileListEntries {
             let key = entry.filename.lowercased()
             guard let wav = wavByFilename[key], let region = regionByFilename[key] else {
                 continue
             }
-            trackAssignments[index] = (wav: wav, region: region)
+            let parsed = Self.wavStemAndSuffix(entry.filename)
+            let takeNumber = parsed?.suffix ?? 1
+            let groupKey = (parsed?.stem ?? entry.filename).lowercased()
+
+            if groupedAssignments[groupKey] == nil {
+                groupedAssignments[groupKey] = []
+                groupedOrder.append(groupKey)
+            }
+
+            groupedAssignments[groupKey]?.append(
+                VirtualTrackOption(
+                    id: Self.virtualTrackOptionID(groupKey: groupKey, filename: wav.rawFilename),
+                    takeNumber: takeNumber,
+                    takeLabel: Self.takeLabel(for: takeNumber),
+                    wavItem: wav,
+                    timelineRegion: region,
+                    evidenceLevel: .hypothesis
+                )
+            )
         }
 
-        // Build tracks — assigned ones carry candidateWAV and a single-region timeline.
+        let activeTakeNumber = Int((edlTableSummary?.track1ActiveTakeCandidate ?? 0)) + 1
+
+        // Build tracks — assigned tracks carry default selected virtual-take WAV/timeline.
         let tracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
-            let assignment = trackAssignments[trackIndex]
-            let timeline: TrackTimeline? = assignment.map { a in
+            let groupKey = groupedOrder.indices.contains(trackIndex) ? groupedOrder[trackIndex] : nil
+            let options = (groupKey.flatMap { groupedAssignments[$0] } ?? [])
+                .sorted {
+                    if $0.takeNumber == $1.takeNumber {
+                        return $0.wavItem.rawFilename.localizedStandardCompare($1.wavItem.rawFilename) == .orderedAscending
+                    }
+                    return $0.takeNumber < $1.takeNumber
+                }
+
+            let defaultOption = options.first(where: { $0.takeNumber == activeTakeNumber }) ?? options.first
+            let timeline: TrackTimeline? = defaultOption.map { option in
                 TrackTimeline(
                     trackNumber: trackIndex + 1,
-                    regions: [a.region],
+                    regions: [option.timelineRegion],
                     evidenceLevel: .hypothesis
                 )
             }
+
             return TrackPreview(
                 trackNumber: trackIndex + 1,
-                candidateWAV: assignment?.wav,
+                candidateWAV: defaultOption?.wavItem,
                 mixerSetting: mixerSettings.indices.contains(trackIndex) ? mixerSettings[trackIndex] : nil,
                 track1ActiveTakeCandidate: trackIndex == 0 ? edlTableSummary?.track1ActiveTakeCandidate : nil,
-                timeline: timeline
+                timeline: timeline,
+                virtualTrackOptions: options,
+                defaultVirtualTrackOptionID: defaultOption?.id
             )
         }
 
         // Regions not assigned to any track remain unassigned.
-        let assignedFilenames = Set(trackAssignments.values.map { $0.region.sourceFilename?.lowercased() ?? "" })
+        let assignedFilenames = Set(
+            tracks
+                .flatMap(\.virtualTrackOptions)
+                .compactMap { $0.timelineRegion.sourceFilename?.lowercased() }
+        )
         let unassignedRegions = allRegions.filter { region in
             guard let name = region.sourceFilename?.lowercased() else { return true }
             return !assignedFilenames.contains(name)
@@ -422,6 +439,14 @@ struct ProjectPreviewBuilder {
         let suffixPart = String(name[underscoreRange.upperBound...])
         guard let suffix = Int(suffixPart), suffix >= 1 else { return nil }
         return (stem: stemPart, suffix: suffix)
+    }
+
+    private static func virtualTrackOptionID(groupKey: String, filename: String) -> String {
+        "\(groupKey)#\(filename.lowercased())"
+    }
+
+    private static func takeLabel(for takeNumber: Int) -> String {
+        "Take \(takeNumber)"
     }
 
     private func wavSampleLength(for url: URL) -> Int? {

@@ -33,7 +33,9 @@ struct ProjectWorkspacePresentationTests {
             ),
             mixerSetting: nil,
             track1ActiveTakeCandidate: nil,
-            timeline: TrackTimeline(trackNumber: 1, regions: [region], evidenceLevel: .hypothesis)
+            timeline: TrackTimeline(trackNumber: 1, regions: [region], evidenceLevel: .hypothesis),
+            virtualTrackOptions: [],
+            defaultVirtualTrackOptionID: nil
         )
         let project = PortastudioProject(
             folderURL: URL(fileURLWithPath: "/tmp/SONG_0001"),
@@ -146,7 +148,9 @@ struct ProjectWorkspacePresentationTests {
             candidateWAV: nil,
             mixerSetting: nil,
             track1ActiveTakeCandidate: nil,
-            timeline: nil
+            timeline: nil,
+            virtualTrackOptions: [],
+            defaultVirtualTrackOptionID: nil
         )
 
         let strip = TrackMixerStripPresentation(track: track, displayName: nil, isSelected: false)
@@ -240,7 +244,9 @@ struct ProjectWorkspacePresentationTests {
                 )
             ),
             track1ActiveTakeCandidate: nil,
-            timeline: nil
+            timeline: nil,
+            virtualTrackOptions: [],
+            defaultVirtualTrackOptionID: nil
         )
     }
 }

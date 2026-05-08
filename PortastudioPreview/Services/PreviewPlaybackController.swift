@@ -11,6 +11,7 @@ protocol PreviewPlaybackEngineProtocol {
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double],
         trackPanOverrides: [Int: Double],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID],
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws
@@ -45,14 +46,21 @@ final class PreviewPlaybackController {
         self.engine = engine
     }
 
-    func canPlay(_ project: PortastudioProject) -> Bool {
-        StereoPreviewEngine.hasPlayableTracks(project)
+    func canPlay(
+        _ project: PortastudioProject,
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
+    ) -> Bool {
+        StereoPreviewEngine.hasPlayableTracks(
+            project,
+            selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs
+        )
     }
 
     func startPreview(
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double] = [:],
-        trackPanOverrides: [Int: Double] = [:]
+        trackPanOverrides: [Int: Double] = [:],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) {
         stop()
         self.trackVolumeOverrides = trackVolumeOverrides
@@ -62,6 +70,7 @@ final class PreviewPlaybackController {
                 for: project,
                 trackVolumeOverrides: trackVolumeOverrides,
                 trackPanOverrides: trackPanOverrides,
+                selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs,
                 onTrackLevelChanged: { [weak self] trackNumber, level in
                     Task { @MainActor [weak self] in
                         self?.trackMeterLevels[trackNumber] = level

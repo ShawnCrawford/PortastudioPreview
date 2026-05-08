@@ -8,6 +8,7 @@ import SwiftUI
 struct TrackTableView: View {
     let tracks: [TrackPreview]
     @Binding var selectedTrackID: TrackPreview.ID?
+    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     var annotationStore: TrackAnnotationStore? = nil
 
     var body: some View {
@@ -27,9 +28,30 @@ struct TrackTableView: View {
             }
             .width(min: 80, ideal: 120)
 
+            TableColumn("Virtual Take") { track in
+                if track.showsVirtualTrackPicker {
+                    Picker(
+                        "Virtual Take",
+                        selection: selectedVirtualTakeBinding(for: track)
+                    ) {
+                        ForEach(track.virtualTrackOptions) { option in
+                            Text(option.takeLabel).tag(option.id)
+                        }
+                    }
+                    .labelsHidden()
+                } else {
+                    Text(track.defaultVirtualTrackOption?.takeLabel ?? "–")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .width(min: 90, ideal: 130)
+
             TableColumn("Mapped WAV") { track in
-                Text(track.candidateWAV?.rawFilename ?? "Unassigned")
-                    .foregroundStyle(track.candidateWAV == nil ? .secondary : .primary)
+                let selected = track.selectedVirtualTrackOption(
+                    selectedOptionID: selectedVirtualTrackIDs[track.trackNumber]
+                )
+                Text(selected?.wavItem.rawFilename ?? track.candidateWAV?.rawFilename ?? "Unassigned")
+                    .foregroundStyle((selected == nil && track.candidateWAV == nil) ? .secondary : .primary)
             }
             .width(min: 150, ideal: 220)
 
@@ -65,10 +87,16 @@ struct TrackTableView: View {
             .width(min: 260, ideal: 420)
 
             TableColumn("Evidence") { track in
+                let selected = track.selectedVirtualTrackOption(
+                    selectedOptionID: selectedVirtualTrackIDs[track.trackNumber]
+                )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.mixerSetting?.level.evidenceLevel.rawValue ?? EvidenceLevel.observed.rawValue)
 
-                    if track.candidateWAV != nil {
+                    if let selected {
+                        Text("WAV: \(selected.evidenceLevel.rawValue)")
+                            .foregroundStyle(.secondary)
+                    } else if track.candidateWAV != nil {
                         Text("WAV: \(track.candidateWAVEvidence.rawValue)")
                             .foregroundStyle(.secondary)
                     }
@@ -76,6 +104,21 @@ struct TrackTableView: View {
             }
             .width(min: 110, ideal: 140)
         }
+    }
+
+    private func selectedVirtualTakeBinding(for track: TrackPreview) -> Binding<VirtualTrackOption.ID> {
+        Binding(
+            get: {
+                if let selected = selectedVirtualTrackIDs[track.trackNumber],
+                   track.virtualTrackOptions.contains(where: { $0.id == selected }) {
+                    return selected
+                }
+                return track.defaultVirtualTrackOption?.id ?? track.virtualTrackOptions.first?.id ?? ""
+            },
+            set: { newValue in
+                selectedVirtualTrackIDs[track.trackNumber] = newValue
+            }
+        )
     }
 
     private func settingDisplay(_ setting: MixerSetting?) -> String {

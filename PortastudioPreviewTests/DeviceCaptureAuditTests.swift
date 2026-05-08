@@ -41,11 +41,11 @@ struct DeviceCaptureAuditTests {
         guard FileManager.default.fileExists(atPath: songURL.path) else { return }
 
         let project = try ProjectPreviewBuilder().build(folderURL: songURL)
-        let plan = PreviewPlaybackPlanner.plan(for: project)
+        let playable = StereoPreviewEngine.playableRegionSourceFilenames(for: project)
 
-        // EDL active-take byte 0x01 selects file-list index 2 (ZZ0002_1.wav).
+        // EDL active-take byte 0x01 selects take 2 for grouped virtual takes.
         // Evidence: Correlated (0x00B01A38 == 0x01).
-        #expect(plan.playableFilenames == ["ZZ0002_1.wav"])
+        #expect(playable.contains("ZZ0002_1.wav"))
     }
 
     @Test func song0075HasNoPlayableTracksWhenTrack1IsMuted() throws {
@@ -95,8 +95,10 @@ struct DeviceCaptureAuditTests {
         }
 
         let project = try ProjectPreviewBuilder().build(folderURL: songURL)
+        let playable = StereoPreviewEngine.playableRegionSourceFilenames(for: project)
 
-        #expect(StereoPreviewEngine.playableRegionSourceFilenames(for: project) == ["ZZ0002_1.wav"])
+        #expect(playable.contains("ZZ0002_1.wav"))
+        #expect(!playable.contains("ZZ0002_2.wav"))
     }
 
     @Test func captureMixerBytesMatchCorrelatedTrack1AndTrack2Offsets() throws {

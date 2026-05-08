@@ -116,11 +116,13 @@ struct PreviewPlaybackControllerTests {
         controller.startPreview(
             for: sampleProject,
             trackVolumeOverrides: [1: 0.75],
-            trackPanOverrides: [1: -0.25]
+            trackPanOverrides: [1: -0.25],
+            selectedVirtualTrackOptionIDs: [1: "track1#zz0000_2.wav"]
         )
 
         #expect(engine.lastStartTrackVolumeOverrides?[1] == 0.75)
         #expect(engine.lastStartTrackPanOverrides?[1] == -0.25)
+        #expect(engine.lastStartSelectedVirtualTrackOptionIDs?[1] == "track1#zz0000_2.wav")
     }
 
     @Test func setTrackPanUpdatesEngineDuringActivePlayback() {
@@ -161,6 +163,7 @@ struct PreviewPlaybackControllerTests {
 private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
     var lastStartTrackVolumeOverrides: [Int: Double]?
     var lastStartTrackPanOverrides: [Int: Double]?
+    var lastStartSelectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID]?
     var lastUpdatedPanTrackNumber: Int?
     var lastUpdatedPanPosition: Double?
 
@@ -168,11 +171,13 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double],
         trackPanOverrides: [Int: Double],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID],
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws {
         self.lastStartTrackVolumeOverrides = trackVolumeOverrides
         self.lastStartTrackPanOverrides = trackPanOverrides
+        self.lastStartSelectedVirtualTrackOptionIDs = selectedVirtualTrackOptionIDs
     }
 
     func stop() {}

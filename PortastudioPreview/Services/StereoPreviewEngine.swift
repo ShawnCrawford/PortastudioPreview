@@ -31,6 +31,7 @@ final class StereoPreviewEngine {
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double] = [:],
         trackPanOverrides: [Int: Double] = [:],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:],
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws {
@@ -39,7 +40,8 @@ final class StereoPreviewEngine {
         let playableRegions = Self.playableRegions(
             for: project,
             trackVolumeOverrides: trackVolumeOverrides,
-            trackPanOverrides: trackPanOverrides
+            trackPanOverrides: trackPanOverrides,
+            selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs
         )
 
         guard !playableRegions.isEmpty else {
@@ -136,12 +138,18 @@ final class StereoPreviewEngine {
         }
     }
 
-    static func hasPlayableTracks(_ project: PortastudioProject) -> Bool {
-        !playableRegions(for: project).isEmpty
+    static func hasPlayableTracks(
+        _ project: PortastudioProject,
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
+    ) -> Bool {
+        !playableRegions(for: project, selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs).isEmpty
     }
 
-    static func playableRegionSourceFilenames(for project: PortastudioProject) -> [String] {
-        playableRegions(for: project).map { $0.url.lastPathComponent }
+    static func playableRegionSourceFilenames(
+        for project: PortastudioProject,
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
+    ) -> [String] {
+        playableRegions(for: project, selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs).map { $0.url.lastPathComponent }
     }
 
     static func isMuted(_ track: TrackPreview) -> Bool {
@@ -194,7 +202,8 @@ final class StereoPreviewEngine {
     private static func playableRegions(
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double] = [:],
-        trackPanOverrides: [Int: Double] = [:]
+        trackPanOverrides: [Int: Double] = [:],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) -> [PlayableRegion] {
         var result: [PlayableRegion] = []
 
@@ -202,9 +211,13 @@ final class StereoPreviewEngine {
         // This path correctly applies mute, approximate volume, and pan without relying
         // on positional EDL-index inference.
         for track in project.tracks {
-            guard let sourceURL = track.candidateWAV?.url,
-                  track.timeline != nil,
-                  let firstRegion = track.timeline?.regions.first,
+            let selectedOption = track.selectedVirtualTrackOption(
+                selectedOptionID: selectedVirtualTrackOptionIDs[track.trackNumber]
+            )
+            let sourceURL = selectedOption?.wavItem.url ?? track.candidateWAV?.url
+            let firstRegion = selectedOption?.timelineRegion ?? track.timeline?.regions.first
+            guard let sourceURL,
+                  let firstRegion,
                   !isMuted(track) else {
                 continue
             }
@@ -243,9 +256,14 @@ final class StereoPreviewEngine {
 
     static func playableRegionPans(
         for project: PortastudioProject,
-        trackPanOverrides: [Int: Double] = [:]
+        trackPanOverrides: [Int: Double] = [:],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) -> [Float] {
-        playableRegions(for: project, trackPanOverrides: trackPanOverrides).map(\.pan)
+        playableRegions(
+            for: project,
+            trackPanOverrides: trackPanOverrides,
+            selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs
+        ).map(\.pan)
     }
 
     private func handlePlaybackNodeCompleted(playbackID: UUID) {

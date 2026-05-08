@@ -13,6 +13,7 @@ struct ProjectWorkspaceView: View {
     @Binding var workspaceMode: ProjectWorkspaceMode
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
+    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let showInspector: () -> Void
 
     var body: some View {
@@ -21,7 +22,8 @@ struct ProjectWorkspaceView: View {
                 project: project,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
-                mixState: mixState
+                mixState: mixState,
+                selectedVirtualTrackIDs: selectedVirtualTrackIDs
             )
 
             Divider()
@@ -40,7 +42,8 @@ struct ProjectWorkspaceView: View {
                 workspaceMode: workspaceMode,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
-                mixState: mixState
+                mixState: mixState,
+                selectedVirtualTrackIDs: $selectedVirtualTrackIDs
             )
         }
         .frame(minWidth: 760, minHeight: 620)
@@ -56,6 +59,7 @@ private struct ProjectHeaderView: View {
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
+    let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
 
     private var summary: ProjectHeaderSummary {
         ProjectHeaderSummary(
@@ -65,7 +69,7 @@ private struct ProjectHeaderView: View {
     }
 
     private var canPlay: Bool {
-        playbackController.canPlay(project)
+        playbackController.canPlay(project, selectedVirtualTrackOptionIDs: selectedVirtualTrackIDs)
     }
 
     var body: some View {
@@ -93,6 +97,7 @@ private struct ProjectHeaderView: View {
                 project: project,
                 playbackController: playbackController,
                 mixState: mixState,
+                selectedVirtualTrackIDs: selectedVirtualTrackIDs,
                 canPlay: canPlay
             )
 
@@ -181,6 +186,7 @@ private struct HeaderTransportControls: View {
     let project: PortastudioProject
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
+    let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let canPlay: Bool
 
     var body: some View {
@@ -189,7 +195,8 @@ private struct HeaderTransportControls: View {
                 playbackController.startPreview(
                     for: project,
                     trackVolumeOverrides: mixState.trackVolumeOverrides,
-                    trackPanOverrides: mixState.trackPanOverrides
+                    trackPanOverrides: mixState.trackPanOverrides,
+                    selectedVirtualTrackOptionIDs: selectedVirtualTrackIDs
                 )
             }
             .labelStyle(.iconOnly)
@@ -316,6 +323,7 @@ private struct ProjectEditorSurface: View {
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
+    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
 
     var body: some View {
         switch workspaceMode {
@@ -325,7 +333,8 @@ private struct ProjectEditorSurface: View {
                 selectedTrackID: $selectedTrackID,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
-                mixState: mixState
+                mixState: mixState,
+                selectedVirtualTrackIDs: $selectedVirtualTrackIDs
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .accessibilityIdentifier("editor-surface-tracks")
@@ -393,6 +402,7 @@ struct TrackMixerDeckView: View {
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
+    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -406,6 +416,15 @@ struct TrackMixerDeckView: View {
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)
+
+            TrackTableView(
+                tracks: tracks,
+                selectedTrackID: $selectedTrackID,
+                selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+                annotationStore: annotationStore
+            )
+            .frame(minHeight: 150, idealHeight: 180)
+            .padding(.horizontal, 18)
 
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 0) {
@@ -441,7 +460,7 @@ struct TrackMixerDeckView: View {
             }
             .scrollIndicators(.hidden)
         }
-        .frame(height: 248)
+        .frame(minHeight: 420)
         .background(.regularMaterial)
         .accessibilityIdentifier("track-mixer-deck")
     }
