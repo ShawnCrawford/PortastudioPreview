@@ -7,8 +7,8 @@ import SwiftUI
 
 /// Small inspector editor for a single track's app-owned label.
 ///
-/// Shows a TextField when the annotation context is editable (exact song fingerprint).
-/// Shows a read-only value with a status note when the context is missing or non-exact.
+/// Shows a TextField when song labels are editable.
+/// Shows a read-only value with a status note when labels are currently unavailable.
 /// The inspector is the primary edit surface; the track table shows the saved label read-only.
 struct TrackLabelEditorView: View {
     let trackNumber: Int
@@ -65,11 +65,11 @@ struct TrackLabelEditorView: View {
         Group {
             if let ctx = context {
                 if !ctx.songFingerprintString.isEmpty, ctx.matchState != .exact {
-                    Text("Labels need an exact song match.")
+                    Text("Track names are unavailable for this song right now.")
                         .font(.caption2)
                         .foregroundStyle(.orange)
                 } else if ctx.songFingerprintString.isEmpty {
-                    Text("Song fingerprint required.")
+                    Text("Song details are still loading.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

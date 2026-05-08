@@ -42,16 +42,16 @@ private struct ContentViewBody: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: addSourceRoot) {
-                    Label("Add SD Card or Backup...", systemImage: "externaldrive.badge.plus")
+                    Label("Add Audio Source...", systemImage: "externaldrive.badge.plus")
                 }
-                .help("Scan an SD card root or backup folder and browse all its songs")
+                .help("Browse songs from an SD card or backup folder")
                 .accessibilityIdentifier("toolbar-add-source")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button(action: openIndividualSongFolder) {
                     Label("Open Individual Song...", systemImage: "folder")
                 }
-                .help("Load a single DP-32SD song project folder")
+                .help("Open one song folder")
                 .accessibilityIdentifier("toolbar-open-song")
             }
         }
@@ -70,7 +70,7 @@ private struct ContentViewBody: View {
 
     private func addSourceRoot() {
         let panel = NSOpenPanel()
-        panel.title = "Add SD Card or Backup Root"
+        panel.title = "Add Audio Source"
         panel.prompt = "Add"
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -87,7 +87,7 @@ private struct ContentViewBody: View {
 
     private func openIndividualSongFolder() {
         let panel = NSOpenPanel()
-        panel.title = "Open DP-32SD Song Folder"
+        panel.title = "Open Song Folder"
         panel.prompt = "Open"
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -140,13 +140,6 @@ struct SourceSelectedView: View {
                     Text("Songs").foregroundStyle(.secondary)
                     Text("\(availableSongCount)")
                 }
-                if let matchLabel = matchStateLabel {
-                    GridRow {
-                        Text("Identity").foregroundStyle(.secondary)
-                        Text(matchLabel)
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
             .frame(maxWidth: 400)
 
@@ -175,12 +168,4 @@ struct SourceSelectedView: View {
         source.songs.filter { !$0.isMissing }.count
     }
 
-    private var matchStateLabel: String? {
-        switch source.matchState {
-        case .exact: return "Exact match"
-        case .changedSinceLastSeen: return "Changed since last seen"
-        case .ambiguous: return "Ambiguous"
-        case .unknown, nil: return nil
-        }
-    }
 }

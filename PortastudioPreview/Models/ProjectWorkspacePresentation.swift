@@ -32,14 +32,12 @@ struct ProjectHeaderSummary: Equatable {
     let folderPath: String
     let deviceContext: String
     let formatLabel: String
-    let readOnlyLabel: String
     let trackCountLabel: String
     let wavCountLabel: String
     let durationLabel: String
-    let validationLabel: String
-    let validationSystemImage: String
-    let previewLabel: String
-    let previewSystemImage: String
+    let metadataLine: String
+    let issueLabel: String?
+    let previewUnavailableLabel: String?
 
     init(project: PortastudioProject, displayName: String?) {
         let summary = SongDetailSummary(project: project)
@@ -52,26 +50,22 @@ struct ProjectHeaderSummary: Equatable {
         }
         folderName = summary.folderName
         folderPath = summary.folderPath
-        deviceContext = "Portastudio project"
-        formatLabel = "\(Int(SampleTimeFormatter.standardSampleRate / 1_000)) kHz preview domain"
-        readOnlyLabel = "Read Only"
-        trackCountLabel = "\(summary.trackCount) tracks"
-        wavCountLabel = "\(summary.wavCount) WAV\(summary.wavCount == 1 ? "" : "s")"
+        deviceContext = "Song"
+        formatLabel = "\(Int(SampleTimeFormatter.standardSampleRate / 1_000)) kHz"
+        trackCountLabel = "\(summary.trackCount) Track\(summary.trackCount == 1 ? "" : "s")"
+        wavCountLabel = "\(summary.wavCount) Audio File\(summary.wavCount == 1 ? "" : "s")"
         durationLabel = Self.durationLabel(for: project)
+        metadataLine = "\(trackCountLabel) · \(wavCountLabel) · \(durationLabel)"
 
         if summary.validationIssueCount == 0 {
-            validationLabel = "Validated"
-            validationSystemImage = "checkmark.seal.fill"
+            issueLabel = nil
         } else if summary.hasErrors {
-            validationLabel = "\(summary.validationIssueCount) issue\(summary.validationIssueCount == 1 ? "" : "s")"
-            validationSystemImage = "xmark.octagon.fill"
+            issueLabel = "\(summary.validationIssueCount) issue\(summary.validationIssueCount == 1 ? "" : "s") need attention"
         } else {
-            validationLabel = "\(summary.validationIssueCount) warning\(summary.validationIssueCount == 1 ? "" : "s")"
-            validationSystemImage = "exclamationmark.triangle.fill"
+            issueLabel = "\(summary.validationIssueCount) warning\(summary.validationIssueCount == 1 ? "" : "s")"
         }
 
-        previewLabel = summary.previewAvailable ? "Preview Available" : "No Preview"
-        previewSystemImage = summary.previewAvailable ? "waveform" : "waveform.slash"
+        previewUnavailableLabel = summary.previewAvailable ? nil : "Preview unavailable"
     }
 
     private static func durationLabel(for project: PortastudioProject) -> String {
@@ -105,7 +99,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
     let trackNumber: Int
     let displayName: String
     let candidateWAVLabel: String
-    let candidateEvidenceLabel: String
+    let candidateDetailLabel: String
     let panPosition: Double
     let panDisplayLabel: String
     let levelLabel: String
@@ -120,7 +114,6 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         track: TrackPreview,
         displayName: String?,
         isSelected: Bool,
-        selectedVirtualTrackOptionID: VirtualTrackOption.ID? = nil,
         panPositionOverride: Double? = nil,
         levelPositionOverride: Double? = nil,
         meterLevel: Double = 0
@@ -133,16 +126,8 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         } else {
             self.displayName = "Track \(track.trackNumber)"
         }
-
-        let selectedVirtualTrack = track.selectedVirtualTrackOption(
-            selectedOptionID: selectedVirtualTrackOptionID
-        )
-        candidateWAVLabel = selectedVirtualTrack?.wavItem.rawFilename ?? track.candidateWAV?.rawFilename ?? "Unassigned"
-        if let selectedVirtualTrack {
-            candidateEvidenceLabel = "WAV: \(selectedVirtualTrack.evidenceLevel.rawValue)"
-        } else {
-            candidateEvidenceLabel = track.candidateWAV == nil ? "No WAV" : "WAV: \(track.candidateWAVEvidence.rawValue)"
-        }
+        candidateWAVLabel = track.candidateWAV?.rawFilename ?? "No Audio File"
+        candidateDetailLabel = track.candidateWAV == nil ? "Not assigned" : "Audio file"
 
         if let panPositionOverride {
             panPosition = min(max(panPositionOverride, -1), 1)

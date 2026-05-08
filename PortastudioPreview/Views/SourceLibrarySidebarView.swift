@@ -34,7 +34,7 @@ struct SourceLibrarySidebarView: View {
             }
 
             if let error = store.loadError {
-                Section("Load Error") {
+                Section("Open Error") {
                     Text(error)
                         .foregroundStyle(.red)
                         .font(.caption)
@@ -42,14 +42,14 @@ struct SourceLibrarySidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .searchable(text: $searchText, placement: .sidebar, prompt: "Search Sources and Songs")
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search Audio Sources and Songs")
         .accessibilityIdentifier("sidebar-source-list")
     }
 
-    // MARK: - SD Cards & Backups
+    // MARK: - Sources
 
     private var sourcesSection: some View {
-        Section("SD Cards & Backups") {
+        Section("Audio Sources") {
             let availableInFilter = filtered.sources.filter { !$0.isMissing }
             if availableInFilter.isEmpty && !isSearchActive {
                 mutedEmptyRow("No sources added")
@@ -127,10 +127,10 @@ struct SourceLibrarySidebarView: View {
         }
     }
 
-    // MARK: - Missing
+    // MARK: - Unavailable
 
     private var missingSection: some View {
-        Section("Missing") {
+        Section("Unavailable") {
             let missingSources = filtered.sources.filter(\.isMissing)
             let missingSongs = filtered.individualSongs.filter(\.isMissing)
             let missingOther = filtered.missingItems
@@ -142,7 +142,7 @@ struct SourceLibrarySidebarView: View {
                 ForEach(missingSources) { source in
                     MissingSourceRow(source: source)
                         .tag(SourceLibrarySelection.source(source.id))
-                        .accessibilityLabel("Missing \(source.kind == .mediaRoot ? "SD Card" : "Backup"): \(source.displayName)")
+                        .accessibilityLabel("Unavailable \(source.kind == .mediaRoot ? "SD Card" : "Backup"): \(source.displayName)")
                         .accessibilityHint("Use context menu to relocate or forget")
                         .accessibilityIdentifier("missing-source-\(source.id)")
                         .contextMenu {
@@ -156,7 +156,7 @@ struct SourceLibrarySidebarView: View {
                 ForEach(missingSongs) { song in
                     MissingSongRow(song: song)
                         .tag(SourceLibrarySelection.individualSong(song.id))
-                        .accessibilityLabel("Missing song: \(song.displayName)")
+                        .accessibilityLabel("Unavailable song: \(song.displayName)")
                         .accessibilityHint("Use context menu to relocate or forget")
                         .accessibilityIdentifier("missing-song-\(song.id)")
                         .contextMenu {
@@ -177,7 +177,7 @@ struct SourceLibrarySidebarView: View {
                         }
                     }
                     .tag(SourceLibrarySelection.missingItem(item.id))
-                    .accessibilityLabel("Missing item: \(item.displayName)")
+                        .accessibilityLabel("Unavailable item: \(item.displayName)")
                     .accessibilityIdentifier("missing-item-\(item.id)")
                 }
             }
@@ -214,11 +214,7 @@ struct SourceLibrarySidebarView: View {
         case .mediaRoot: kindName = "SD Card"
         case .backupRoot: kindName = "Backup"
         }
-        var label = "\(kindName) · \(source.folderURL.path)"
-        if let matchLabel = fingerprintMatchStateLabel(source.matchState) {
-            label += " · \(matchLabel)"
-        }
-        return label
+        return "\(kindName) · \(source.folderURL.path)"
     }
 
     /// Returns `true` if the source should be visible given the current search filter.
@@ -239,18 +235,12 @@ struct SourceLibrarySidebarView: View {
     private func sourceAccessibilityLabel(_ source: SourceLibrarySource) -> String {
         let kindName = source.kind == .mediaRoot ? "SD Card" : "Backup"
         let songCount = source.songs.filter { !$0.isMissing }.count
-        var label = "\(source.displayName), \(kindName), \(songCount) song\(songCount == 1 ? "" : "s")"
-        if let matchLabel = fingerprintMatchStateLabel(source.matchState) {
-            label += ", \(matchLabel)"
-        }
-        return label
+        return "\(source.displayName), \(kindName), \(songCount) song\(songCount == 1 ? "" : "s")"
     }
 
     private func sourceSongAccessibilityLabel(_ song: SourceLibrarySong) -> String {
         var label = song.displayName
-        if case .loaded = song.loadState, let matchLabel = fingerprintMatchStateLabel(song.matchState) {
-            label += ", \(matchLabel)"
-        } else if case .loading = song.loadState {
+        if case .loading = song.loadState {
             label += ", loading"
         } else if case .failed = song.loadState {
             label += ", load failed"
@@ -323,9 +313,6 @@ private struct SourceLibrarySongRow: View {
         }
 
         var base = state
-        if case .loaded = song.loadState, let matchLabel = fingerprintMatchStateLabel(song.matchState) {
-            base += " · \(matchLabel)"
-        }
         return base
     }
 }
@@ -365,11 +352,3 @@ private struct MissingSongRow: View {
     }
 }
 
-private func fingerprintMatchStateLabel(_ state: FingerprintMatchState?) -> String? {
-    switch state {
-    case .exact: return "Exact match"
-    case .changedSinceLastSeen: return "Changed since last seen"
-    case .ambiguous: return "Ambiguous"
-    case .unknown, nil: return nil
-    }
-}

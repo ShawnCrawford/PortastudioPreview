@@ -19,13 +19,13 @@ struct ProjectOpenView: View {
             VStack(spacing: 20) {
                 VStack(spacing: 8) {
                     Button(action: addSourceAction) {
-                        Label("Add SD Card or Backup...", systemImage: "externaldrive.badge.plus")
+                        Label("Add Audio Source...", systemImage: "externaldrive.badge.plus")
                     }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("open-view-add-source")
-                    .accessibilityLabel("Add SD Card or Backup")
-                    .accessibilityHint("Scan an SD card root or backup folder and browse all its songs")
-                    Text("Scan a card root or backup folder and browse all its songs.")
+                    .accessibilityLabel("Add audio source")
+                    .accessibilityHint("Browse songs from an SD card or backup folder")
+                    Text("Browse songs from an SD card or backup folder.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -36,8 +36,8 @@ struct ProjectOpenView: View {
                     }
                     .accessibilityIdentifier("open-view-open-song")
                     .accessibilityLabel("Open Individual Song")
-                    .accessibilityHint("Load a single DP-32SD song project folder")
-                    Text("Load a single DP-32SD song project folder.")
+                    .accessibilityHint("Open a single song folder")
+                    Text("Open one song folder directly.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

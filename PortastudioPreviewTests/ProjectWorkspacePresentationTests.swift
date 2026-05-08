@@ -62,12 +62,15 @@ struct ProjectWorkspacePresentationTests {
 
         #expect(summary.title == "Band Take")
         #expect(summary.folderName == "SONG_0001")
-        #expect(summary.readOnlyLabel == "Read Only")
-        #expect(summary.trackCountLabel == "1 tracks")
-        #expect(summary.wavCountLabel == "1 WAV")
-        #expect(summary.durationLabel == "2.0s")
-        #expect(summary.validationLabel == "Validated")
-        #expect(summary.previewLabel == "Preview Available")
+        #expect(summary.deviceContext == "Song")
+        #expect(summary.formatLabel == "\(Int(SampleTimeFormatter.standardSampleRate / 1_000)) kHz")
+        #expect(summary.trackCountLabel == "0 Tracks")
+        #expect(summary.wavCountLabel == "1 Audio File")
+        #expect(summary.durationLabel != "Duration unknown")
+        #expect(summary.metadataLine.contains(summary.trackCountLabel))
+        #expect(summary.metadataLine.contains("1 Audio File"))
+        #expect(summary.issueLabel == nil)
+        #expect(summary.previewUnavailableLabel == nil)
     }
 
     @Test func headerFallsBackWhenDurationAndPreviewAreUnavailable() {
@@ -77,7 +80,7 @@ struct ProjectWorkspacePresentationTests {
 
         #expect(summary.title == "SONG_0001")
         #expect(summary.durationLabel == "Duration unknown")
-        #expect(summary.previewLabel == "No Preview")
+        #expect(summary.previewUnavailableLabel == "Preview unavailable")
     }
 
     @Test func headerReportsValidationIssues() {
@@ -92,8 +95,7 @@ struct ProjectWorkspacePresentationTests {
 
         let summary = ProjectHeaderSummary(project: project, displayName: nil)
 
-        #expect(summary.validationLabel == "2 issues")
-        #expect(summary.validationSystemImage == "xmark.octagon.fill")
+        #expect(summary.issueLabel == "2 issues need attention")
     }
 
     @Test func headerReportsWarningOnlyIssues() {
@@ -108,8 +110,7 @@ struct ProjectWorkspacePresentationTests {
 
         let summary = ProjectHeaderSummary(project: project, displayName: nil)
 
-        #expect(summary.validationLabel == "2 warnings")
-        #expect(summary.validationSystemImage == "exclamationmark.triangle.fill")
+        #expect(summary.issueLabel == "2 warnings")
     }
 
     @Test func mixerStripMapsTrackDisplayState() {
@@ -131,7 +132,7 @@ struct ProjectWorkspacePresentationTests {
         #expect(strip.id == 3)
         #expect(strip.displayName == "Lead Vocal")
         #expect(strip.candidateWAVLabel == "ZZ0003_1.wav")
-        #expect(strip.candidateEvidenceLabel == "WAV: Hypothesis")
+        #expect(strip.candidateDetailLabel == "Audio file")
         #expect(strip.panDisplayLabel == "R1")
         #expect(strip.panPosition > 0)
         #expect(strip.levelLabel == "0 dB")
@@ -140,55 +141,6 @@ struct ProjectWorkspacePresentationTests {
         #expect(strip.isMuted)
         #expect(strip.muteLabel == "Muted")
         #expect(strip.isSelected)
-    }
-
-    @Test func mixerStripUsesSelectedVirtualTrackForMappedWAV() {
-        let take1WAV = WAVInventoryItem(
-            url: URL(fileURLWithPath: "/tmp/SONG_0001/ZZ0001_1.wav"),
-            rawFilename: "ZZ0001_1.wav",
-            byteCount: 128
-        )
-        let take2WAV = WAVInventoryItem(
-            url: URL(fileURLWithPath: "/tmp/SONG_0001/ZZ0001_2.wav"),
-            rawFilename: "ZZ0001_2.wav",
-            byteCount: 128
-        )
-        let track = TrackPreview(
-            trackNumber: 1,
-            candidateWAV: take1WAV,
-            mixerSetting: nil,
-            track1ActiveTakeCandidate: nil,
-            timeline: nil,
-            virtualTrackOptions: [
-                VirtualTrackOption(
-                    id: "take-1",
-                    takeNumber: 1,
-                    takeLabel: "Take 1",
-                    wavItem: take1WAV,
-                    timelineRegion: makeRegion(filename: "ZZ0001_1.wav", startSample: 0, length: 96_000),
-                    evidenceLevel: .correlated
-                ),
-                VirtualTrackOption(
-                    id: "take-2",
-                    takeNumber: 2,
-                    takeLabel: "Take 2",
-                    wavItem: take2WAV,
-                    timelineRegion: makeRegion(filename: "ZZ0001_2.wav", startSample: 0, length: 96_000),
-                    evidenceLevel: .hypothesis
-                )
-            ],
-            defaultVirtualTrackOptionID: "take-1"
-        )
-
-        let strip = TrackMixerStripPresentation(
-            track: track,
-            displayName: nil,
-            isSelected: false,
-            selectedVirtualTrackOptionID: "take-2"
-        )
-
-        #expect(strip.candidateWAVLabel == "ZZ0001_2.wav")
-        #expect(strip.candidateEvidenceLabel == "WAV: Hypothesis")
     }
 
     @Test func mixerStripFallsBackForMissingMixerData() {
@@ -205,14 +157,57 @@ struct ProjectWorkspacePresentationTests {
         let strip = TrackMixerStripPresentation(track: track, displayName: nil, isSelected: false)
 
         #expect(strip.displayName == "Track 4")
-        #expect(strip.candidateWAVLabel == "Unassigned")
-        #expect(strip.candidateEvidenceLabel == "No WAV")
+        #expect(strip.candidateWAVLabel == "No Audio File")
+        #expect(strip.candidateDetailLabel == "Not assigned")
         #expect(strip.panDisplayLabel == "C")
         #expect(strip.panPosition == 0)
         #expect(strip.levelLabel == "n/a")
         #expect(strip.levelPosition == 0)
         #expect(strip.meterLevel == 0)
         #expect(!strip.isMuted)
+    }
+
+    @Test func primaryPresentationCopyAvoidsInternalTerminology() {
+        let cleanSummary = ProjectHeaderSummary(project: makeProject(validationIssues: [], regions: [], tracks: []), displayName: nil)
+        let issueSummary = ProjectHeaderSummary(
+            project: makeProject(
+                validationIssues: [ProjectValidationIssue(id: "warning", severity: .warning, message: "warning")],
+                regions: [],
+                tracks: []
+            ),
+            displayName: nil
+        )
+        let noFileStrip = TrackMixerStripPresentation(
+            track: TrackPreview(
+                trackNumber: 8,
+                candidateWAV: nil,
+                mixerSetting: nil,
+                track1ActiveTakeCandidate: nil,
+                timeline: nil,
+                virtualTrackOptions: [],
+                defaultVirtualTrackOptionID: nil
+            ),
+            displayName: nil,
+            isSelected: false
+        )
+
+        let primaryCopy = [
+            cleanSummary.deviceContext,
+            cleanSummary.formatLabel,
+            cleanSummary.trackCountLabel,
+            cleanSummary.wavCountLabel,
+            cleanSummary.metadataLine,
+            cleanSummary.issueLabel ?? "",
+            cleanSummary.previewUnavailableLabel ?? "",
+            issueSummary.issueLabel ?? "",
+            noFileStrip.candidateWAVLabel,
+            noFileStrip.candidateDetailLabel
+        ].joined(separator: " ").lowercased()
+
+        let blockedTerms = ["hypothesis", "validated", "evidence", "edl file list", "preview domain", "exact match"]
+        for term in blockedTerms {
+            #expect(!primaryCopy.contains(term))
+        }
     }
 
     // MARK: - Helpers

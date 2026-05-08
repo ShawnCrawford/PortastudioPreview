@@ -12,6 +12,7 @@ struct ProjectDetailView: View {
     @State private var selectedTrackID: TrackPreview.ID?
     @State private var selectedRegionID: TimelineRegion.ID?
     @State private var isInspectorPresented = true
+    @State private var workspaceMode: ProjectWorkspaceMode = .tracks
     @State private var playbackController = PreviewPlaybackController()
     @State private var mixState: PreviewMixState
     @State private var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
@@ -28,10 +29,10 @@ struct ProjectDetailView: View {
             annotationStore: annotationStore,
             selectedTrackID: $selectedTrackID,
             selectedRegionID: $selectedRegionID,
+            workspaceMode: $workspaceMode,
             playbackController: playbackController,
             mixState: mixState,
-            selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
-            showInspector: showInspector
+            selectedVirtualTrackIDs: $selectedVirtualTrackIDs
         )
         .navigationTitle(annotationStore.annotationContext?.effectiveDisplayName ?? project.folderName)
         .toolbar {
@@ -64,6 +65,7 @@ struct ProjectDetailView: View {
         .onChange(of: project.folderURL) { _, _ in
             selectedTrackID = nil
             selectedRegionID = nil
+            workspaceMode = .tracks
             mixState = PreviewMixState(project: project)
             selectedVirtualTrackIDs = [:]
             playbackController.stop()
@@ -77,9 +79,6 @@ struct ProjectDetailView: View {
         isInspectorPresented.toggle()
     }
 
-    private func showInspector() {
-        isInspectorPresented = true
-    }
 }
 
 // MARK: - Overview

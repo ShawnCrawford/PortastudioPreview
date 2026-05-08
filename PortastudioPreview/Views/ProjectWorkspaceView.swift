@@ -10,10 +10,10 @@ struct ProjectWorkspaceView: View {
     let annotationStore: TrackAnnotationStore
     @Binding var selectedTrackID: TrackPreview.ID?
     @Binding var selectedRegionID: TimelineRegion.ID?
+    @Binding var workspaceMode: ProjectWorkspaceMode
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
-    let showInspector: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,14 +27,20 @@ struct ProjectWorkspaceView: View {
 
             Divider()
 
+            ProjectModeBarView(
+                selection: $workspaceMode
+            )
+
+            Divider()
+
             ProjectEditorSurface(
                 project: project,
                 selectedTrackID: $selectedTrackID,
                 selectedRegionID: $selectedRegionID,
+                workspaceMode: workspaceMode,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
-                mixState: mixState,
-                selectedVirtualTrackIDs: $selectedVirtualTrackIDs
+                mixState: mixState
             )
         }
         .frame(minWidth: 760, minHeight: 620)
@@ -64,25 +70,23 @@ private struct ProjectHeaderView: View {
     }
 
     var body: some View {
-        HStack(spacing: 18) {
+        HStack(spacing: 20) {
             ProjectGlyphView()
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(summary.title)
-                    .font(.title3)
+                    .font(.title2)
                     .bold()
                     .lineLimit(1)
 
-                HStack(spacing: 8) {
-                    Text(summary.deviceContext)
-                    Text(summary.formatLabel)
-                    Text(summary.trackCountLabel)
-                    ReadOnlyBadge(text: summary.readOnlyLabel)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(summary.metadataLine)
+                    Text("\(summary.deviceContext) · \(summary.formatLabel)")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-            .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: 260, maxWidth: .infinity, alignment: .leading)
 
             HeaderTransportControls(
                 project: project,
@@ -92,16 +96,6 @@ private struct ProjectHeaderView: View {
                 canPlay: canPlay
             )
 
-            if let error = playbackController.playbackError {
-                Text(error)
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(minWidth: 80, maxWidth: 160)
-                    .accessibilityLabel("Playback error: \(error)")
-            }
-
             VStack(alignment: .trailing, spacing: 2) {
                 Text(elapsedLabel)
                     .font(.system(.title3, design: .monospaced))
@@ -110,19 +104,29 @@ private struct ProjectHeaderView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .frame(width: 120, alignment: .trailing)
+            .frame(width: 132, alignment: .trailing)
 
             PreviewActivityMeter(playbackController: playbackController)
-                .frame(width: 150)
+                .frame(width: 180)
 
             VStack(alignment: .leading, spacing: 4) {
-                Label(summary.validationLabel, systemImage: summary.validationSystemImage)
-                    .foregroundStyle(validationStyle)
-                Label(summary.previewLabel, systemImage: summary.previewSystemImage)
-                    .foregroundStyle(canPlay ? .secondary : .tertiary)
+                if let error = playbackController.playbackError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .accessibilityLabel("Playback error: \(error)")
+                } else {
+                    if let issueLabel = summary.issueLabel {
+                        Label(issueLabel, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
+                    if let unavailable = summary.previewUnavailableLabel {
+                        Label(unavailable, systemImage: "waveform.slash")
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             .font(.caption)
-            .frame(width: 118, alignment: .leading)
+            .frame(width: 190, alignment: .leading)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
@@ -135,15 +139,6 @@ private struct ProjectHeaderView: View {
         )
     }
 
-    private var validationStyle: Color {
-        if project.validationIssues.contains(where: { $0.severity == .error }) {
-            return .red
-        } else if project.validationIssues.isEmpty {
-            return .green
-        } else {
-            return .orange
-        }
-    }
 }
 
 private struct ProjectGlyphView: View {
@@ -160,19 +155,6 @@ private struct ProjectGlyphView: View {
     }
 }
 
-private struct ReadOnlyBadge: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(.caption2)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(.green.opacity(0.14), in: .capsule)
-            .foregroundStyle(.green)
-    }
-}
-
 private struct HeaderTransportControls: View {
     let project: PortastudioProject
     let playbackController: PreviewPlaybackController
@@ -181,7 +163,7 @@ private struct HeaderTransportControls: View {
     let canPlay: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Button("Play Preview", systemImage: "play.fill") {
                 playbackController.startPreview(
                     for: project,
@@ -190,16 +172,14 @@ private struct HeaderTransportControls: View {
                     selectedVirtualTrackOptionIDs: selectedVirtualTrackIDs
                 )
             }
-            .labelStyle(.iconOnly)
             .buttonStyle(.borderedProminent)
             .disabled(playbackController.isPlaying || !canPlay)
-            .help("Play approximate stereo preview")
-            .accessibilityLabel("Play approximate stereo preview")
+            .help("Play song preview")
+            .accessibilityLabel("Play song preview")
 
             Button("Stop Preview", systemImage: "stop.fill") {
                 playbackController.stop()
             }
-            .labelStyle(.iconOnly)
             .buttonStyle(.bordered)
             .disabled(!playbackController.isPlaying)
             .help("Stop playback")
@@ -252,16 +232,49 @@ private struct MeterRow: View {
                         .frame(width: max(proxy.size.width * value, 2))
                 }
             }
-            .frame(height: 6)
+            .frame(height: 8)
         }
     }
 
     private var meterStyle: LinearGradient {
         LinearGradient(
-            colors: [.green, .green, .yellow, .orange],
+            colors: [.mint.opacity(0.75), .teal.opacity(0.75), .blue.opacity(0.75)],
             startPoint: .leading,
             endPoint: .trailing
         )
+    }
+}
+
+// MARK: - Mode Bar
+
+private struct ProjectModeBarView: View {
+    @Binding var selection: ProjectWorkspaceMode
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(ProjectWorkspaceMode.allCases) { mode in
+                Button {
+                    selection = mode
+                } label: {
+                    VStack(spacing: 7) {
+                        Label(mode.title, systemImage: mode.systemImage)
+                            .labelStyle(.titleAndIcon)
+                            .font(.callout)
+                        Rectangle()
+                            .fill(selection == mode ? Color.teal : Color.clear)
+                            .frame(height: 2)
+                    }
+                    .frame(minWidth: 112)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(selection == mode ? .primary : .secondary)
+                .accessibilityIdentifier("project-mode-\(mode.rawValue)")
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 9)
     }
 }
 
@@ -271,22 +284,32 @@ private struct ProjectEditorSurface: View {
     let project: PortastudioProject
     @Binding var selectedTrackID: TrackPreview.ID?
     @Binding var selectedRegionID: TimelineRegion.ID?
+    let workspaceMode: ProjectWorkspaceMode
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
-    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
 
     var body: some View {
-        TrackMixerDeckView(
-            tracks: project.visibleTracks,
-            selectedTrackID: $selectedTrackID,
-            annotationStore: annotationStore,
-            playbackController: playbackController,
-            mixState: mixState,
-            selectedVirtualTrackIDs: $selectedVirtualTrackIDs
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .accessibilityIdentifier("editor-surface-tracks")
+        switch workspaceMode {
+        case .tracks:
+            TrackMixerDeckView(
+                tracks: project.visibleTracks,
+                selectedTrackID: $selectedTrackID,
+                annotationStore: annotationStore,
+                playbackController: playbackController,
+                mixState: mixState
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier("editor-surface-tracks")
+
+        case .timeline:
+            TimelineSurface(
+                project: project,
+                selectedRegionID: $selectedRegionID,
+                playbackController: playbackController
+            )
+            .accessibilityIdentifier("editor-surface-timeline")
+        }
     }
 }
 
@@ -342,26 +365,33 @@ struct TrackMixerDeckView: View {
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
-    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Tracks", systemImage: "slider.horizontal.3")
+                    .font(.headline)
+                Spacer()
+                Text("\(tracks.count) track\(tracks.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 18)
+
             ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 0) {
+                HStack(alignment: .top, spacing: 16) {
                     ForEach(tracks) { track in
                         let presentation = TrackMixerStripPresentation(
                             track: track,
                             displayName: annotationStore.trackName(for: track.trackNumber),
                             isSelected: selectedTrackID == track.id,
-                            selectedVirtualTrackOptionID: selectedVirtualTrackIDs[track.trackNumber],
                             panPositionOverride: mixState.panPosition(for: track.trackNumber),
                             levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
                             meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
                         )
                         TrackMixerStripView(
                             presentation: presentation,
-                            track: track,
-                            selectedVirtualTakeID: selectedVirtualTakeBinding(for: track),
                             selectAction: {
                                 selectedTrackID = track.id
                             },
@@ -378,84 +408,74 @@ struct TrackMixerDeckView: View {
                         )
                     }
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 14)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 20)
             }
             .scrollIndicators(.hidden)
+            .frame(maxHeight: .infinity)
         }
-        .frame(minHeight: 420)
-        .background(.regularMaterial)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.regularMaterial, in: .rect(cornerRadius: 12))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
         .accessibilityIdentifier("track-mixer-deck")
-    }
-
-    private func selectedVirtualTakeBinding(for track: TrackPreview) -> Binding<VirtualTrackOption.ID> {
-        Binding(
-            get: {
-                if let selected = selectedVirtualTrackIDs[track.trackNumber],
-                   track.virtualTrackOptions.contains(where: { $0.id == selected }) {
-                    return selected
-                }
-                return track.defaultVirtualTrackOption?.id ?? track.virtualTrackOptions.first?.id ?? ""
-            },
-            set: { newValue in
-                selectedTrackID = track.id
-                selectedVirtualTrackIDs[track.trackNumber] = newValue
-            }
-        )
     }
 }
 
 private struct TrackMixerStripView: View {
     let presentation: TrackMixerStripPresentation
-    let track: TrackPreview
-    @Binding var selectedVirtualTakeID: VirtualTrackOption.ID
     let selectAction: () -> Void
     let setLevelPosition: (Double) -> Void
     let setPanPosition: (Double) -> Void
 
-    private static let colors: [Color] = [.red, .orange, .yellow, .green, .teal, .blue, .purple, .pink]
+    private static let colors: [Color] = [
+        .blue.opacity(0.75),
+        .mint.opacity(0.75),
+        .teal.opacity(0.75),
+        .indigo.opacity(0.75),
+        .cyan.opacity(0.75),
+        .gray.opacity(0.75),
+        .brown.opacity(0.75),
+        .purple.opacity(0.75)
+    ]
 
     private var trackColor: Color {
         Self.colors[presentation.colorIndex % Self.colors.count]
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            Rectangle()
-                .fill(trackColor)
-                .frame(height: 3)
-
+        VStack(spacing: 12) {
             Button(action: selectAction) {
-                VStack(spacing: 2) {
-                    Text("\(presentation.trackNumber)")
-                        .font(.caption)
+                VStack(spacing: 4) {
+                    Text("Track \(presentation.trackNumber)")
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     Text(presentation.displayName)
-                        .font(.caption)
+                        .font(.callout)
+                        .bold()
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
-                .frame(height: 34)
+                .frame(height: 42)
             }
             .buttonStyle(.plain)
 
-            VirtualTakeControlView(
-                track: track,
-                selectedVirtualTakeID: $selectedVirtualTakeID,
-                selectAction: selectAction
-            )
+            VStack(spacing: 2) {
+                Text("Audio File")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Text(presentation.candidateWAVLabel)
+                    .font(.caption)
+                    .foregroundStyle(presentation.candidateWAVLabel == "No Audio File" ? .tertiary : .secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .frame(height: 30)
 
-            Text(presentation.candidateWAVLabel)
-                .font(.caption2)
-                .foregroundStyle(presentation.candidateWAVLabel == "Unassigned" ? .tertiary : .secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(height: 16)
-
-            HStack(spacing: 6) {
-                VStack(spacing: 3) {
+            HStack(spacing: 10) {
+                VStack(spacing: 4) {
                     Text(presentation.panDisplayLabel)
-                        .font(.caption2)
+                        .font(.caption)
                         .monospacedDigit()
                     PanControlView(
                         value: presentation.panPosition,
@@ -465,8 +485,8 @@ private struct TrackMixerStripView: View {
                     )
                 }
 
-                VStack(spacing: 2) {
-                    Text("M")
+                VStack(spacing: 4) {
+                    Text("Mute")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Image(systemName: presentation.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
@@ -474,7 +494,7 @@ private struct TrackMixerStripView: View {
                 }
             }
 
-            HStack(alignment: .bottom, spacing: 7) {
+            HStack(alignment: .bottom, spacing: 10) {
                 LevelScaleView()
                 FaderTrackView(
                     value: presentation.levelPosition,
@@ -484,23 +504,24 @@ private struct TrackMixerStripView: View {
                 )
                 OutputLevelView(value: presentation.isMuted ? 0 : presentation.meterLevel)
             }
-            .frame(height: 86)
+            .frame(height: 180)
 
             Text(presentation.levelLabel)
                 .font(.caption)
                 .monospacedDigit()
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .background(.primary.opacity(0.08), in: .rect(cornerRadius: 4))
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(width: 104, height: 230)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .frame(width: 136, height: 330)
         .background(presentation.isSelected ? trackColor.opacity(0.13) : Color.clear)
+        .clipShape(.rect(cornerRadius: 10))
         .overlay {
-            Rectangle()
+            RoundedRectangle(cornerRadius: 10)
                 .stroke(
-                    presentation.isSelected ? trackColor.opacity(0.8) : Color.secondary.opacity(0.16),
+                    presentation.isSelected ? trackColor.opacity(0.35) : Color.secondary.opacity(0.12),
                     lineWidth: 1
                 )
         }
@@ -508,34 +529,6 @@ private struct TrackMixerStripView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Track \(presentation.trackNumber), \(presentation.displayName)")
         .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel)")
-    }
-}
-
-private struct VirtualTakeControlView: View {
-    let track: TrackPreview
-    @Binding var selectedVirtualTakeID: VirtualTrackOption.ID
-    let selectAction: () -> Void
-
-    var body: some View {
-        if track.showsVirtualTrackPicker {
-            Picker("Virtual Take", selection: $selectedVirtualTakeID) {
-                ForEach(track.virtualTrackOptions) { option in
-                    Text(option.takeLabel).tag(option.id)
-                }
-            }
-            .labelsHidden()
-            .controlSize(.small)
-            .frame(width: 82)
-            .onChange(of: selectedVirtualTakeID) {
-                selectAction()
-            }
-            .help("Virtual take")
-        } else {
-            Text(track.defaultVirtualTrackOption?.takeLabel ?? "–")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .frame(height: 20)
-        }
     }
 }
 
@@ -583,7 +576,7 @@ private struct PanControlView: View {
                     }
             )
         }
-        .frame(width: 52, height: 14)
+        .frame(width: 72, height: 16)
         .accessibilityLabel("Pan")
         .accessibilityAdjustableAction { direction in
             onSelect()
@@ -609,12 +602,12 @@ private struct LevelScaleView: View {
         VStack {
             ForEach(["10", "0", "-10", "-30", "-60"], id: \.self) { label in
                 Text(label)
-                    .font(.system(size: 8, design: .monospaced))
+                    .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
         }
-        .frame(width: 19)
+        .frame(width: 24)
     }
 }
 
@@ -632,11 +625,11 @@ private struct FaderTrackView: View {
             ZStack(alignment: .top) {
                 Capsule()
                     .fill(.quaternary)
-                    .frame(width: 5)
+                    .frame(width: 6)
                     .frame(maxHeight: .infinity)
                 Capsule()
                     .fill(color.opacity(0.45))
-                    .frame(width: 5, height: max(proxy.size.height * clamped, 3))
+                    .frame(width: 6, height: max(proxy.size.height * clamped, 3))
                     .frame(maxHeight: .infinity, alignment: .bottom)
                 RoundedRectangle(cornerRadius: 3)
                     .fill(.background)
@@ -645,7 +638,7 @@ private struct FaderTrackView: View {
                         RoundedRectangle(cornerRadius: 3)
                             .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
                     }
-                    .frame(width: 22, height: 12)
+                    .frame(width: 24, height: 14)
                     .offset(y: handleY - 6)
             }
             .frame(maxWidth: .infinity)
@@ -659,7 +652,7 @@ private struct FaderTrackView: View {
                     }
             )
         }
-        .frame(width: 28)
+        .frame(width: 34)
         .accessibilityAdjustableAction { direction in
             onSelect()
             switch direction {
@@ -684,11 +677,11 @@ private struct OutputLevelView: View {
                 Rectangle()
                     .fill(.quaternary)
                 Rectangle()
-                    .fill(.linearGradient(colors: [.green, .yellow], startPoint: .bottom, endPoint: .top))
+                    .fill(.linearGradient(colors: [.mint.opacity(0.85), .teal.opacity(0.85)], startPoint: .bottom, endPoint: .top))
                     .frame(height: max(proxy.size.height * clamped, 2))
             }
         }
-        .frame(width: 10)
-        .clipShape(.rect(cornerRadius: 2))
+        .frame(width: 12)
+        .clipShape(.rect(cornerRadius: 3))
     }
 }
