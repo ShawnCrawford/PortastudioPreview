@@ -161,6 +161,7 @@ private struct HeaderTransportControls: View {
                     for: project,
                     trackVolumeOverrides: mixState.trackVolumeOverrides,
                     trackPanOverrides: mixState.trackPanOverrides,
+                    trackMuteOverrides: mixState.trackMuteOverrides,
                     selectedVirtualTrackOptionIDs: selectedVirtualTrackIDs
                 )
             }
@@ -185,13 +186,11 @@ private struct PreviewActivityMeter: View {
     let playbackController: PreviewPlaybackController
 
     private var leftLevel: Double {
-        guard playbackController.isPlaying else { return 0 }
-        return 0.35 + 0.45 * abs(sin(playbackController.elapsedSeconds * 4.2))
+        playbackController.outputMeterLevels.left
     }
 
     private var rightLevel: Double {
-        guard playbackController.isPlaying else { return 0 }
-        return 0.30 + 0.42 * abs(sin(playbackController.elapsedSeconds * 3.4 + 0.6))
+        playbackController.outputMeterLevels.right
     }
 
     var body: some View {
@@ -199,8 +198,8 @@ private struct PreviewActivityMeter: View {
             MeterRow(label: "L", value: leftLevel)
             MeterRow(label: "R", value: rightLevel)
         }
-        .help("Preview activity meter. This is not a calibrated hardware level meter.")
-        .accessibilityLabel("Preview activity meter, not calibrated")
+        .help("Realtime preview output meter")
+        .accessibilityLabel("Realtime preview output meter")
     }
 }
 
@@ -221,7 +220,7 @@ private struct MeterRow: View {
                         .fill(.quaternary)
                     Capsule()
                         .fill(meterStyle)
-                        .frame(width: max(proxy.size.width * value, 2))
+                        .frame(width: value == 0 ? 0 : max(proxy.size.width * value, 2))
                 }
             }
             .frame(height: 8)
@@ -270,6 +269,7 @@ struct TrackMixerDeckView: View {
                                 isSelected: selectedTrackID == track.id,
                                 panPositionOverride: mixState.panPosition(for: track.trackNumber),
                                 levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
+                                muteOverride: mixState.isMuted(for: track.trackNumber),
                                 meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
                             )
                             TrackMixerStripView(
@@ -286,6 +286,11 @@ struct TrackMixerDeckView: View {
                                     selectedTrackID = track.id
                                     mixState.setPanPosition(newValue, for: track.trackNumber)
                                     playbackController.setTrackPan(newValue, for: track.trackNumber)
+                                },
+                                setMuted: { isMuted in
+                                    selectedTrackID = track.id
+                                    mixState.setMuted(isMuted, for: track.trackNumber)
+                                    playbackController.setTrackMute(isMuted, for: track.trackNumber)
                                 }
                             )
                             .frame(
@@ -334,6 +339,7 @@ private struct TrackMixerStripView: View {
     let selectAction: () -> Void
     let setLevelPosition: (Double) -> Void
     let setPanPosition: (Double) -> Void
+    let setMuted: (Bool) -> Void
 
     private static let colors: [Color] = [
         .blue.opacity(0.75),
@@ -393,11 +399,25 @@ private struct TrackMixerStripView: View {
                 }
 
                 VStack(spacing: 4) {
-                    Text("Mute")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Image(systemName: presentation.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .foregroundStyle(presentation.isMuted ? .orange : .secondary)
+                    Toggle(
+                        isOn: Binding(
+                            get: { presentation.isMuted },
+                            set: { newValue in
+                                selectAction()
+                                setMuted(newValue)
+                            }
+                        )
+                    ) {
+                        Label(
+                            "Mute",
+                            systemImage: presentation.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+                        )
+                    }
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .tint(.orange)
+                    .help(presentation.isMuted ? "Unmute track" : "Mute track")
+                    .accessibilityValue(presentation.isMuted ? "On" : "Off")
                 }
             }
 
@@ -585,7 +605,7 @@ private struct OutputLevelView: View {
                     .fill(.quaternary)
                 Rectangle()
                     .fill(.linearGradient(colors: [.mint.opacity(0.85), .teal.opacity(0.85)], startPoint: .bottom, endPoint: .top))
-                    .frame(height: max(proxy.size.height * clamped, 2))
+                    .frame(height: clamped == 0 ? 0 : max(proxy.size.height * clamped, 2))
             }
         }
         .frame(width: 12)

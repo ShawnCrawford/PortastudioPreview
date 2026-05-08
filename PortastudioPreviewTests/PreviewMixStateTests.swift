@@ -44,7 +44,27 @@ struct PreviewMixStateTests {
         #expect(secondState.trackPanOverrides[1] == -1.0)
     }
 
+    @Test func initializesMuteStateFromParsedSongBytes() {
+        let state = PreviewMixState(project: makeProject(panBytes: [0x40], muteBytes: [0x01]))
+
+        #expect(state.isMuted(for: 1))
+        #expect(state.trackMuteOverrides[1] == true)
+    }
+
+    @Test func setMutedUpdatesTrackMuteOverride() {
+        let state = PreviewMixState(project: makeProject(panBytes: [0x40], muteBytes: [0x00]))
+
+        state.setMuted(true, for: 1)
+
+        #expect(state.isMuted(for: 1))
+        #expect(state.trackMuteOverrides[1] == true)
+    }
+
     private func makeProject(panBytes: [UInt8]) -> PortastudioProject {
+        makeProject(panBytes: panBytes, muteBytes: Array(repeating: 0x00, count: panBytes.count))
+    }
+
+    private func makeProject(panBytes: [UInt8], muteBytes: [UInt8]) -> PortastudioProject {
         let tracks = panBytes.enumerated().map { index, panByte in
             TrackPreview(
                 trackNumber: index + 1,
@@ -53,7 +73,11 @@ struct PreviewMixStateTests {
                     trackNumber: index + 1,
                     level: setting(name: "Level", primaryOffset: 0x00C4, primaryByte: 0x6A),
                     pan: setting(name: "Pan", primaryOffset: 0x00C6, primaryByte: panByte),
-                    mute: setting(name: "Mute", primaryOffset: 0x0268, primaryByte: 0x00)
+                    mute: setting(
+                        name: "Mute",
+                        primaryOffset: 0x0268,
+                        primaryByte: muteBytes.indices.contains(index) ? muteBytes[index] : 0x00
+                    )
                 ),
                 track1ActiveTakeCandidate: nil,
                 timeline: nil

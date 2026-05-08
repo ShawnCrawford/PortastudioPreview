@@ -10,6 +10,7 @@ struct PreviewTrackMixSetting: Identifiable, Hashable, Sendable {
     let trackNumber: Int
     var levelPosition: Double
     var panPosition: Double
+    var isMuted: Bool
 
     var id: Int { trackNumber }
 }
@@ -38,7 +39,8 @@ final class PreviewMixState {
             return PreviewTrackMixSetting(
                 trackNumber: track.trackNumber,
                 levelPosition: levelPosition,
-                panPosition: panPosition
+                panPosition: panPosition,
+                isMuted: StereoPreviewEngine.isMuted(track)
             )
         }
     }
@@ -49,6 +51,10 @@ final class PreviewMixState {
 
     var trackPanOverrides: [Int: Double] {
         Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.trackNumber, $0.panPosition) })
+    }
+
+    var trackMuteOverrides: [Int: Bool] {
+        Dictionary(uniqueKeysWithValues: trackSettings.map { ($0.trackNumber, $0.isMuted) })
     }
 
     func levelPosition(for trackNumber: Int) -> Double {
@@ -74,5 +80,17 @@ final class PreviewMixState {
         }
 
         trackSettings[index].panPosition = min(max(panPosition, -1), 1)
+    }
+
+    func isMuted(for trackNumber: Int) -> Bool {
+        trackSettings.first(where: { $0.trackNumber == trackNumber })?.isMuted ?? false
+    }
+
+    func setMuted(_ isMuted: Bool, for trackNumber: Int) {
+        guard let index = trackSettings.firstIndex(where: { $0.trackNumber == trackNumber }) else {
+            return
+        }
+
+        trackSettings[index].isMuted = isMuted
     }
 }

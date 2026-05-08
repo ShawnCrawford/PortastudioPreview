@@ -11,6 +11,7 @@ final class StereoPreviewEngine {
     private var playerNodes: [AVAudioPlayerNode] = []
     private var playerNodesByTrackNumber: [Int: [AVAudioPlayerNode]] = [:]
     private var trackMixerNodes: [Int: AVAudioMixerNode] = [:]
+    private var isOutputLevelTapInstalled = false
     private let completionCoordinator = PlaybackCompletionCoordinator()
     private var activePlaybackID: UUID?
     private static let previewSampleRate: Double = 48_000
@@ -21,6 +22,7 @@ final class StereoPreviewEngine {
         let startSample: Int
         let volume: Float
         let pan: Float
+        let isMuted: Bool
     }
 
     var isRunning: Bool {
@@ -31,8 +33,10 @@ final class StereoPreviewEngine {
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double] = [:],
         trackPanOverrides: [Int: Double] = [:],
+        trackMuteOverrides: [Int: Bool] = [:],
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:],
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
+        onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws {
         stop()
@@ -41,6 +45,7 @@ final class StereoPreviewEngine {
             for: project,
             trackVolumeOverrides: trackVolumeOverrides,
             trackPanOverrides: trackPanOverrides,
+            trackMuteOverrides: trackMuteOverrides,
             selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs
         )
 
@@ -67,6 +72,8 @@ final class StereoPreviewEngine {
                 let trackMixerNode = trackMixerNode(
                     for: trackNumber,
                     format: file.processingFormat,
+                    pan: region.pan,
+                    isMuted: region.isMuted,
                     onTrackLevelChanged: onTrackLevelChanged
                 )
                 engine.connect(playerNode, to: trackMixerNode, format: file.processingFormat)
@@ -89,6 +96,8 @@ final class StereoPreviewEngine {
                 playerNodesByTrackNumber[trackNumber, default: []].append(playerNode)
             }
         }
+
+        installOutputLevelTap(onOutputLevelChanged: onOutputLevelChanged)
 
         do {
             try engine.start()
@@ -118,6 +127,11 @@ final class StereoPreviewEngine {
             playerNodesByTrackNumber[trackNumber] = nil
         }
 
+        if isOutputLevelTapInstalled {
+            engine.mainMixerNode.removeTap(onBus: 0)
+            isOutputLevelTapInstalled = false
+        }
+
         playerNodes.removeAll()
         playerNodesByTrackNumber.removeAll()
         trackMixerNodes.removeAll()
@@ -133,9 +147,14 @@ final class StereoPreviewEngine {
 
     func updateTrackPan(trackNumber: Int, panPosition: Double) {
         let pan = Float(min(max(panPosition, -1), 1))
+        trackMixerNodes[trackNumber]?.pan = pan
         for playerNode in playerNodesByTrackNumber[trackNumber] ?? [] {
             playerNode.pan = pan
         }
+    }
+
+    func updateTrackMute(trackNumber: Int, isMuted: Bool) {
+        trackMixerNodes[trackNumber]?.outputVolume = isMuted ? 0 : 1
     }
 
     static func hasPlayableTracks(
@@ -149,7 +168,11 @@ final class StereoPreviewEngine {
         for project: PortastudioProject,
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) -> [String] {
-        playableRegions(for: project, selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs).map { $0.url.lastPathComponent }
+        playableRegions(
+            for: project,
+            includeMutedAssignedTracks: false,
+            selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs
+        ).map { $0.url.lastPathComponent }
     }
 
     static func isMuted(_ track: TrackPreview) -> Bool {
@@ -203,6 +226,8 @@ final class StereoPreviewEngine {
         for project: PortastudioProject,
         trackVolumeOverrides: [Int: Double] = [:],
         trackPanOverrides: [Int: Double] = [:],
+        trackMuteOverrides: [Int: Bool] = [:],
+        includeMutedAssignedTracks: Bool = true,
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) -> [PlayableRegion] {
         var result: [PlayableRegion] = []
@@ -216,9 +241,10 @@ final class StereoPreviewEngine {
             )
             let sourceURL = selectedOption?.wavItem.url ?? track.candidateWAV?.url
             let firstRegion = selectedOption?.timelineRegion ?? track.timeline?.regions.first
+            let isMuted = trackMuteOverrides[track.trackNumber] ?? isMuted(track)
             guard let sourceURL,
                   let firstRegion,
-                  !isMuted(track) else {
+                  includeMutedAssignedTracks || !isMuted else {
                 continue
             }
             result.append(PlayableRegion(
@@ -232,7 +258,8 @@ final class StereoPreviewEngine {
                 pan: approximatePan(
                     for: track,
                     overridePanPosition: trackPanOverrides[track.trackNumber]
-                )
+                ),
+                isMuted: isMuted
             ))
         }
 
@@ -246,7 +273,8 @@ final class StereoPreviewEngine {
                     url: scheduled.url,
                     startSample: scheduled.startSample,
                     volume: scheduled.volume,
-                    pan: scheduled.pan
+                    pan: scheduled.pan,
+                    isMuted: false
                 )
             })
         }
@@ -262,6 +290,7 @@ final class StereoPreviewEngine {
         playableRegions(
             for: project,
             trackPanOverrides: trackPanOverrides,
+            includeMutedAssignedTracks: false,
             selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs
         ).map(\.pan)
     }
@@ -283,13 +312,19 @@ final class StereoPreviewEngine {
     private func trackMixerNode(
         for trackNumber: Int,
         format: AVAudioFormat,
+        pan: Float,
+        isMuted: Bool,
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void
     ) -> AVAudioMixerNode {
         if let existingNode = trackMixerNodes[trackNumber] {
+            existingNode.pan = pan
+            existingNode.outputVolume = isMuted ? 0 : 1
             return existingNode
         }
 
         let mixerNode = AVAudioMixerNode()
+        mixerNode.pan = pan
+        mixerNode.outputVolume = isMuted ? 0 : 1
         engine.attach(mixerNode)
         engine.connect(mixerNode, to: engine.mainMixerNode, format: format)
         installLevelTap(on: mixerNode, trackNumber: trackNumber, onTrackLevelChanged: onTrackLevelChanged)
@@ -305,6 +340,88 @@ final class StereoPreviewEngine {
         mixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
             onTrackLevelChanged(trackNumber, Self.normalizedPeakLevel(for: buffer))
         }
+    }
+
+    private func installOutputLevelTap(
+        onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void
+    ) {
+        engine.mainMixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
+            onOutputLevelChanged(Self.normalizedStereoPeakLevels(for: buffer))
+        }
+        isOutputLevelTapInstalled = true
+    }
+
+    private static func normalizedStereoPeakLevels(for buffer: AVAudioPCMBuffer) -> StereoMeterLevels {
+        let frameLength = Int(buffer.frameLength)
+        guard frameLength > 0 else {
+            return .silence
+        }
+
+        switch buffer.format.commonFormat {
+        case .pcmFormatFloat32:
+            guard let channels = buffer.floatChannelData else {
+                return .silence
+            }
+            return normalizedStereoPeakLevels(
+                frameLength: frameLength,
+                channelCount: Int(buffer.format.channelCount),
+                sampleAt: { channel, frame in
+                    Double(abs(channels[channel][frame]))
+                }
+            )
+        case .pcmFormatInt16:
+            guard let channels = buffer.int16ChannelData else {
+                return .silence
+            }
+            return normalizedStereoPeakLevels(
+                frameLength: frameLength,
+                channelCount: Int(buffer.format.channelCount),
+                sampleAt: { channel, frame in
+                    Double(abs(Int32(channels[channel][frame]))) / Double(Int16.max)
+                }
+            )
+        case .pcmFormatInt32:
+            guard let channels = buffer.int32ChannelData else {
+                return .silence
+            }
+            return normalizedStereoPeakLevels(
+                frameLength: frameLength,
+                channelCount: Int(buffer.format.channelCount),
+                sampleAt: { channel, frame in
+                    min(abs(Double(channels[channel][frame])) / Double(Int32.max), 1)
+                }
+            )
+        default:
+            return .silence
+        }
+    }
+
+    private static func normalizedStereoPeakLevels(
+        frameLength: Int,
+        channelCount: Int,
+        sampleAt: (_ channel: Int, _ frame: Int) -> Double
+    ) -> StereoMeterLevels {
+        guard channelCount > 0 else {
+            return .silence
+        }
+
+        let left = normalizedPeakLevel(
+            frameLength: frameLength,
+            channelCount: 1,
+            sampleAt: { _, frame in sampleAt(0, frame) }
+        )
+
+        guard channelCount > 1 else {
+            return StereoMeterLevels(left: left, right: left)
+        }
+
+        let right = normalizedPeakLevel(
+            frameLength: frameLength,
+            channelCount: 1,
+            sampleAt: { _, frame in sampleAt(1, frame) }
+        )
+
+        return StereoMeterLevels(left: left, right: right)
     }
 
     private static func normalizedPeakLevel(for buffer: AVAudioPCMBuffer) -> Double {

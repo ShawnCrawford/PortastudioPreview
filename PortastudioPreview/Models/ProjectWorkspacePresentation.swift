@@ -95,6 +95,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         isSelected: Bool,
         panPositionOverride: Double? = nil,
         levelPositionOverride: Double? = nil,
+        muteOverride: Bool? = nil,
         meterLevel: Double = 0
     ) {
         id = track.trackNumber
@@ -131,7 +132,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         }
         self.meterLevel = min(max(meterLevel, 0), 1)
 
-        isMuted = (track.mixerSetting?.mute?.primaryByte ?? 0) != 0
+        isMuted = muteOverride ?? ((track.mixerSetting?.mute?.primaryByte ?? 0) != 0)
         muteLabel = isMuted ? "Muted" : "Live"
         self.isSelected = isSelected
         colorIndex = (track.trackNumber - 1) % Self.paletteCount
