@@ -18,6 +18,9 @@ final class SourceLibraryStore {
     var isLoading = false
     var loadError: String?
 
+    // Holds an active security scope for the currently selected song/project.
+    private var activeSecurityScopedURL: URL?
+
     private var modelContext: ModelContext?
     let bookmarkService: any BookmarkServiceProtocol
     private let classifier: SourceFolderClassifier
@@ -250,6 +253,8 @@ final class SourceLibraryStore {
             bookmarkData: bookmarkData
         )
 
+        replaceActiveSecurityScope(with: canonicalURL)
+
         do {
             let project = try await projectLoader(canonicalURL)
             selectedProject = project
@@ -270,6 +275,7 @@ final class SourceLibraryStore {
             selection = .individualSong(songID)
             isLoading = false
         } catch {
+            replaceActiveSecurityScope(with: nil)
             selectedProject = nil
             loadError = error.localizedDescription
             if let index = individualSongs.firstIndex(where: { $0.id == songID }) {
@@ -281,7 +287,10 @@ final class SourceLibraryStore {
     }
 
     func loadIfSourceSong() async {
-        guard case .individualSong(let id) = selection else { return }
+        guard case .individualSong(let id) = selection else {
+            replaceActiveSecurityScope(with: nil)
+            return
+        }
 
         // Source-nested song
         if let (sourceIndex, songIndex) = findSourceSong(id: id) {
@@ -292,11 +301,11 @@ final class SourceLibraryStore {
             isLoading = true
             loadError = nil
 
-            var securedURL: URL? = nil
             if let data = sources[sourceIndex].bookmarkData,
-               let (resolved, _) = try? bookmarkService.resolveBookmark(data),
-               resolved.startAccessingSecurityScopedResource() {
-                securedURL = resolved
+               let (resolved, _) = try? bookmarkService.resolveBookmark(data) {
+                replaceActiveSecurityScope(with: resolved)
+            } else {
+                replaceActiveSecurityScope(with: nil)
             }
 
             do {
@@ -305,13 +314,12 @@ final class SourceLibraryStore {
                 sources[sourceIndex].songs[songIndex].loadState = .loaded
                 isLoading = false
             } catch {
+                replaceActiveSecurityScope(with: nil)
                 selectedProject = nil
                 loadError = error.localizedDescription
                 sources[sourceIndex].songs[songIndex].loadState = .failed(message: error.localizedDescription)
                 isLoading = false
             }
-
-            if let url = securedURL { url.stopAccessingSecurityScopedResource() }
             return
         }
 
@@ -325,11 +333,11 @@ final class SourceLibraryStore {
             isLoading = true
             loadError = nil
 
-            var securedURL: URL? = nil
             if let data = song.bookmarkData,
-               let (resolved, _) = try? bookmarkService.resolveBookmark(data),
-               resolved.startAccessingSecurityScopedResource() {
-                securedURL = resolved
+               let (resolved, _) = try? bookmarkService.resolveBookmark(data) {
+                replaceActiveSecurityScope(with: resolved)
+            } else {
+                replaceActiveSecurityScope(with: nil)
             }
 
             do {
@@ -338,13 +346,12 @@ final class SourceLibraryStore {
                 individualSongs[songIndex].loadState = .loaded
                 isLoading = false
             } catch {
+                replaceActiveSecurityScope(with: nil)
                 selectedProject = nil
                 loadError = error.localizedDescription
                 individualSongs[songIndex].loadState = .failed(message: error.localizedDescription)
                 isLoading = false
             }
-
-            if let url = securedURL { url.stopAccessingSecurityScopedResource() }
         }
     }
 
@@ -376,6 +383,7 @@ final class SourceLibraryStore {
         if case .individualSong(let selectedID) = selection, selectedID == id {
             selection = nil
             selectedProject = nil
+            replaceActiveSecurityScope(with: nil)
         }
         individualSongs.remove(at: songIndex)
 
@@ -464,6 +472,7 @@ final class SourceLibraryStore {
 
         isLoading = true
         loadError = nil
+        replaceActiveSecurityScope(with: canonicalURL)
         do {
             let project = try await projectLoader(canonicalURL)
             selectedProject = project
@@ -484,6 +493,7 @@ final class SourceLibraryStore {
             selection = .individualSong(id)
             isLoading = false
         } catch {
+            replaceActiveSecurityScope(with: nil)
             selectedProject = nil
             loadError = error.localizedDescription
             if let index = individualSongs.firstIndex(where: { $0.id == id }) {
@@ -744,9 +754,11 @@ final class SourceLibraryStore {
         case .source(let selectedID) where selectedID == id:
             selection = nil
             selectedProject = nil
+            replaceActiveSecurityScope(with: nil)
         case .individualSong(let songID) where songIDs.contains(songID):
             selection = nil
             selectedProject = nil
+            replaceActiveSecurityScope(with: nil)
         default:
             break
         }
@@ -759,6 +771,19 @@ final class SourceLibraryStore {
             }
         }
         return nil
+    }
+
+    private func replaceActiveSecurityScope(with url: URL?) {
+        if let activeSecurityScopedURL {
+            activeSecurityScopedURL.stopAccessingSecurityScopedResource()
+            self.activeSecurityScopedURL = nil
+        }
+
+        guard let url else { return }
+
+        if url.startAccessingSecurityScopedResource() {
+            activeSecurityScopedURL = url
+        }
     }
 
     private func scanSongFolders(in musicURL: URL) -> [URL] {
@@ -844,4 +869,3 @@ final class SourceLibraryStore {
         )
     }
 }
-
