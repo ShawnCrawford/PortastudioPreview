@@ -291,21 +291,38 @@ private struct SourceLibrarySongRow: View {
     let song: SourceLibrarySong
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label(song.displayName, systemImage: "music.note")
-            Text(secondaryText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 9) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(.teal.opacity(0.12))
+                Image(systemName: "waveform")
+                    .font(.caption)
+                    .foregroundStyle(.teal)
+            }
+            .frame(width: 24, height: 24)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(song.displayName)
+                    .lineLimit(1)
+                Text(secondaryText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
         }
     }
 
     private var secondaryText: String {
-        var base: String
+        let state: String
         switch song.loadState {
-        case .loading: base = "Loading..."
-        case .loaded: base = song.folderURL.path
-        case let .failed(message): base = "Failed: \(message)"
+        case .loading: state = "Loading..."
+        case .loaded: state = song.folderURL.lastPathComponent
+        case let .failed(message): state = "Failed: \(message)"
         }
+
+        var base = state
         if case .loaded = song.loadState, let matchLabel = fingerprintMatchStateLabel(song.matchState) {
             base += " · \(matchLabel)"
         }
@@ -356,4 +373,3 @@ private func fingerprintMatchStateLabel(_ state: FingerprintMatchState?) -> Stri
     case .unknown, nil: return nil
     }
 }
-

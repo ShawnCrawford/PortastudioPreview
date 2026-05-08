@@ -12,33 +12,24 @@ struct ProjectDetailView: View {
     @State private var selectedTrackID: TrackPreview.ID?
     @State private var selectedRegionID: TimelineRegion.ID?
     @State private var isInspectorPresented = true
+    @State private var workspaceMode: ProjectWorkspaceMode = .tracks
     @State private var playbackController = PreviewPlaybackController()
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                OverviewGroupBoxView(project: project, annotationStore: annotationStore)
-                ValidationGroupBoxView(issues: project.validationIssues)
-                TracksGroupBoxView(
-                    tracks: project.tracks,
-                    selectedTrackID: $selectedTrackID,
-                    annotationStore: annotationStore
-                )
-                RegionsTimelineGroupBoxView(
-                    project: project,
-                    selectedRegionID: $selectedRegionID,
-                    playbackController: playbackController
-                )
-                PreviewGroupBoxView(project: project, playbackController: playbackController)
-            }
-            .padding()
-        }
+        ProjectWorkspaceView(
+            project: project,
+            annotationStore: annotationStore,
+            selectedTrackID: $selectedTrackID,
+            selectedRegionID: $selectedRegionID,
+            workspaceMode: $workspaceMode,
+            playbackController: playbackController,
+            showInspector: showInspector
+        )
         .navigationTitle(annotationStore.annotationContext?.effectiveDisplayName ?? project.folderName)
-        .frame(minWidth: 600)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    isInspectorPresented.toggle()
+                    toggleInspector()
                 } label: {
                     Label("Inspector", systemImage: "sidebar.right")
                 }
@@ -65,8 +56,22 @@ struct ProjectDetailView: View {
         .onChange(of: project.folderURL) { _, _ in
             selectedTrackID = nil
             selectedRegionID = nil
+            workspaceMode = .tracks
             playbackController.stop()
         }
+    }
+
+    private func toggleInspector() {
+        isInspectorPresented.toggle()
+        if isInspectorPresented {
+            workspaceMode = .inspector
+        } else {
+            workspaceMode = .tracks
+        }
+    }
+
+    private func showInspector() {
+        isInspectorPresented = true
     }
 }
 
@@ -425,4 +430,3 @@ private struct PreviewGroupBoxView: View {
         .accessibilityLabel("Audio preview")
     }
 }
-

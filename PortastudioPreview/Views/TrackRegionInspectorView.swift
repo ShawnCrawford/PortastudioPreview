@@ -3,6 +3,7 @@
 //  PortastudioPreview
 //
 
+import AppKit
 import SwiftUI
 
 struct TrackRegionInspectorView: View {
@@ -17,29 +18,121 @@ struct TrackRegionInspectorView: View {
         } else if let region = selectedRegion {
             RegionInspectorContent(project: project, region: region)
         } else {
-            EmptyInspectorContent()
+            SongInspectorContent(project: project, annotationStore: annotationStore)
         }
     }
 }
 
-// MARK: - Empty state
+// MARK: - Song Inspector
 
-private struct EmptyInspectorContent: View {
+private struct SongInspectorContent: View {
+    let project: PortastudioProject
+    let annotationStore: TrackAnnotationStore
+
+    @State private var nameDraft = ""
+    @FocusState private var nameFieldFocused: Bool
+
+    private var summary: ProjectHeaderSummary {
+        ProjectHeaderSummary(
+            project: project,
+            displayName: annotationStore.annotationContext?.effectiveDisplayName
+        )
+    }
+
+    private var context: SongAnnotationContext? {
+        annotationStore.annotationContext
+    }
+
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sidebar.right")
-                .font(.largeTitle)
-                .foregroundStyle(.tertiary)
-            Text("No Track or Region Selected")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("Select a track or unassigned region row to inspect its evidence, raw bytes, and identity context.")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                InspectorSectionHeader(title: "Song Information", systemImage: "music.note.list")
+                InspectorGrid {
+                    InspectorRow(label: "Title", value: summary.title)
+                    InspectorRow(label: "Folder", value: summary.folderName)
+                    InspectorRow(
+                        label: "Path",
+                        value: summary.folderPath,
+                        valueStyle: .secondary,
+                        truncationMode: .middle
+                    )
+                    InspectorRow(label: "Format", value: summary.formatLabel)
+                    InspectorRow(label: "Duration", value: summary.durationLabel)
+                    InspectorRow(label: "Tracks", value: summary.trackCountLabel)
+                    InspectorRow(label: "WAVs", value: summary.wavCountLabel)
+                }
+
+                Divider()
+                InspectorSectionHeader(title: "Identity", systemImage: "checkmark.seal")
+                InspectorGrid {
+                    InspectorRow(label: "Access", value: summary.readOnlyLabel, valueStyle: .green)
+                    InspectorRow(label: "Preview", value: summary.previewLabel)
+                    InspectorRow(label: "Validation", value: summary.validationLabel)
+                    if let matchState = context?.matchState {
+                        InspectorRow(label: "Match", value: fingerprintMatchStateLabel(matchState) ?? "Unknown")
+                    } else {
+                        InspectorRow(label: "Match", value: "Unknown", valueStyle: .secondary)
+                    }
+                }
+
+                if !project.validationIssues.isEmpty {
+                    Divider()
+                    InspectorSectionHeader(title: "Validation", systemImage: "exclamationmark.triangle")
+                    ValidationIssuesView(issues: project.validationIssues)
+                }
+
+                Divider()
+                InspectorSectionHeader(title: "Labels", systemImage: "tag")
+                if context?.isEditable == true {
+                    HStack(spacing: 6) {
+                        TextField("Song name", text: $nameDraft)
+                            .focused($nameFieldFocused)
+                            .onSubmit { commitName() }
+                            .onChange(of: nameFieldFocused) { _, focused in
+                                if !focused { commitName() }
+                            }
+                            .accessibilityIdentifier("inspector-song-name")
+
+                        if !nameDraft.isEmpty {
+                            Button("Clear Song Name", systemImage: "xmark.circle.fill") {
+                                nameDraft = ""
+                                annotationStore.setSongDisplayNameOverride(nil)
+                            }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.plain)
+                            .help("Clear song name override")
+                        }
+                    }
+                } else {
+                    Text("Labels are read-only until the remembered song identity is an exact match.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+                InspectorSectionHeader(title: "Actions", systemImage: "ellipsis.circle")
+                Button("Reveal in Finder", systemImage: "folder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([project.folderURL])
+                }
+                .buttonStyle(.bordered)
+
+                if let edl = project.edlTableSummary,
+                   !edl.fileListEntries.isEmpty {
+                    Divider()
+                    InspectorSectionHeader(title: "EDL File List", systemImage: "list.bullet.rectangle")
+                    EDLFileListInspector(edl: edl)
+                }
+            }
+            .padding(14)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: context?.songFingerprintString) {
+            nameDraft = context?.displayNameOverride ?? ""
+        }
+    }
+
+    private func commitName() {
+        annotationStore.setSongDisplayNameOverride(nameDraft.isEmpty ? nil : nameDraft)
+        nameDraft = annotationStore.annotationContext?.displayNameOverride ?? ""
     }
 }
 
@@ -239,6 +332,31 @@ private struct RegionInspectorContent: View {
     }
 }
 
+private struct EDLFileListInspector: View {
+    let edl: EdlTableSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(edl.fileListEntries, id: \.self) { entry in
+                HStack(spacing: 8) {
+                    Text("#\(entry.fileID)")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, alignment: .trailing)
+                    Text(entry.filename)
+                        .font(.system(.caption, design: .monospaced))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Text(entry.evidenceLevel.rawValue)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Shared Layout Helpers
 
 private struct InspectorSectionHeader: View {
@@ -292,5 +410,14 @@ private struct InspectorRow: View {
                 }
             }
         }
+    }
+}
+
+private func fingerprintMatchStateLabel(_ state: FingerprintMatchState?) -> String? {
+    switch state {
+    case .exact: return "Exact match"
+    case .changedSinceLastSeen: return "Changed since last seen"
+    case .ambiguous: return "Ambiguous"
+    case .unknown, nil: return nil
     }
 }
