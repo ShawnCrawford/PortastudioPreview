@@ -37,10 +37,17 @@ struct StereoPreviewEngineTests {
         #expect(StereoPreviewEngine.approximatePan(for: makeTrackPreview(mute: 0x00, pan: 0x7F, level: 0x7F)) == 1.0)
     }
 
-    @Test func approximateVolumeTreatsRawZeroAsUnityUntilScaleIsKnown() {
-        #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x00)) == 1.0)
-        #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x7F)) == 1.0)
-        #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0xFF)) == 1.5)
+    @Test func approximateVolumeUsesConfirmedSongLevelScale() {
+        #expect(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x00)) == 0.0)
+        #expect(abs(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x6A)) - 1.0) < 0.0001)
+        #expect(abs(StereoPreviewEngine.approximateVolume(for: makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x7F)) - 1.9952623) < 0.0001)
+    }
+
+    @Test func overrideVolumeUsesWorkspaceFaderPosition() {
+        let track = makeTrackPreview(mute: 0x00, pan: 0x40, level: 0x6A)
+
+        #expect(abs(StereoPreviewEngine.approximateVolume(for: track, overrideLevelPosition: 0) - 0.0) < 0.0001)
+        #expect(abs(StereoPreviewEngine.approximateVolume(for: track, overrideLevelPosition: 1) - 1.9952623) < 0.0001)
     }
 
     @Test func timelineStartSamplesPreserveAbsoluteTrackOffsets() {

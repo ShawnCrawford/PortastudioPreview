@@ -9,12 +9,13 @@ import Foundation
 final class StereoPreviewEngine {
     private let engine = AVAudioEngine()
     private var playerNodes: [AVAudioPlayerNode] = []
+    private var playerNodesByTrackNumber: [Int: [AVAudioPlayerNode]] = [:]
     private let completionCoordinator = PlaybackCompletionCoordinator()
     private var activePlaybackID: UUID?
     private static let previewSampleRate: Double = 48_000
 
     private struct PlayableRegion {
-        let key: String
+        let trackNumber: Int?
         let url: URL
         let startSample: Int
         let volume: Float
@@ -25,10 +26,14 @@ final class StereoPreviewEngine {
         engine.isRunning
     }
 
-    func startPreview(for project: PortastudioProject, onPlaybackCompleted: @escaping () -> Void) throws {
+    func startPreview(
+        for project: PortastudioProject,
+        trackVolumeOverrides: [Int: Double] = [:],
+        onPlaybackCompleted: @escaping () -> Void
+    ) throws {
         stop()
 
-        let playableRegions = Self.playableRegions(for: project)
+        let playableRegions = Self.playableRegions(for: project, trackVolumeOverrides: trackVolumeOverrides)
 
         guard !playableRegions.isEmpty else {
             throw StereoPreviewEngineError.noPlayableTracks
@@ -62,6 +67,9 @@ final class StereoPreviewEngine {
             }
 
             playerNodes.append(playerNode)
+            if let trackNumber = region.trackNumber {
+                playerNodesByTrackNumber[trackNumber, default: []].append(playerNode)
+            }
         }
 
         do {
@@ -87,7 +95,15 @@ final class StereoPreviewEngine {
         }
 
         playerNodes.removeAll()
+        playerNodesByTrackNumber.removeAll()
         engine.stop()
+    }
+
+    func updateTrackVolume(trackNumber: Int, levelPosition: Double) {
+        let gain = LevelMapper.gain(forNormalizedPosition: levelPosition)
+        for playerNode in playerNodesByTrackNumber[trackNumber] ?? [] {
+            playerNode.volume = gain
+        }
     }
 
     static func hasPlayableTracks(_ project: PortastudioProject) -> Bool {
@@ -111,11 +127,15 @@ final class StereoPreviewEngine {
             return 1.0
         }
 
-        guard rawLevel != 0 else {
-            return 1.0
+        return LevelMapper.gain(for: rawLevel)
+    }
+
+    static func approximateVolume(for track: TrackPreview, overrideLevelPosition: Double?) -> Float {
+        if let overrideLevelPosition {
+            return LevelMapper.gain(forNormalizedPosition: overrideLevelPosition)
         }
 
-        return min(max(Float(rawLevel) / Float(0x7F), 0.0), 1.5)
+        return approximateVolume(for: track)
     }
 
     static func approximatePan(for track: TrackPreview) -> Float {
@@ -134,7 +154,10 @@ final class StereoPreviewEngine {
         })
     }
 
-    private static func playableRegions(for project: PortastudioProject) -> [PlayableRegion] {
+    private static func playableRegions(
+        for project: PortastudioProject,
+        trackVolumeOverrides: [Int: Double] = [:]
+    ) -> [PlayableRegion] {
         var result: [PlayableRegion] = []
 
         // Assigned tracks with known timelines use their mixer settings directly.
@@ -148,10 +171,13 @@ final class StereoPreviewEngine {
                 continue
             }
             result.append(PlayableRegion(
-                key: "track-\(track.trackNumber)",
+                trackNumber: track.trackNumber,
                 url: sourceURL,
                 startSample: max(firstRegion.startSample, 0),
-                volume: approximateVolume(for: track),
+                volume: approximateVolume(
+                    for: track,
+                    overrideLevelPosition: trackVolumeOverrides[track.trackNumber]
+                ),
                 pan: approximatePan(for: track)
             ))
         }
@@ -162,7 +188,7 @@ final class StereoPreviewEngine {
             let plan = PreviewPlaybackPlanner.plan(for: project)
             result.append(contentsOf: plan.playableRegions.map { scheduled in
                 PlayableRegion(
-                    key: scheduled.filename,
+                    trackNumber: nil,
                     url: scheduled.url,
                     startSample: scheduled.startSample,
                     volume: scheduled.volume,
@@ -183,7 +209,7 @@ final class StereoPreviewEngine {
             activePlaybackID = nil
         }
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             completion()
         }
     }

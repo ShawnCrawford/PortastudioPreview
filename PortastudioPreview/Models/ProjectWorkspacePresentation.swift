@@ -114,7 +114,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
     let isSelected: Bool
     let colorIndex: Int
 
-    init(track: TrackPreview, displayName: String?, isSelected: Bool) {
+    init(track: TrackPreview, displayName: String?, isSelected: Bool, levelPositionOverride: Double? = nil) {
         id = track.trackNumber
         trackNumber = track.trackNumber
         if let displayName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -132,7 +132,10 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
             panLabel = "n/a"
         }
 
-        if let level = track.mixerSetting?.level {
+        if let levelPositionOverride {
+            levelLabel = LevelMapper.previewDisplayValue(forNormalizedPosition: levelPositionOverride)
+            levelPosition = levelPositionOverride
+        } else if let level = track.mixerSetting?.level {
             levelLabel = LevelMapper.displayValue(for: level.primaryByte)
             levelPosition = Self.levelPosition(rawByte: level.primaryByte)
         } else {

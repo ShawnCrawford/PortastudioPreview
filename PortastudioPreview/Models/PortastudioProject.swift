@@ -16,4 +16,8 @@ struct PortastudioProject: Sendable {
     var folderName: String {
         folderURL.lastPathComponent
     }
+
+    var visibleTracks: [TrackPreview] {
+        tracks.filter(\.isActiveTrackCandidate)
+    }
 }

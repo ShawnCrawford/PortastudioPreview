@@ -12,6 +12,7 @@ struct ProjectWorkspaceView: View {
     @Binding var selectedRegionID: TimelineRegion.ID?
     @Binding var workspaceMode: ProjectWorkspaceMode
     let playbackController: PreviewPlaybackController
+    let mixState: PreviewMixState
     let showInspector: () -> Void
 
     var body: some View {
@@ -19,7 +20,8 @@ struct ProjectWorkspaceView: View {
             ProjectHeaderView(
                 project: project,
                 annotationStore: annotationStore,
-                playbackController: playbackController
+                playbackController: playbackController,
+                mixState: mixState
             )
 
             Divider()
@@ -37,7 +39,8 @@ struct ProjectWorkspaceView: View {
                 selectedRegionID: $selectedRegionID,
                 workspaceMode: workspaceMode,
                 annotationStore: annotationStore,
-                playbackController: playbackController
+                playbackController: playbackController,
+                mixState: mixState
             )
         }
         .frame(minWidth: 760, minHeight: 620)
@@ -52,6 +55,7 @@ private struct ProjectHeaderView: View {
     let project: PortastudioProject
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
+    let mixState: PreviewMixState
 
     private var summary: ProjectHeaderSummary {
         ProjectHeaderSummary(
@@ -88,6 +92,7 @@ private struct ProjectHeaderView: View {
             HeaderTransportControls(
                 project: project,
                 playbackController: playbackController,
+                mixState: mixState,
                 canPlay: canPlay
             )
 
@@ -175,12 +180,13 @@ private struct ReadOnlyBadge: View {
 private struct HeaderTransportControls: View {
     let project: PortastudioProject
     let playbackController: PreviewPlaybackController
+    let mixState: PreviewMixState
     let canPlay: Bool
 
     var body: some View {
         HStack(spacing: 8) {
             Button("Play Preview", systemImage: "play.fill") {
-                playbackController.startPreview(for: project)
+                playbackController.startPreview(for: project, trackVolumeOverrides: mixState.trackVolumeOverrides)
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderedProminent)
@@ -305,14 +311,17 @@ private struct ProjectEditorSurface: View {
     let workspaceMode: ProjectWorkspaceMode
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
+    let mixState: PreviewMixState
 
     var body: some View {
         switch workspaceMode {
         case .tracks:
             TrackMixerDeckView(
-                tracks: project.tracks,
+                tracks: project.visibleTracks,
                 selectedTrackID: $selectedTrackID,
-                annotationStore: annotationStore
+                annotationStore: annotationStore,
+                playbackController: playbackController,
+                mixState: mixState
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .accessibilityIdentifier("editor-surface-tracks")
@@ -378,6 +387,8 @@ struct TrackMixerDeckView: View {
     let tracks: [TrackPreview]
     @Binding var selectedTrackID: TrackPreview.ID?
     let annotationStore: TrackAnnotationStore
+    let playbackController: PreviewPlaybackController
+    let mixState: PreviewMixState
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -398,11 +409,20 @@ struct TrackMixerDeckView: View {
                         let presentation = TrackMixerStripPresentation(
                             track: track,
                             displayName: annotationStore.trackName(for: track.trackNumber),
-                            isSelected: selectedTrackID == track.id
+                            isSelected: selectedTrackID == track.id,
+                            levelPositionOverride: mixState.levelPosition(for: track.trackNumber)
                         )
-                        TrackMixerStripButton(presentation: presentation) {
-                            selectedTrackID = track.id
-                        }
+                        TrackMixerStripView(
+                            presentation: presentation,
+                            selectAction: {
+                                selectedTrackID = track.id
+                            },
+                            setLevelPosition: { newValue in
+                                selectedTrackID = track.id
+                                mixState.setLevelPosition(newValue, for: track.trackNumber)
+                                playbackController.setTrackVolume(newValue, for: track.trackNumber)
+                            }
+                        )
                     }
                 }
                 .padding(.horizontal, 18)
@@ -416,22 +436,10 @@ struct TrackMixerDeckView: View {
     }
 }
 
-private struct TrackMixerStripButton: View {
-    let presentation: TrackMixerStripPresentation
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            TrackMixerStripView(presentation: presentation)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Track \(presentation.trackNumber), \(presentation.displayName)")
-        .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panLabel), \(presentation.muteLabel)")
-    }
-}
-
 private struct TrackMixerStripView: View {
     let presentation: TrackMixerStripPresentation
+    let selectAction: () -> Void
+    let setLevelPosition: (Double) -> Void
 
     private static let colors: [Color] = [.red, .orange, .yellow, .green, .teal, .blue, .purple, .pink]
 
@@ -445,16 +453,19 @@ private struct TrackMixerStripView: View {
                 .fill(trackColor)
                 .frame(height: 3)
 
-            VStack(spacing: 2) {
-                Text("\(presentation.trackNumber)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(presentation.displayName)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+            Button(action: selectAction) {
+                VStack(spacing: 2) {
+                    Text("\(presentation.trackNumber)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(presentation.displayName)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .frame(height: 34)
             }
-            .frame(height: 34)
+            .buttonStyle(.plain)
 
             Text(presentation.candidateWAVLabel)
                 .font(.caption2)
@@ -484,7 +495,12 @@ private struct TrackMixerStripView: View {
 
             HStack(alignment: .bottom, spacing: 7) {
                 LevelScaleView()
-                FaderTrackView(value: presentation.levelPosition, color: trackColor)
+                FaderTrackView(
+                    value: presentation.levelPosition,
+                    color: trackColor,
+                    onSelect: selectAction,
+                    onValueChanged: setLevelPosition
+                )
                 OutputLevelView(value: presentation.isMuted ? 0 : max(presentation.levelPosition, 0.08))
             }
             .frame(height: 86)
@@ -508,6 +524,9 @@ private struct TrackMixerStripView: View {
                 )
         }
         .contentShape(.rect)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Track \(presentation.trackNumber), \(presentation.displayName)")
+        .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panLabel), \(presentation.muteLabel)")
     }
 }
 
@@ -528,6 +547,8 @@ private struct LevelScaleView: View {
 private struct FaderTrackView: View {
     let value: Double
     let color: Color
+    let onSelect: () -> Void
+    let onValueChanged: (Double) -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -554,8 +575,28 @@ private struct FaderTrackView: View {
                     .offset(y: handleY - 6)
             }
             .frame(maxWidth: .infinity)
+            .contentShape(.rect)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { dragValue in
+                        onSelect()
+                        let levelPosition = 1 - (dragValue.location.y / proxy.size.height)
+                        onValueChanged(levelPosition)
+                    }
+            )
         }
         .frame(width: 28)
+        .accessibilityAdjustableAction { direction in
+            onSelect()
+            switch direction {
+            case .increment:
+                onValueChanged(value + 0.05)
+            case .decrement:
+                onValueChanged(value - 0.05)
+            @unknown default:
+                break
+            }
+        }
     }
 }
 

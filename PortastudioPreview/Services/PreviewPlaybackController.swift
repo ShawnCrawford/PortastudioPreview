@@ -19,16 +19,18 @@ final class PreviewPlaybackController {
     private(set) var isPlaying = false
     private(set) var elapsedSeconds: Double = 0
     private(set) var playbackError: String?
+    private var trackVolumeOverrides: [Int: Double] = [:]
     private var elapsedTask: Task<Void, Never>?
 
     func canPlay(_ project: PortastudioProject) -> Bool {
         StereoPreviewEngine.hasPlayableTracks(project)
     }
 
-    func startPreview(for project: PortastudioProject) {
+    func startPreview(for project: PortastudioProject, trackVolumeOverrides: [Int: Double] = [:]) {
         stop()
+        self.trackVolumeOverrides = trackVolumeOverrides
         do {
-            try engine.startPreview(for: project) { [weak self] in
+            try engine.startPreview(for: project, trackVolumeOverrides: trackVolumeOverrides) { [weak self] in
                 Task { @MainActor [weak self] in
                     self?.handlePlaybackCompleted()
                 }
@@ -49,6 +51,16 @@ final class PreviewPlaybackController {
         isPlaying = false
         elapsedSeconds = 0
         playbackError = nil
+    }
+
+    func setTrackVolume(_ levelPosition: Double, for trackNumber: Int) {
+        trackVolumeOverrides[trackNumber] = levelPosition
+
+        guard isPlaying else {
+            return
+        }
+
+        engine.updateTrackVolume(trackNumber: trackNumber, levelPosition: levelPosition)
     }
 
     // MARK: - Private

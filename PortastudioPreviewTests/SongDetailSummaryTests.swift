@@ -29,7 +29,7 @@ struct SongDetailSummaryTests {
 
         let summary = SongDetailSummary(project: project)
 
-        #expect(summary.trackCount == 3)
+        #expect(summary.trackCount == 2)
         #expect(summary.assignedTrackCount == 2)
         #expect(summary.wavCount == 4)
         #expect(summary.validationIssueCount == 2)
@@ -62,6 +62,22 @@ struct SongDetailSummaryTests {
         #expect(!summary.previewAvailable)
     }
 
+    @Test func visibleTracksKeepsAssignedAndActiveTakeTracks() {
+        let project = makeProject(
+            tracks: [
+                makeTrack(trackNumber: 1, assigned: false, activeTakeCandidate: 0x01),
+                makeTrack(trackNumber: 2, assigned: false),
+                makeTrack(trackNumber: 3, assigned: true)
+            ],
+            wavInventoryCount: 1,
+            validationIssues: [],
+            unassignedRegions: [],
+            edlSummary: nil
+        )
+
+        #expect(project.visibleTracks.map(\.trackNumber) == [1, 3])
+    }
+
     // MARK: - Helpers
 
     private func makeProject(
@@ -87,7 +103,7 @@ struct SongDetailSummaryTests {
         )
     }
 
-    private func makeTrack(trackNumber: Int, assigned: Bool) -> TrackPreview {
+    private func makeTrack(trackNumber: Int, assigned: Bool, activeTakeCandidate: UInt8? = nil) -> TrackPreview {
         TrackPreview(
             trackNumber: trackNumber,
             candidateWAV: assigned
@@ -98,7 +114,7 @@ struct SongDetailSummaryTests {
                 )
                 : nil,
             mixerSetting: nil,
-            track1ActiveTakeCandidate: nil,
+            track1ActiveTakeCandidate: activeTakeCandidate,
             timeline: nil
         )
     }

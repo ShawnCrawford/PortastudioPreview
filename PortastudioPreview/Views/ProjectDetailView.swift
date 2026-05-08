@@ -14,6 +14,13 @@ struct ProjectDetailView: View {
     @State private var isInspectorPresented = true
     @State private var workspaceMode: ProjectWorkspaceMode = .tracks
     @State private var playbackController = PreviewPlaybackController()
+    @State private var mixState: PreviewMixState
+
+    init(project: PortastudioProject, annotationStore: TrackAnnotationStore) {
+        self.project = project
+        self.annotationStore = annotationStore
+        _mixState = State(wrappedValue: PreviewMixState(project: project))
+    }
 
     var body: some View {
         ProjectWorkspaceView(
@@ -23,6 +30,7 @@ struct ProjectDetailView: View {
             selectedRegionID: $selectedRegionID,
             workspaceMode: $workspaceMode,
             playbackController: playbackController,
+            mixState: mixState,
             showInspector: showInspector
         )
         .navigationTitle(annotationStore.annotationContext?.effectiveDisplayName ?? project.folderName)
@@ -41,7 +49,7 @@ struct ProjectDetailView: View {
         .inspector(isPresented: $isInspectorPresented) {
             TrackRegionInspectorView(
                 project: project,
-                selectedTrack: project.tracks.first { $0.id == selectedTrackID },
+                selectedTrack: project.visibleTracks.first { $0.id == selectedTrackID },
                 selectedRegion: project.unassignedAudioRegions.first { $0.id == selectedRegionID },
                 annotationStore: annotationStore
             )
@@ -57,6 +65,7 @@ struct ProjectDetailView: View {
             selectedTrackID = nil
             selectedRegionID = nil
             workspaceMode = .tracks
+            mixState = PreviewMixState(project: project)
             playbackController.stop()
         }
     }
