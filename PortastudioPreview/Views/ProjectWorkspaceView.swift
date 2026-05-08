@@ -10,7 +10,6 @@ struct ProjectWorkspaceView: View {
     let annotationStore: TrackAnnotationStore
     @Binding var selectedTrackID: TrackPreview.ID?
     @Binding var selectedRegionID: TimelineRegion.ID?
-    @Binding var workspaceMode: ProjectWorkspaceMode
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
@@ -28,18 +27,10 @@ struct ProjectWorkspaceView: View {
 
             Divider()
 
-            ProjectModeBarView(
-                selection: $workspaceMode,
-                showInspector: showInspector
-            )
-
-            Divider()
-
             ProjectEditorSurface(
                 project: project,
                 selectedTrackID: $selectedTrackID,
                 selectedRegionID: $selectedRegionID,
-                workspaceMode: workspaceMode,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
                 mixState: mixState,
@@ -274,79 +265,28 @@ private struct MeterRow: View {
     }
 }
 
-// MARK: - Mode Bar
-
-private struct ProjectModeBarView: View {
-    @Binding var selection: ProjectWorkspaceMode
-    let showInspector: () -> Void
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(ProjectWorkspaceMode.allCases) { mode in
-                Button {
-                    selection = mode
-                } label: {
-                    VStack(spacing: 7) {
-                        Label(mode.title, systemImage: mode.systemImage)
-                            .labelStyle(.titleAndIcon)
-                            .font(.callout)
-                        Rectangle()
-                            .fill(selection == mode ? Color.teal : Color.clear)
-                            .frame(height: 2)
-                    }
-                    .frame(minWidth: 112)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(selection == mode ? .primary : .secondary)
-                .accessibilityIdentifier("project-mode-\(mode.rawValue)")
-            }
-
-            Spacer()
-
-            Label("Track-to-WAV assignment: Hypothesis", systemImage: "exclamationmark.triangle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .help("The app keeps inferred track-to-WAV behavior labeled as Hypothesis.")
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 9)
-    }
-}
-
 // MARK: - Editor
 
 private struct ProjectEditorSurface: View {
     let project: PortastudioProject
     @Binding var selectedTrackID: TrackPreview.ID?
     @Binding var selectedRegionID: TimelineRegion.ID?
-    let workspaceMode: ProjectWorkspaceMode
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
 
     var body: some View {
-        switch workspaceMode {
-        case .tracks:
-            TrackMixerDeckView(
-                tracks: project.visibleTracks,
-                selectedTrackID: $selectedTrackID,
-                annotationStore: annotationStore,
-                playbackController: playbackController,
-                mixState: mixState,
-                selectedVirtualTrackIDs: $selectedVirtualTrackIDs
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityIdentifier("editor-surface-tracks")
-
-        case .timeline:
-            TimelineSurface(
-                project: project,
-                selectedRegionID: $selectedRegionID,
-                playbackController: playbackController
-            )
-            .accessibilityIdentifier("editor-surface-timeline")
-        }
+        TrackMixerDeckView(
+            tracks: project.visibleTracks,
+            selectedTrackID: $selectedTrackID,
+            annotationStore: annotationStore,
+            playbackController: playbackController,
+            mixState: mixState,
+            selectedVirtualTrackIDs: $selectedVirtualTrackIDs
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("editor-surface-tracks")
     }
 }
 
@@ -406,26 +346,6 @@ struct TrackMixerDeckView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("Tracks", systemImage: "slider.horizontal.3")
-                    .font(.headline)
-                Spacer()
-                Text("\(tracks.count) read-only mixer strips")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 12)
-
-            TrackTableView(
-                tracks: tracks,
-                selectedTrackID: $selectedTrackID,
-                selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
-                annotationStore: annotationStore
-            )
-            .frame(minHeight: 150, idealHeight: 180)
-            .padding(.horizontal, 18)
-
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 0) {
                     ForEach(tracks) { track in
