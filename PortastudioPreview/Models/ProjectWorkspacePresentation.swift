@@ -120,6 +120,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         track: TrackPreview,
         displayName: String?,
         isSelected: Bool,
+        selectedVirtualTrackOptionID: VirtualTrackOption.ID? = nil,
         panPositionOverride: Double? = nil,
         levelPositionOverride: Double? = nil,
         meterLevel: Double = 0
@@ -132,8 +133,16 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         } else {
             self.displayName = "Track \(track.trackNumber)"
         }
-        candidateWAVLabel = track.candidateWAV?.rawFilename ?? "Unassigned"
-        candidateEvidenceLabel = track.candidateWAV == nil ? "No WAV" : "WAV: \(track.candidateWAVEvidence.rawValue)"
+
+        let selectedVirtualTrack = track.selectedVirtualTrackOption(
+            selectedOptionID: selectedVirtualTrackOptionID
+        )
+        candidateWAVLabel = selectedVirtualTrack?.wavItem.rawFilename ?? track.candidateWAV?.rawFilename ?? "Unassigned"
+        if let selectedVirtualTrack {
+            candidateEvidenceLabel = "WAV: \(selectedVirtualTrack.evidenceLevel.rawValue)"
+        } else {
+            candidateEvidenceLabel = track.candidateWAV == nil ? "No WAV" : "WAV: \(track.candidateWAVEvidence.rawValue)"
+        }
 
         if let panPositionOverride {
             panPosition = min(max(panPositionOverride, -1), 1)

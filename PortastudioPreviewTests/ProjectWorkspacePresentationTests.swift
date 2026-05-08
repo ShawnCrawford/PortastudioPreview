@@ -142,6 +142,55 @@ struct ProjectWorkspacePresentationTests {
         #expect(strip.isSelected)
     }
 
+    @Test func mixerStripUsesSelectedVirtualTrackForMappedWAV() {
+        let take1WAV = WAVInventoryItem(
+            url: URL(fileURLWithPath: "/tmp/SONG_0001/ZZ0001_1.wav"),
+            rawFilename: "ZZ0001_1.wav",
+            byteCount: 128
+        )
+        let take2WAV = WAVInventoryItem(
+            url: URL(fileURLWithPath: "/tmp/SONG_0001/ZZ0001_2.wav"),
+            rawFilename: "ZZ0001_2.wav",
+            byteCount: 128
+        )
+        let track = TrackPreview(
+            trackNumber: 1,
+            candidateWAV: take1WAV,
+            mixerSetting: nil,
+            track1ActiveTakeCandidate: nil,
+            timeline: nil,
+            virtualTrackOptions: [
+                VirtualTrackOption(
+                    id: "take-1",
+                    takeNumber: 1,
+                    takeLabel: "Take 1",
+                    wavItem: take1WAV,
+                    timelineRegion: makeRegion(filename: "ZZ0001_1.wav", startSample: 0, length: 96_000),
+                    evidenceLevel: .correlated
+                ),
+                VirtualTrackOption(
+                    id: "take-2",
+                    takeNumber: 2,
+                    takeLabel: "Take 2",
+                    wavItem: take2WAV,
+                    timelineRegion: makeRegion(filename: "ZZ0001_2.wav", startSample: 0, length: 96_000),
+                    evidenceLevel: .hypothesis
+                )
+            ],
+            defaultVirtualTrackOptionID: "take-1"
+        )
+
+        let strip = TrackMixerStripPresentation(
+            track: track,
+            displayName: nil,
+            isSelected: false,
+            selectedVirtualTrackOptionID: "take-2"
+        )
+
+        #expect(strip.candidateWAVLabel == "ZZ0001_2.wav")
+        #expect(strip.candidateEvidenceLabel == "WAV: Hypothesis")
+    }
+
     @Test func mixerStripFallsBackForMissingMixerData() {
         let track = TrackPreview(
             trackNumber: 4,

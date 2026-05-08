@@ -28,24 +28,6 @@ struct TrackTableView: View {
             }
             .width(min: 80, ideal: 120)
 
-            TableColumn("Virtual Take") { track in
-                if track.showsVirtualTrackPicker {
-                    Picker(
-                        "Virtual Take",
-                        selection: selectedVirtualTakeBinding(for: track)
-                    ) {
-                        ForEach(track.virtualTrackOptions) { option in
-                            Text(option.takeLabel).tag(option.id)
-                        }
-                    }
-                    .labelsHidden()
-                } else {
-                    Text(track.defaultVirtualTrackOption?.takeLabel ?? "–")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .width(min: 90, ideal: 130)
-
             TableColumn("Mapped WAV") { track in
                 let selected = track.selectedVirtualTrackOption(
                     selectedOptionID: selectedVirtualTrackIDs[track.trackNumber]
@@ -104,21 +86,6 @@ struct TrackTableView: View {
             }
             .width(min: 110, ideal: 140)
         }
-    }
-
-    private func selectedVirtualTakeBinding(for track: TrackPreview) -> Binding<VirtualTrackOption.ID> {
-        Binding(
-            get: {
-                if let selected = selectedVirtualTrackIDs[track.trackNumber],
-                   track.virtualTrackOptions.contains(where: { $0.id == selected }) {
-                    return selected
-                }
-                return track.defaultVirtualTrackOption?.id ?? track.virtualTrackOptions.first?.id ?? ""
-            },
-            set: { newValue in
-                selectedVirtualTrackIDs[track.trackNumber] = newValue
-            }
-        )
     }
 
     private func settingDisplay(_ setting: MixerSetting?) -> String {

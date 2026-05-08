@@ -433,12 +433,15 @@ struct TrackMixerDeckView: View {
                             track: track,
                             displayName: annotationStore.trackName(for: track.trackNumber),
                             isSelected: selectedTrackID == track.id,
+                            selectedVirtualTrackOptionID: selectedVirtualTrackIDs[track.trackNumber],
                             panPositionOverride: mixState.panPosition(for: track.trackNumber),
                             levelPositionOverride: mixState.levelPosition(for: track.trackNumber),
                             meterLevel: playbackController.trackMeterLevel(for: track.trackNumber)
                         )
                         TrackMixerStripView(
                             presentation: presentation,
+                            track: track,
+                            selectedVirtualTakeID: selectedVirtualTakeBinding(for: track),
                             selectAction: {
                                 selectedTrackID = track.id
                             },
@@ -464,10 +467,28 @@ struct TrackMixerDeckView: View {
         .background(.regularMaterial)
         .accessibilityIdentifier("track-mixer-deck")
     }
+
+    private func selectedVirtualTakeBinding(for track: TrackPreview) -> Binding<VirtualTrackOption.ID> {
+        Binding(
+            get: {
+                if let selected = selectedVirtualTrackIDs[track.trackNumber],
+                   track.virtualTrackOptions.contains(where: { $0.id == selected }) {
+                    return selected
+                }
+                return track.defaultVirtualTrackOption?.id ?? track.virtualTrackOptions.first?.id ?? ""
+            },
+            set: { newValue in
+                selectedTrackID = track.id
+                selectedVirtualTrackIDs[track.trackNumber] = newValue
+            }
+        )
+    }
 }
 
 private struct TrackMixerStripView: View {
     let presentation: TrackMixerStripPresentation
+    let track: TrackPreview
+    @Binding var selectedVirtualTakeID: VirtualTrackOption.ID
     let selectAction: () -> Void
     let setLevelPosition: (Double) -> Void
     let setPanPosition: (Double) -> Void
@@ -497,6 +518,12 @@ private struct TrackMixerStripView: View {
                 .frame(height: 34)
             }
             .buttonStyle(.plain)
+
+            VirtualTakeControlView(
+                track: track,
+                selectedVirtualTakeID: $selectedVirtualTakeID,
+                selectAction: selectAction
+            )
 
             Text(presentation.candidateWAVLabel)
                 .font(.caption2)
@@ -548,7 +575,7 @@ private struct TrackMixerStripView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .frame(width: 96, height: 206)
+        .frame(width: 104, height: 230)
         .background(presentation.isSelected ? trackColor.opacity(0.13) : Color.clear)
         .overlay {
             Rectangle()
@@ -561,6 +588,34 @@ private struct TrackMixerStripView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Track \(presentation.trackNumber), \(presentation.displayName)")
         .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel)")
+    }
+}
+
+private struct VirtualTakeControlView: View {
+    let track: TrackPreview
+    @Binding var selectedVirtualTakeID: VirtualTrackOption.ID
+    let selectAction: () -> Void
+
+    var body: some View {
+        if track.showsVirtualTrackPicker {
+            Picker("Virtual Take", selection: $selectedVirtualTakeID) {
+                ForEach(track.virtualTrackOptions) { option in
+                    Text(option.takeLabel).tag(option.id)
+                }
+            }
+            .labelsHidden()
+            .controlSize(.small)
+            .frame(width: 82)
+            .onChange(of: selectedVirtualTakeID) {
+                selectAction()
+            }
+            .help("Virtual take")
+        } else {
+            Text(track.defaultVirtualTrackOption?.takeLabel ?? "–")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .frame(height: 20)
+        }
     }
 }
 
