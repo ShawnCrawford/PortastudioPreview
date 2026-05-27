@@ -3,6 +3,7 @@
 //  PortastudioPreviewTests
 //
 
+import AVFoundation
 import Foundation
 import Testing
 @testable import PortastudioPreview
@@ -140,6 +141,48 @@ struct StereoPreviewEngineTests {
 
         #expect(startSamples[1] == 0)
         #expect(startSamples[2] == 820_800)
+    }
+
+    @Test func playbackRegionScheduleDelaysFutureRegionFromPreservedTime() throws {
+        let schedule = try #require(StereoPreviewEngine.playbackRegionSchedule(
+            startSample: 96_000,
+            fileFrameCount: 240_000,
+            sampleRate: 48_000,
+            startingAt: 0.5
+        ))
+
+        if case .delayed(let delaySeconds) = schedule.timing {
+            #expect(delaySeconds == 1.5)
+        } else {
+            Issue.record("Expected future region to be delayed.")
+        }
+    }
+
+    @Test func playbackRegionScheduleStartsInProgressRegionAtElapsedOffset() throws {
+        let schedule = try #require(StereoPreviewEngine.playbackRegionSchedule(
+            startSample: 48_000,
+            fileFrameCount: 240_000,
+            sampleRate: 48_000,
+            startingAt: 2.25
+        ))
+
+        if case .immediate(let startingFrame, let frameCount) = schedule.timing {
+            #expect(startingFrame == 60_000)
+            #expect(frameCount == 180_000)
+        } else {
+            Issue.record("Expected in-progress region to start immediately.")
+        }
+    }
+
+    @Test func playbackRegionScheduleSkipsCompletedRegion() {
+        let schedule = StereoPreviewEngine.playbackRegionSchedule(
+            startSample: 48_000,
+            fileFrameCount: 48_000,
+            sampleRate: 48_000,
+            startingAt: 2.0
+        )
+
+        #expect(schedule == nil)
     }
 
     @Test func unassignedPlaybackKeepsOnlyTrack1ActiveVirtualTakeWhenKnown() {

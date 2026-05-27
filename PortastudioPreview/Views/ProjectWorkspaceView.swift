@@ -16,6 +16,7 @@ struct ProjectWorkspaceView: View {
     let stopAction: () -> Void
     let resetSelectedAction: () -> Void
     let resetAllAction: () -> Void
+    let reloadPlaybackPreservingPositionAction: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,7 +41,7 @@ struct ProjectWorkspaceView: View {
                 selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
                 resetSelectedAction: resetSelectedAction,
                 resetAllAction: resetAllAction,
-                restartPlaybackIfNeeded: playAction
+                reloadPlaybackPreservingPositionAction: reloadPlaybackPreservingPositionAction
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("editor-surface-mixer")
@@ -312,7 +313,7 @@ struct TrackMixerDeckView: View {
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let resetSelectedAction: () -> Void
     let resetAllAction: () -> Void
-    let restartPlaybackIfNeeded: () -> Void
+    let reloadPlaybackPreservingPositionAction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -385,7 +386,7 @@ struct TrackMixerDeckView: View {
                                     selectedVirtualTrackIDs[trackNumber] = selectedID
                                     mixState.setSelectedVirtualTrackOptionID(selectedID, for: trackNumber)
                                     if playbackController.isPlaying {
-                                        restartPlaybackIfNeeded()
+                                        reloadPlaybackPreservingPositionAction()
                                     }
                                 }
                             )
@@ -781,7 +782,8 @@ private struct OutputLevelView: View {
         playAction: {},
         stopAction: {},
         resetSelectedAction: {},
-        resetAllAction: {}
+        resetAllAction: {},
+        reloadPlaybackPreservingPositionAction: {}
     )
     .frame(width: 1180, height: 760)
     .task {
@@ -804,7 +806,8 @@ private struct OutputLevelView: View {
         playAction: {},
         stopAction: {},
         resetSelectedAction: {},
-        resetAllAction: {}
+        resetAllAction: {},
+        reloadPlaybackPreservingPositionAction: {}
     )
     .frame(width: 860, height: 640)
 }
@@ -824,7 +827,8 @@ private struct OutputLevelView: View {
         playAction: {},
         stopAction: {},
         resetSelectedAction: {},
-        resetAllAction: {}
+        resetAllAction: {},
+        reloadPlaybackPreservingPositionAction: {}
     )
     .frame(width: 1180, height: 760)
     .task {
@@ -846,7 +850,7 @@ private struct OutputLevelView: View {
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
         resetSelectedAction: {},
         resetAllAction: {},
-        restartPlaybackIfNeeded: {}
+        reloadPlaybackPreservingPositionAction: {}
     )
     .frame(width: 1040, height: 560)
     .padding()

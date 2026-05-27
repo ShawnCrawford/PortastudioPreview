@@ -25,6 +25,15 @@ final class StereoPreviewEngine {
         let isMuted: Bool
     }
 
+    struct PlaybackRegionSchedule: Equatable {
+        enum Timing: Equatable {
+            case delayed(delaySeconds: Double)
+            case immediate(startingFrame: AVAudioFramePosition, frameCount: AVAudioFrameCount)
+        }
+
+        let timing: Timing
+    }
+
     var isRunning: Bool {
         engine.isRunning
     }
@@ -35,6 +44,7 @@ final class StereoPreviewEngine {
         trackPanOverrides: [Int: Double] = [:],
         trackMuteOverrides: [Int: Bool] = [:],
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:],
+        startingAt elapsedSeconds: Double = 0,
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void,
         onPlaybackCompleted: @escaping () -> Void
@@ -53,16 +63,32 @@ final class StereoPreviewEngine {
             throw StereoPreviewEngineError.noPlayableTracks
         }
 
+        let scheduledRegions = try playableRegions.compactMap { region -> (PlayableRegion, AVAudioFile, PlaybackRegionSchedule)? in
+            let file = try AVAudioFile(forReading: region.url)
+            guard let schedule = Self.playbackRegionSchedule(
+                startSample: region.startSample,
+                fileFrameCount: file.length,
+                sampleRate: file.processingFormat.sampleRate,
+                startingAt: elapsedSeconds
+            ) else {
+                return nil
+            }
+            return (region, file, schedule)
+        }
+
+        guard !scheduledRegions.isEmpty else {
+            throw StereoPreviewEngineError.noPlayableTracks
+        }
+
         let playbackID = UUID()
         activePlaybackID = playbackID
         completionCoordinator.configure(
             playbackID: playbackID,
-            expectedCompletions: playableRegions.count,
+            expectedCompletions: scheduledRegions.count,
             onPlaybackCompleted: onPlaybackCompleted
         )
 
-        for region in playableRegions {
-            let file = try AVAudioFile(forReading: region.url)
+        for (region, file, schedule) in scheduledRegions {
             let playerNode = AVAudioPlayerNode()
             playerNode.volume = region.volume
             playerNode.pan = region.pan
@@ -81,12 +107,14 @@ final class StereoPreviewEngine {
                 engine.connect(playerNode, to: engine.mainMixerNode, format: file.processingFormat)
             }
 
-            if let startTime = Self.absoluteStartTime(startSample: region.startSample, sampleRate: file.processingFormat.sampleRate) {
+            switch schedule.timing {
+            case .delayed(let delaySeconds):
+                let startTime = Self.absoluteStartTime(after: delaySeconds)
                 playerNode.scheduleFile(file, at: startTime) { [weak self] in
                     self?.handlePlaybackNodeCompleted(playbackID: playbackID)
                 }
-            } else {
-                playerNode.scheduleFile(file, at: nil) { [weak self] in
+            case .immediate(let startingFrame, let frameCount):
+                playerNode.scheduleSegment(file, startingFrame: startingFrame, frameCount: frameCount, at: nil) { [weak self] in
                     self?.handlePlaybackNodeCompleted(playbackID: playbackID)
                 }
             }
@@ -220,6 +248,47 @@ final class StereoPreviewEngine {
             let startSample = max(track.timeline?.regions.first?.startSample ?? 0, 0)
             return (track.trackNumber, startSample)
         })
+    }
+
+    static func playbackRegionSchedule(
+        startSample: Int,
+        fileFrameCount: AVAudioFramePosition,
+        sampleRate: Double,
+        startingAt elapsedSeconds: Double
+    ) -> PlaybackRegionSchedule? {
+        guard fileFrameCount > 0 else {
+            return nil
+        }
+
+        let clampedSampleRate = sampleRate > 0 ? sampleRate : previewSampleRate
+        let regionStartSeconds = Double(max(startSample, 0)) / clampedSampleRate
+        let elapsedSeconds = max(elapsedSeconds, 0)
+        let delaySeconds = regionStartSeconds - elapsedSeconds
+
+        if delaySeconds > 0 {
+            return PlaybackRegionSchedule(timing: .delayed(delaySeconds: delaySeconds))
+        }
+
+        let elapsedIntoRegionSeconds = elapsedSeconds - regionStartSeconds
+        let startingFrame = max(
+            AVAudioFramePosition((elapsedIntoRegionSeconds * clampedSampleRate).rounded(.down)),
+            0
+        )
+        guard startingFrame < fileFrameCount else {
+            return nil
+        }
+
+        let remainingFrames = fileFrameCount - startingFrame
+        guard remainingFrames > 0 else {
+            return nil
+        }
+
+        return PlaybackRegionSchedule(
+            timing: .immediate(
+                startingFrame: startingFrame,
+                frameCount: AVAudioFrameCount(min(remainingFrames, AVAudioFramePosition(AVAudioFrameCount.max)))
+            )
+        )
     }
 
     private static func playableRegions(
@@ -489,14 +558,12 @@ final class StereoPreviewEngine {
         return min(max(peakLevel, 0), 1)
     }
 
-    private static func absoluteStartTime(startSample: Int, sampleRate: Double) -> AVAudioTime? {
-        guard startSample > 0 else {
+    private static func absoluteStartTime(after delaySeconds: Double) -> AVAudioTime? {
+        guard delaySeconds > 0 else {
             return nil
         }
 
-        let clampedSampleRate = sampleRate > 0 ? sampleRate : previewSampleRate
-        let seconds = Double(startSample) / clampedSampleRate
-        let hostDelta = AVAudioTime.hostTime(forSeconds: seconds)
+        let hostDelta = AVAudioTime.hostTime(forSeconds: delaySeconds)
         let hostNow = mach_absolute_time()
 
         return AVAudioTime(hostTime: hostNow + hostDelta)

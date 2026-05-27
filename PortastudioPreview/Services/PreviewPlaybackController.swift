@@ -13,6 +13,7 @@ protocol PreviewPlaybackEngineProtocol {
         trackPanOverrides: [Int: Double],
         trackMuteOverrides: [Int: Bool],
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID],
+        startingAt elapsedSeconds: Double,
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void,
         onPlaybackCompleted: @escaping () -> Void
@@ -85,33 +86,54 @@ final class PreviewPlaybackController {
         self.trackPanOverrides = trackPanOverrides
         self.trackMuteOverrides = trackMuteOverrides
         do {
-            try engine.startPreview(
+            try startEngine(
                 for: project,
                 trackVolumeOverrides: trackVolumeOverrides,
                 trackPanOverrides: trackPanOverrides,
                 trackMuteOverrides: trackMuteOverrides,
                 selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs,
-                onTrackLevelChanged: { [weak self] trackNumber, level in
-                    Task { @MainActor [weak self] in
-                        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
-                        self?.trackMeterLevels[channelTrackNumber] = level
-                    }
-                },
-                onOutputLevelChanged: { [weak self] levels in
-                    Task { @MainActor [weak self] in
-                        self?.outputMeterLevels = levels
-                    }
-                }
-            ) { [weak self] in
-                Task { @MainActor [weak self] in
-                    self?.handlePlaybackCompleted()
-                }
-            }
+                startingAt: 0
+            )
             isPlaying = true
             playbackError = nil
-            startElapsedTimer()
+            startElapsedTimer(startingAt: 0)
         } catch {
             isPlaying = false
+            playbackError = error.localizedDescription
+        }
+    }
+
+    func reloadPreviewPreservingPosition(
+        for project: PortastudioProject,
+        trackVolumeOverrides: [Int: Double] = [:],
+        trackPanOverrides: [Int: Double] = [:],
+        trackMuteOverrides: [Int: Bool] = [:],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
+    ) {
+        let preservedElapsedSeconds = elapsedSeconds
+        elapsedTask?.cancel()
+        elapsedTask = nil
+        engine.stop()
+        self.trackVolumeOverrides = trackVolumeOverrides
+        self.trackPanOverrides = trackPanOverrides
+        self.trackMuteOverrides = trackMuteOverrides
+
+        do {
+            try startEngine(
+                for: project,
+                trackVolumeOverrides: trackVolumeOverrides,
+                trackPanOverrides: trackPanOverrides,
+                trackMuteOverrides: trackMuteOverrides,
+                selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs,
+                startingAt: preservedElapsedSeconds
+            )
+            isPlaying = true
+            elapsedSeconds = preservedElapsedSeconds
+            playbackError = nil
+            startElapsedTimer(startingAt: preservedElapsedSeconds)
+        } catch {
+            isPlaying = false
+            elapsedSeconds = preservedElapsedSeconds
             playbackError = error.localizedDescription
         }
     }
@@ -191,14 +213,47 @@ final class PreviewPlaybackController {
         outputMeterLevels = .silence
     }
 
-    private func startElapsedTimer() {
+    private func startEngine(
+        for project: PortastudioProject,
+        trackVolumeOverrides: [Int: Double],
+        trackPanOverrides: [Int: Double],
+        trackMuteOverrides: [Int: Bool],
+        selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID],
+        startingAt elapsedSeconds: Double
+    ) throws {
+        try engine.startPreview(
+            for: project,
+            trackVolumeOverrides: trackVolumeOverrides,
+            trackPanOverrides: trackPanOverrides,
+            trackMuteOverrides: trackMuteOverrides,
+            selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs,
+            startingAt: elapsedSeconds,
+            onTrackLevelChanged: { [weak self] trackNumber, level in
+                Task { @MainActor [weak self] in
+                    let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
+                    self?.trackMeterLevels[channelTrackNumber] = level
+                }
+            },
+            onOutputLevelChanged: { [weak self] levels in
+                Task { @MainActor [weak self] in
+                    self?.outputMeterLevels = levels
+                }
+            }
+        ) { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.handlePlaybackCompleted()
+            }
+        }
+    }
+
+    private func startElapsedTimer(startingAt elapsedOffset: Double) {
         elapsedTask?.cancel()
         let startTime = Date()
         elapsedTask = Task { @MainActor in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(50))
                 guard !Task.isCancelled else { break }
-                self.elapsedSeconds = Date().timeIntervalSince(startTime)
+                self.elapsedSeconds = elapsedOffset + Date().timeIntervalSince(startTime)
             }
         }
     }

@@ -126,6 +126,35 @@ struct PreviewPlaybackControllerTests {
         #expect(engine.lastStartTrackPanOverrides?[1] == -0.25)
         #expect(engine.lastStartTrackMuteOverrides?[1] == true)
         #expect(engine.lastStartSelectedVirtualTrackOptionIDs?[1] == "track1#zz0000_2.wav")
+        #expect(engine.lastStartStartingAt == 0)
+    }
+
+    @Test func reloadPreviewPreservingPositionForwardsCurrentElapsedTime() async throws {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        for _ in 0..<10 where controller.elapsedSeconds == 0 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let elapsedBeforeReload = controller.elapsedSeconds
+
+        controller.reloadPreviewPreservingPosition(
+            for: sampleProject,
+            trackVolumeOverrides: [1: 0.5],
+            trackPanOverrides: [1: 0.25],
+            trackMuteOverrides: [1: false],
+            selectedVirtualTrackOptionIDs: [1: "track1#zz0000_2.wav"]
+        )
+
+        #expect(elapsedBeforeReload > 0)
+        #expect(engine.lastStartStartingAt ?? 0 >= elapsedBeforeReload)
+        #expect(controller.elapsedSeconds >= elapsedBeforeReload)
+        #expect(engine.lastStartTrackVolumeOverrides?[1] == 0.5)
+        #expect(engine.lastStartTrackPanOverrides?[1] == 0.25)
+        #expect(engine.lastStartTrackMuteOverrides?[1] == false)
+        #expect(engine.lastStartSelectedVirtualTrackOptionIDs?[1] == "track1#zz0000_2.wav")
+        controller.stop()
     }
 
     @Test func setTrackPanUpdatesEngineDuringActivePlayback() {
@@ -224,6 +253,7 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
     var lastStartTrackPanOverrides: [Int: Double]?
     var lastStartTrackMuteOverrides: [Int: Bool]?
     var lastStartSelectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID]?
+    var lastStartStartingAt: Double?
     var lastUpdatedPanTrackNumber: Int?
     var lastUpdatedPanPosition: Double?
     var lastUpdatedMuteTrackNumber: Int?
@@ -236,6 +266,7 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
         trackPanOverrides: [Int: Double],
         trackMuteOverrides: [Int: Bool],
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID],
+        startingAt elapsedSeconds: Double,
         onTrackLevelChanged: @escaping @Sendable (Int, Double) -> Void,
         onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void,
         onPlaybackCompleted: @escaping () -> Void
@@ -244,6 +275,7 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
         self.lastStartTrackPanOverrides = trackPanOverrides
         self.lastStartTrackMuteOverrides = trackMuteOverrides
         self.lastStartSelectedVirtualTrackOptionIDs = selectedVirtualTrackOptionIDs
+        self.lastStartStartingAt = elapsedSeconds
         if let outputLevelsToEmitOnStart {
             onOutputLevelChanged(outputLevelsToEmitOnStart)
         }

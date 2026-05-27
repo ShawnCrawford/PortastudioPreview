@@ -34,7 +34,8 @@ struct ProjectDetailView: View {
             playAction: playPreview,
             stopAction: stopPreview,
             resetSelectedAction: resetSelectedChannel,
-            resetAllAction: resetAllMix
+            resetAllAction: resetAllMix,
+            reloadPlaybackPreservingPositionAction: reloadPreviewPreservingPosition
         )
         .navigationTitle(annotationStore.annotationContext?.effectiveDisplayName ?? project.folderName)
         .toolbar {
@@ -119,6 +120,16 @@ struct ProjectDetailView: View {
 
     private func stopPreview() {
         playbackController.stop()
+    }
+
+    private func reloadPreviewPreservingPosition() {
+        playbackController.reloadPreviewPreservingPosition(
+            for: project,
+            trackVolumeOverrides: mixState.trackVolumeOverrides,
+            trackPanOverrides: mixState.trackPanOverrides,
+            trackMuteOverrides: mixState.effectiveTrackMuteOverrides,
+            selectedVirtualTrackOptionIDs: selectedVirtualTrackIDs
+        )
     }
 
     private func toggleMuteSelected() {
