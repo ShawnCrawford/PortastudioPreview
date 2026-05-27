@@ -74,62 +74,54 @@ private struct ProjectHeaderView: View {
     }
 
     var body: some View {
-        HStack(spacing: 20) {
-            ProjectGlyphView()
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 20) {
+                HeaderIdentityView(summary: summary)
+                    .frame(minWidth: 260, maxWidth: .infinity, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(summary.title)
-                    .font(.title2)
-                    .bold()
-                    .lineLimit(1)
+                HeaderTransportControls(
+                    playbackController: playbackController,
+                    canPlay: canPlay,
+                    playAction: playAction,
+                    stopAction: stopAction
+                )
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(summary.metadataLine)
-                    Text("\(summary.deviceContext) · \(summary.formatLabel)")
+                HeaderTimeView(elapsedLabel: elapsedLabel, durationLabel: summary.durationLabel)
+                    .frame(width: 132, alignment: .trailing)
+
+                PreviewActivityMeter(playbackController: playbackController)
+                    .frame(width: 180)
+
+                HeaderIssueStatusView(summary: summary, playbackError: playbackController.playbackError)
+                    .frame(width: 190, alignment: .leading)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 14) {
+                    HeaderIdentityView(summary: summary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HeaderIssueStatusView(summary: summary, playbackError: playbackController.playbackError)
+                        .frame(minWidth: 150, alignment: .leading)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-            .frame(minWidth: 260, maxWidth: .infinity, alignment: .leading)
 
-            HeaderTransportControls(
-                playbackController: playbackController,
-                canPlay: canPlay,
-                playAction: playAction,
-                stopAction: stopAction
-            )
+                HStack(spacing: 18) {
+                    HeaderTransportControls(
+                        playbackController: playbackController,
+                        canPlay: canPlay,
+                        playAction: playAction,
+                        stopAction: stopAction
+                    )
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(elapsedLabel)
-                    .font(.system(.title3, design: .monospaced))
-                    .contentTransition(.numericText())
-                Text(summary.durationLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 132, alignment: .trailing)
+                    Spacer(minLength: 12)
 
-            PreviewActivityMeter(playbackController: playbackController)
-                .frame(width: 180)
+                    HeaderTimeView(elapsedLabel: elapsedLabel, durationLabel: summary.durationLabel)
+                        .frame(width: 96, alignment: .trailing)
 
-            VStack(alignment: .leading, spacing: 4) {
-                if let error = playbackController.playbackError {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                        .accessibilityLabel("Playback error: \(error)")
-                } else {
-                    if let issueLabel = summary.issueLabel {
-                        Label(issueLabel, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
-                    }
-                    if let unavailable = summary.previewUnavailableLabel {
-                        Label(unavailable, systemImage: "waveform.slash")
-                            .foregroundStyle(.secondary)
-                    }
+                    PreviewActivityMeter(playbackController: playbackController)
+                        .frame(width: 180)
                 }
             }
-            .font(.caption)
-            .frame(width: 190, alignment: .leading)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
@@ -142,6 +134,75 @@ private struct ProjectHeaderView: View {
         )
     }
 
+}
+
+private struct HeaderIdentityView: View {
+    let summary: ProjectHeaderSummary
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ProjectGlyphView()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(summary.title)
+                    .font(.title2)
+                    .bold()
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(summary.metadataLine)
+                    Text("\(summary.deviceContext) · \(summary.formatLabel)")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct HeaderTimeView: View {
+    let elapsedLabel: String
+    let durationLabel: String
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(elapsedLabel)
+                .font(.system(.title3, design: .monospaced))
+                .contentTransition(.numericText())
+            Text(durationLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct HeaderIssueStatusView: View {
+    let summary: ProjectHeaderSummary
+    let playbackError: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let playbackError {
+                Label(playbackError, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("Playback error: \(playbackError)")
+            } else {
+                if let issueLabel = summary.issueLabel {
+                    Label(issueLabel, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                }
+                if let unavailable = summary.previewUnavailableLabel {
+                    Label(unavailable, systemImage: "waveform.slash")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .font(.caption)
+        .lineLimit(1)
+    }
 }
 
 private struct ProjectGlyphView: View {
@@ -354,10 +415,12 @@ struct TrackMixerDeckView: View {
     }
 
     private func stripHeight(availableHeight: CGFloat) -> CGFloat {
-        max(
-            MixerDeckMetrics.minimumStripHeight,
-            availableHeight - (MixerDeckMetrics.channelVerticalPadding * 2)
-        )
+        let fittedHeight = max(0, availableHeight - (MixerDeckMetrics.channelVerticalPadding * 2))
+        guard fittedHeight >= MixerDeckMetrics.minimumStripHeight else {
+            return max(MixerDeckMetrics.compactMinimumStripHeight, fittedHeight)
+        }
+
+        return fittedHeight
     }
 }
 
@@ -367,6 +430,7 @@ private enum MixerDeckMetrics {
     static let stripSpacing: CGFloat = 18
     static let stripWidth: CGFloat = 148
     static let minimumStripHeight: CGFloat = 390
+    static let compactMinimumStripHeight: CGFloat = 300
 }
 
 private struct TrackMixerStripView: View {
@@ -590,6 +654,7 @@ private struct PanControlView: View {
         }
         .frame(width: 72, height: 16)
         .accessibilityLabel("Pan")
+        .accessibilityValue(PanMapper.previewDisplayValue(forNormalizedPosition: value))
         .accessibilityAdjustableAction { direction in
             onSelect()
             switch direction {
@@ -665,6 +730,8 @@ private struct FaderTrackView: View {
             )
         }
         .frame(width: 34)
+        .accessibilityLabel("Level")
+        .accessibilityValue(LevelMapper.previewDisplayValue(forNormalizedPosition: value))
         .accessibilityAdjustableAction { direction in
             onSelect()
             switch direction {
