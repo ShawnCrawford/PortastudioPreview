@@ -138,6 +138,14 @@ final class StereoPreviewEngine {
         playerNodes.forEach { $0.play() }
     }
 
+    func pause() {
+        playerNodes.forEach { $0.pause() }
+    }
+
+    func resume() {
+        playerNodes.forEach { $0.play() }
+    }
+
     func stop() {
         if let activePlaybackID {
             completionCoordinator.invalidate(playbackID: activePlaybackID)

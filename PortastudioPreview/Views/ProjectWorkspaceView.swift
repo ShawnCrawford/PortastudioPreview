@@ -228,19 +228,22 @@ private struct HeaderTransportControls: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Button("Play Preview", systemImage: "play.fill") {
+            Button(
+                playbackController.isPlaying ? "Pause Preview" : "Play Preview",
+                systemImage: playbackController.isPlaying ? "pause.fill" : "play.fill"
+            ) {
                 playAction()
             }
             .buttonStyle(.borderedProminent)
-            .disabled(playbackController.isPlaying || !canPlay)
-            .help("Play song preview")
-            .accessibilityLabel("Play song preview")
+            .disabled(!canPlay)
+            .help(playbackController.isPlaying ? "Pause song preview" : "Play song preview")
+            .accessibilityLabel(playbackController.isPlaying ? "Pause song preview" : "Play song preview")
 
             Button("Stop Preview", systemImage: "stop.fill") {
                 stopAction()
             }
             .buttonStyle(.bordered)
-            .disabled(!playbackController.isPlaying)
+            .disabled(!playbackController.canStop)
             .help("Stop playback")
             .accessibilityLabel("Stop playback")
         }

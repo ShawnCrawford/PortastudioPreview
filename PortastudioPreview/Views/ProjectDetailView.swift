@@ -31,7 +31,7 @@ struct ProjectDetailView: View {
             playbackController: playbackController,
             mixState: mixState,
             selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
-            playAction: playPreview,
+            playAction: playPausePreview,
             stopAction: stopPreview,
             resetSelectedAction: resetSelectedChannel,
             resetAllAction: resetAllMix,
@@ -97,7 +97,7 @@ struct ProjectDetailView: View {
     private var mixerCommandActions: MixerCommandActions {
         MixerCommandActions(
             canPlay: canPlay && !playbackController.isPlaying,
-            canStop: playbackController.isPlaying,
+            canStop: playbackController.canStop,
             hasSelectedChannel: selectedTrackID != nil,
             play: playPreview,
             stop: stopPreview,
@@ -106,6 +106,14 @@ struct ProjectDetailView: View {
             resetSelected: resetSelectedChannel,
             resetAll: resetAllMix
         )
+    }
+
+    private func playPausePreview() {
+        if playbackController.isPlaying {
+            playbackController.pause()
+        } else {
+            playPreview()
+        }
     }
 
     private func playPreview() {

@@ -15,7 +15,10 @@ struct PreviewPlaybackControllerTests {
     @Test func initialStateIsIdle() {
         let controller = PreviewPlaybackController()
 
+        #expect(controller.playbackState == .idle)
         #expect(!controller.isPlaying)
+        #expect(!controller.isPaused)
+        #expect(!controller.canStop)
         #expect(controller.elapsedSeconds == 0)
         #expect(controller.playbackError == nil)
         #expect(controller.trackMeterLevel(for: 1) == 0)
@@ -127,6 +130,7 @@ struct PreviewPlaybackControllerTests {
         #expect(engine.lastStartTrackMuteOverrides?[1] == true)
         #expect(engine.lastStartSelectedVirtualTrackOptionIDs?[1] == "track1#zz0000_2.wav")
         #expect(engine.lastStartStartingAt == 0)
+        #expect(controller.playbackState == .playing)
     }
 
     @Test func reloadPreviewPreservingPositionForwardsCurrentElapsedTime() async throws {
@@ -155,6 +159,113 @@ struct PreviewPlaybackControllerTests {
         #expect(engine.lastStartTrackMuteOverrides?[1] == false)
         #expect(engine.lastStartSelectedVirtualTrackOptionIDs?[1] == "track1#zz0000_2.wav")
         controller.stop()
+    }
+
+    @Test func pausePreservesElapsedTimeAndUpdatesState() async throws {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        for _ in 0..<10 where controller.elapsedSeconds == 0 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
+        controller.pause()
+        let pausedElapsedSeconds = controller.elapsedSeconds
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(engine.pauseCallCount == 1)
+        #expect(controller.playbackState == .paused)
+        #expect(controller.isPaused)
+        #expect(!controller.isPlaying)
+        #expect(controller.canStop)
+        #expect(controller.elapsedSeconds == pausedElapsedSeconds)
+    }
+
+    @Test func startPreviewWhilePausedResumesWithoutResettingElapsedTime() async throws {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        for _ in 0..<10 where controller.elapsedSeconds == 0 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        controller.pause()
+        let pausedElapsedSeconds = controller.elapsedSeconds
+
+        controller.startPreview(for: sampleProject)
+
+        #expect(engine.resumeCallCount == 1)
+        #expect(engine.startCallCount == 1)
+        #expect(controller.playbackState == .playing)
+        #expect(controller.elapsedSeconds >= pausedElapsedSeconds)
+        controller.stop()
+    }
+
+    @Test func stopAfterPauseResetsElapsedTimeToZero() async throws {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        for _ in 0..<10 where controller.elapsedSeconds == 0 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        controller.pause()
+
+        controller.stop()
+
+        #expect(engine.stopCallCount == 1)
+        #expect(controller.playbackState == .idle)
+        #expect(controller.elapsedSeconds == 0)
+        #expect(!controller.canStop)
+    }
+
+    @Test func playbackCompletionResetsToIdleAndZeroElapsed() async throws {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        for _ in 0..<10 where controller.elapsedSeconds == 0 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
+        engine.completePlayback()
+        await Task.yield()
+
+        #expect(controller.playbackState == .idle)
+        #expect(controller.elapsedSeconds == 0)
+        #expect(!controller.canStop)
+        #expect(controller.outputMeterLevels == .silence)
+    }
+
+    @Test func reloadPreviewWhilePausedPreservesPositionAndPausedState() async throws {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        for _ in 0..<10 where controller.elapsedSeconds == 0 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        controller.pause()
+        let pausedElapsedSeconds = controller.elapsedSeconds
+
+        controller.reloadPreviewPreservingPosition(
+            for: sampleProject,
+            trackVolumeOverrides: [1: 0.5],
+            trackPanOverrides: [1: 0.25],
+            trackMuteOverrides: [1: false],
+            selectedVirtualTrackOptionIDs: [1: "track1#zz0000_2.wav"]
+        )
+
+        #expect(controller.playbackState == .paused)
+        #expect(controller.elapsedSeconds == pausedElapsedSeconds)
+        #expect(engine.stopCallCount == 1)
+        #expect(engine.pauseCallCount == 2)
+        #expect(engine.lastStartStartingAt == pausedElapsedSeconds)
+        #expect(engine.lastStartTrackVolumeOverrides?[1] == 0.5)
+        #expect(engine.lastStartTrackPanOverrides?[1] == 0.25)
+        #expect(engine.lastStartTrackMuteOverrides?[1] == false)
+        #expect(engine.lastStartSelectedVirtualTrackOptionIDs?[1] == "track1#zz0000_2.wav")
     }
 
     @Test func setTrackPanUpdatesEngineDuringActivePlayback() {
@@ -249,6 +360,10 @@ struct PreviewPlaybackControllerTests {
 }
 
 private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
+    var startCallCount = 0
+    var pauseCallCount = 0
+    var resumeCallCount = 0
+    var stopCallCount = 0
     var lastStartTrackVolumeOverrides: [Int: Double]?
     var lastStartTrackPanOverrides: [Int: Double]?
     var lastStartTrackMuteOverrides: [Int: Bool]?
@@ -259,6 +374,7 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
     var lastUpdatedMuteTrackNumber: Int?
     var lastUpdatedMuteState: Bool?
     var outputLevelsToEmitOnStart: StereoMeterLevels?
+    private var onPlaybackCompleted: (() -> Void)?
 
     func startPreview(
         for project: PortastudioProject,
@@ -271,17 +387,29 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
         onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws {
+        startCallCount += 1
         self.lastStartTrackVolumeOverrides = trackVolumeOverrides
         self.lastStartTrackPanOverrides = trackPanOverrides
         self.lastStartTrackMuteOverrides = trackMuteOverrides
         self.lastStartSelectedVirtualTrackOptionIDs = selectedVirtualTrackOptionIDs
         self.lastStartStartingAt = elapsedSeconds
+        self.onPlaybackCompleted = onPlaybackCompleted
         if let outputLevelsToEmitOnStart {
             onOutputLevelChanged(outputLevelsToEmitOnStart)
         }
     }
 
-    func stop() {}
+    func pause() {
+        pauseCallCount += 1
+    }
+
+    func resume() {
+        resumeCallCount += 1
+    }
+
+    func stop() {
+        stopCallCount += 1
+    }
 
     func updateTrackVolume(trackNumber: Int, levelPosition: Double) {}
 
@@ -293,5 +421,9 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
     func updateTrackMute(trackNumber: Int, isMuted: Bool) {
         lastUpdatedMuteTrackNumber = trackNumber
         lastUpdatedMuteState = isMuted
+    }
+
+    func completePlayback() {
+        onPlaybackCompleted?()
     }
 }

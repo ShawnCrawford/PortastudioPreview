@@ -17,19 +17,28 @@ struct PreviewTransportView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 Button {
-                    playbackController.startPreview(for: project)
+                    if playbackController.isPlaying {
+                        playbackController.pause()
+                    } else {
+                        playbackController.startPreview(for: project)
+                    }
                 } label: {
-                    Label(playbackController.isPlaying ? "Playing…" : "Play", systemImage: "play.fill")
+                    Label(
+                        playbackController.isPlaying ? "Pause" : "Play",
+                        systemImage: playbackController.isPlaying ? "pause.fill" : "play.fill"
+                    )
                 }
-                .disabled(playbackController.isPlaying || !canPlay)
-                .accessibilityLabel(playbackController.isPlaying ? "Playback in progress" : "Play approximate stereo preview")
+                .disabled(!canPlay)
+                .accessibilityLabel(
+                    playbackController.isPlaying ? "Pause approximate stereo preview" : "Play approximate stereo preview"
+                )
 
                 Button {
                     playbackController.stop()
                 } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
-                .disabled(!playbackController.isPlaying)
+                .disabled(!playbackController.canStop)
                 .accessibilityLabel("Stop playback")
             }
 

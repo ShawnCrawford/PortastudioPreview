@@ -18,6 +18,8 @@ protocol PreviewPlaybackEngineProtocol {
         onOutputLevelChanged: @escaping @Sendable (StereoMeterLevels) -> Void,
         onPlaybackCompleted: @escaping () -> Void
     ) throws
+    func pause()
+    func resume()
     func stop()
     func updateTrackVolume(trackNumber: Int, levelPosition: Double)
     func updateTrackPan(trackNumber: Int, panPosition: Double)
@@ -36,9 +38,15 @@ struct StereoMeterLevels: Equatable, Sendable {
     }
 }
 
+enum PreviewPlaybackState: Equatable {
+    case idle
+    case playing
+    case paused
+}
+
 /// Shared transport model for approximate stereo preview playback.
 ///
-/// Owns `StereoPreviewEngine` and provides `isPlaying` and `elapsedSeconds`
+/// Owns `StereoPreviewEngine` and provides playback state and `elapsedSeconds`
 /// for workspace transport display.
 /// Create one instance per selected-song workspace lifetime.
 @Observable
@@ -46,7 +54,7 @@ struct StereoMeterLevels: Equatable, Sendable {
 final class PreviewPlaybackController {
 
     private let engine: any PreviewPlaybackEngineProtocol
-    private(set) var isPlaying = false
+    private(set) var playbackState: PreviewPlaybackState = .idle
     private(set) var elapsedSeconds: Double = 0
     private(set) var playbackError: String?
     private(set) var trackMeterLevels: [Int: Double] = [:]
@@ -62,6 +70,18 @@ final class PreviewPlaybackController {
 
     init(engine: any PreviewPlaybackEngineProtocol) {
         self.engine = engine
+    }
+
+    var isPlaying: Bool {
+        playbackState == .playing
+    }
+
+    var isPaused: Bool {
+        playbackState == .paused
+    }
+
+    var canStop: Bool {
+        playbackState != .idle
     }
 
     func canPlay(
@@ -81,10 +101,20 @@ final class PreviewPlaybackController {
         trackMuteOverrides: [Int: Bool] = [:],
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) {
-        stop()
+        switch playbackState {
+        case .playing:
+            return
+        case .paused:
+            resume()
+            return
+        case .idle:
+            break
+        }
+
         self.trackVolumeOverrides = trackVolumeOverrides
         self.trackPanOverrides = trackPanOverrides
         self.trackMuteOverrides = trackMuteOverrides
+        let startOffset = elapsedSeconds
         do {
             try startEngine(
                 for: project,
@@ -92,13 +122,13 @@ final class PreviewPlaybackController {
                 trackPanOverrides: trackPanOverrides,
                 trackMuteOverrides: trackMuteOverrides,
                 selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs,
-                startingAt: 0
+                startingAt: startOffset
             )
-            isPlaying = true
+            playbackState = .playing
             playbackError = nil
-            startElapsedTimer(startingAt: 0)
+            startElapsedTimer(startingAt: startOffset)
         } catch {
-            isPlaying = false
+            playbackState = .idle
             playbackError = error.localizedDescription
         }
     }
@@ -111,6 +141,7 @@ final class PreviewPlaybackController {
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) {
         let preservedElapsedSeconds = elapsedSeconds
+        let wasPaused = playbackState == .paused
         elapsedTask?.cancel()
         elapsedTask = nil
         engine.stop()
@@ -127,22 +158,51 @@ final class PreviewPlaybackController {
                 selectedVirtualTrackOptionIDs: selectedVirtualTrackOptionIDs,
                 startingAt: preservedElapsedSeconds
             )
-            isPlaying = true
+            if wasPaused {
+                engine.pause()
+                playbackState = .paused
+            } else {
+                playbackState = .playing
+                startElapsedTimer(startingAt: preservedElapsedSeconds)
+            }
             elapsedSeconds = preservedElapsedSeconds
             playbackError = nil
-            startElapsedTimer(startingAt: preservedElapsedSeconds)
         } catch {
-            isPlaying = false
+            playbackState = .idle
             elapsedSeconds = preservedElapsedSeconds
             playbackError = error.localizedDescription
         }
+    }
+
+    func pause() {
+        guard playbackState == .playing else {
+            return
+        }
+
+        elapsedTask?.cancel()
+        elapsedTask = nil
+        engine.pause()
+        playbackState = .paused
+        trackMeterLevels = [:]
+        outputMeterLevels = .silence
+    }
+
+    func resume() {
+        guard playbackState == .paused else {
+            return
+        }
+
+        engine.resume()
+        playbackState = .playing
+        playbackError = nil
+        startElapsedTimer(startingAt: elapsedSeconds)
     }
 
     func stop() {
         elapsedTask?.cancel()
         elapsedTask = nil
         engine.stop()
-        isPlaying = false
+        playbackState = .idle
         elapsedSeconds = 0
         playbackError = nil
         trackMeterLevels = [:]
@@ -207,7 +267,7 @@ final class PreviewPlaybackController {
     private func handlePlaybackCompleted() {
         elapsedTask?.cancel()
         elapsedTask = nil
-        isPlaying = false
+        playbackState = .idle
         elapsedSeconds = 0
         trackMeterLevels = [:]
         outputMeterLevels = .silence
