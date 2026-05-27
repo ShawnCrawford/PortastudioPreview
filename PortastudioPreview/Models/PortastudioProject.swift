@@ -30,9 +30,7 @@ struct PortastudioProject: Sendable {
             guard !members.isEmpty else {
                 return nil
             }
-
-            let channel = MixerChannel(leadingTrackNumber: leadingTrackNumber, memberTracks: members)
-            return channel.isActiveTrackCandidate ? channel : nil
+            return MixerChannel(leadingTrackNumber: leadingTrackNumber, memberTracks: members)
         }
     }
 }

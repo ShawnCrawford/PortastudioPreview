@@ -14,7 +14,7 @@ struct TrackAnnotationStoreTests {
     // MARK: - Helpers
 
     private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self, TrackAnnotationRecord.self])
+        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self, TrackAnnotationRecord.self, MixOverrideRecord.self])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: config)
     }

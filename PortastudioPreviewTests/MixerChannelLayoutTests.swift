@@ -31,4 +31,10 @@ struct MixerChannelLayoutTests {
         #expect(MixerChannelLayout.mirrorBankLogicalIndex(forTrackNumber: 31) == 19)
         #expect(MixerChannelLayout.mirrorBankLogicalIndex(forTrackNumber: 32) == 19)
     }
+
+    @Test func fullLogicalMixerLayoutHasEightMonoAndTwelveStereoPairChannels() {
+        #expect(MixerChannelLayout.allLeadingTrackNumbers.count == 20)
+        #expect(Array(MixerChannelLayout.allLeadingTrackNumbers.prefix(8)) == Array(1...8))
+        #expect(Array(MixerChannelLayout.allLeadingTrackNumbers.suffix(12)) == [9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31])
+    }
 }

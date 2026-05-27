@@ -11,7 +11,12 @@ import SwiftData
 @main
 struct PortastudioPreviewApp: App {
     let container: ModelContainer = {
-        let schema = Schema([LibrarySourceRecord.self, LibrarySongRecord.self, TrackAnnotationRecord.self])
+        let schema = Schema([
+            LibrarySourceRecord.self,
+            LibrarySongRecord.self,
+            TrackAnnotationRecord.self,
+            MixOverrideRecord.self
+        ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
             return try ModelContainer(for: schema, configurations: config)
@@ -34,6 +39,7 @@ struct PortastudioPreviewApp: App {
 struct ProjectCommands: Commands {
     @FocusedValue(\.openProjectAction) private var openProjectAction
     @FocusedValue(\.addSourceAction) private var addSourceAction
+    @FocusedValue(\.mixerCommandActions) private var mixerCommandActions
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -49,7 +55,61 @@ struct ProjectCommands: Commands {
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .disabled(addSourceAction == nil)
         }
+
+        CommandMenu("Mixer") {
+            Button("Play Preview") {
+                mixerCommandActions?.play()
+            }
+            .keyboardShortcut(.space, modifiers: [])
+            .disabled(mixerCommandActions?.canPlay != true)
+
+            Button("Stop Preview") {
+                mixerCommandActions?.stop()
+            }
+            .keyboardShortcut(".", modifiers: [.command])
+            .disabled(mixerCommandActions?.canStop != true)
+
+            Divider()
+
+            Button("Mute Selected Channel") {
+                mixerCommandActions?.toggleMuteSelected()
+            }
+            .keyboardShortcut("m", modifiers: [.command])
+            .disabled(mixerCommandActions?.hasSelectedChannel != true)
+
+            Button("Solo Selected Channel") {
+                mixerCommandActions?.toggleSoloSelected()
+            }
+            .keyboardShortcut("s", modifiers: [.command])
+            .disabled(mixerCommandActions?.hasSelectedChannel != true)
+
+            Divider()
+
+            Button("Reset Selected Channel") {
+                mixerCommandActions?.resetSelected()
+            }
+            .keyboardShortcut("r", modifiers: [.command])
+            .disabled(mixerCommandActions?.hasSelectedChannel != true)
+
+            Button("Reset All Mix") {
+                mixerCommandActions?.resetAll()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(mixerCommandActions == nil)
+        }
     }
+}
+
+struct MixerCommandActions {
+    let canPlay: Bool
+    let canStop: Bool
+    let hasSelectedChannel: Bool
+    let play: () -> Void
+    let stop: () -> Void
+    let toggleMuteSelected: () -> Void
+    let toggleSoloSelected: () -> Void
+    let resetSelected: () -> Void
+    let resetAll: () -> Void
 }
 
 private struct OpenProjectActionKey: FocusedValueKey {
@@ -58,6 +118,10 @@ private struct OpenProjectActionKey: FocusedValueKey {
 
 private struct AddSourceActionKey: FocusedValueKey {
     typealias Value = () -> Void
+}
+
+private struct MixerCommandActionsKey: FocusedValueKey {
+    typealias Value = MixerCommandActions
 }
 
 extension FocusedValues {
@@ -69,5 +133,10 @@ extension FocusedValues {
     var addSourceAction: (() -> Void)? {
         get { self[AddSourceActionKey.self] }
         set { self[AddSourceActionKey.self] = newValue }
+    }
+
+    var mixerCommandActions: MixerCommandActions? {
+        get { self[MixerCommandActionsKey.self] }
+        set { self[MixerCommandActionsKey.self] = newValue }
     }
 }

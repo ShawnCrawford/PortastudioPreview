@@ -12,6 +12,10 @@ struct ProjectWorkspaceView: View {
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    let playAction: () -> Void
+    let stopAction: () -> Void
+    let resetSelectedAction: () -> Void
+    let resetAllAction: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,7 +24,9 @@ struct ProjectWorkspaceView: View {
                 annotationStore: annotationStore,
                 playbackController: playbackController,
                 mixState: mixState,
-                selectedVirtualTrackIDs: selectedVirtualTrackIDs
+                selectedVirtualTrackIDs: selectedVirtualTrackIDs,
+                playAction: playAction,
+                stopAction: stopAction
             )
 
             Divider()
@@ -30,7 +36,11 @@ struct ProjectWorkspaceView: View {
                 selectedTrackID: $selectedTrackID,
                 annotationStore: annotationStore,
                 playbackController: playbackController,
-                mixState: mixState
+                mixState: mixState,
+                selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+                resetSelectedAction: resetSelectedAction,
+                resetAllAction: resetAllAction,
+                restartPlaybackIfNeeded: playAction
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("editor-surface-mixer")
@@ -49,6 +59,8 @@ private struct ProjectHeaderView: View {
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    let playAction: () -> Void
+    let stopAction: () -> Void
 
     private var summary: ProjectHeaderSummary {
         ProjectHeaderSummary(
@@ -81,11 +93,10 @@ private struct ProjectHeaderView: View {
             .frame(minWidth: 260, maxWidth: .infinity, alignment: .leading)
 
             HeaderTransportControls(
-                project: project,
                 playbackController: playbackController,
-                mixState: mixState,
-                selectedVirtualTrackIDs: selectedVirtualTrackIDs,
-                canPlay: canPlay
+                canPlay: canPlay,
+                playAction: playAction,
+                stopAction: stopAction
             )
 
             VStack(alignment: .trailing, spacing: 2) {
@@ -148,22 +159,15 @@ private struct ProjectGlyphView: View {
 }
 
 private struct HeaderTransportControls: View {
-    let project: PortastudioProject
     let playbackController: PreviewPlaybackController
-    let mixState: PreviewMixState
-    let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let canPlay: Bool
+    let playAction: () -> Void
+    let stopAction: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
             Button("Play Preview", systemImage: "play.fill") {
-                playbackController.startPreview(
-                    for: project,
-                    trackVolumeOverrides: mixState.trackVolumeOverrides,
-                    trackPanOverrides: mixState.trackPanOverrides,
-                    trackMuteOverrides: mixState.trackMuteOverrides,
-                    selectedVirtualTrackOptionIDs: selectedVirtualTrackIDs
-                )
+                playAction()
             }
             .buttonStyle(.borderedProminent)
             .disabled(playbackController.isPlaying || !canPlay)
@@ -171,7 +175,7 @@ private struct HeaderTransportControls: View {
             .accessibilityLabel("Play song preview")
 
             Button("Stop Preview", systemImage: "stop.fill") {
-                playbackController.stop()
+                stopAction()
             }
             .buttonStyle(.bordered)
             .disabled(!playbackController.isPlaying)
@@ -244,6 +248,10 @@ struct TrackMixerDeckView: View {
     let annotationStore: TrackAnnotationStore
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
+    @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    let resetSelectedAction: () -> Void
+    let resetAllAction: () -> Void
+    let restartPlaybackIfNeeded: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -254,6 +262,16 @@ struct TrackMixerDeckView: View {
                 Text("\(channels.count) track\(channels.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Button("Reset Selected", systemImage: "arrow.counterclockwise") {
+                    resetSelectedAction()
+                }
+                .disabled(selectedTrackID == nil)
+                .help("Reset selected channel")
+
+                Button("Reset All", systemImage: "arrow.counterclockwise.circle") {
+                    resetAllAction()
+                }
+                .help("Reset all mix settings")
             }
             .padding(.horizontal, MixerDeckMetrics.edgePadding)
             .padding(.top, 18)
@@ -271,6 +289,9 @@ struct TrackMixerDeckView: View {
                                 panPositionOverride: mixState.panPosition(for: trackNumber),
                                 levelPositionOverride: mixState.levelPosition(for: trackNumber),
                                 muteOverride: mixState.isMuted(for: trackNumber),
+                                soloOverride: mixState.isSoloed(for: trackNumber),
+                                isEffectivelyMuted: mixState.isEffectivelyMuted(for: trackNumber),
+                                selectedVirtualTrackOptionID: mixState.selectedVirtualTrackOptionID(for: trackNumber),
                                 meterLevel: playbackController.trackMeterLevel(for: trackNumber)
                             )
                             TrackMixerStripView(
@@ -291,7 +312,20 @@ struct TrackMixerDeckView: View {
                                 setMuted: { isMuted in
                                     selectedTrackID = trackNumber
                                     mixState.setMuted(isMuted, for: trackNumber)
-                                    playbackController.setTrackMute(isMuted, for: trackNumber)
+                                    playbackController.applyTrackMutes(mixState.effectiveTrackMuteOverrides)
+                                },
+                                setSoloed: { isSoloed in
+                                    selectedTrackID = trackNumber
+                                    mixState.setSoloed(isSoloed, for: trackNumber)
+                                    playbackController.applyTrackMutes(mixState.effectiveTrackMuteOverrides)
+                                },
+                                setSelectedVirtualTrackOption: { selectedID in
+                                    selectedTrackID = trackNumber
+                                    selectedVirtualTrackIDs[trackNumber] = selectedID
+                                    mixState.setSelectedVirtualTrackOptionID(selectedID, for: trackNumber)
+                                    if playbackController.isPlaying {
+                                        restartPlaybackIfNeeded()
+                                    }
                                 }
                             )
                             .frame(
@@ -341,6 +375,8 @@ private struct TrackMixerStripView: View {
     let setLevelPosition: (Double) -> Void
     let setPanPosition: (Double) -> Void
     let setMuted: (Bool) -> Void
+    let setSoloed: (Bool) -> Void
+    let setSelectedVirtualTrackOption: (VirtualTrackOption.ID) -> Void
 
     private static let colors: [Color] = [
         .blue.opacity(0.75),
@@ -380,11 +416,37 @@ private struct TrackMixerStripView: View {
                     .foregroundStyle(.tertiary)
                 Text(presentation.candidateWAVLabel)
                     .font(.caption)
-                    .foregroundStyle(presentation.candidateWAVLabel == "No Audio File" ? .tertiary : .secondary)
+                    .foregroundStyle(presentation.hasResolvedAudio ? .secondary : .tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                Text(presentation.hasResolvedAudio ? "\(presentation.evidenceLabel) · \(presentation.virtualTakeLabel)" : "No audio")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
-            .frame(height: 30)
+            .frame(height: 44)
+
+            if presentation.virtualTrackOptions.count > 1 {
+                Picker("Virtual Take", selection: Binding(
+                    get: { presentation.selectedVirtualTrackOptionID ?? presentation.virtualTrackOptions[0].id },
+                    set: { selectedID in
+                        selectAction()
+                        setSelectedVirtualTrackOption(selectedID)
+                    }
+                )) {
+                    ForEach(presentation.virtualTrackOptions) { option in
+                        Text(option.takeLabel).tag(option.id)
+                    }
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .accessibilityLabel("Virtual take")
+            } else {
+                Text(presentation.virtualTakeLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(height: 22)
+            }
 
             HStack(spacing: 10) {
                 VStack(spacing: 4) {
@@ -420,6 +482,28 @@ private struct TrackMixerStripView: View {
                     .help(presentation.isMuted ? "Unmute track" : "Mute track")
                     .accessibilityValue(presentation.isMuted ? "On" : "Off")
                 }
+
+                VStack(spacing: 4) {
+                    Toggle(
+                        isOn: Binding(
+                            get: { presentation.isSoloed },
+                            set: { newValue in
+                                selectAction()
+                                setSoloed(newValue)
+                            }
+                        )
+                    ) {
+                        Label(
+                            "Solo",
+                            systemImage: presentation.isSoloed ? "headphones.circle.fill" : "headphones"
+                        )
+                    }
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .tint(.yellow)
+                    .help(presentation.isSoloed ? "Clear solo" : "Solo track")
+                    .accessibilityValue(presentation.isSoloed ? "On" : "Off")
+                }
             }
 
             HStack(alignment: .bottom, spacing: 10) {
@@ -430,7 +514,7 @@ private struct TrackMixerStripView: View {
                     onSelect: selectAction,
                     onValueChanged: setLevelPosition
                 )
-                OutputLevelView(value: presentation.isMuted ? 0 : presentation.meterLevel)
+                OutputLevelView(value: presentation.isEffectivelyMuted ? 0 : presentation.meterLevel)
             }
             .frame(minHeight: 220, maxHeight: .infinity)
 
@@ -456,7 +540,7 @@ private struct TrackMixerStripView: View {
         .contentShape(.rect)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Track \(presentation.trackNumberLabel), \(presentation.displayName)")
-        .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel)")
+        .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel), \(presentation.soloLabel)")
     }
 }
 

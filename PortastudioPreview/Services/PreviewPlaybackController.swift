@@ -163,6 +163,18 @@ final class PreviewPlaybackController {
         engine.updateTrackMute(trackNumber: channelTrackNumber, isMuted: isMuted)
     }
 
+    func applyTrackMutes(_ muteOverrides: [Int: Bool]) {
+        trackMuteOverrides = muteOverrides
+
+        guard isPlaying else {
+            return
+        }
+
+        for (trackNumber, isMuted) in muteOverrides {
+            engine.updateTrackMute(trackNumber: trackNumber, isMuted: isMuted)
+        }
+    }
+
     func trackMeterLevel(for trackNumber: Int) -> Double {
         let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
         return trackMeterLevels[channelTrackNumber] ?? 0

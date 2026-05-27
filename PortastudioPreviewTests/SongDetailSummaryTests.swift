@@ -29,7 +29,7 @@ struct SongDetailSummaryTests {
 
         let summary = SongDetailSummary(project: project)
 
-        #expect(summary.trackCount == 2)
+        #expect(summary.trackCount == 3)
         #expect(summary.assignedTrackCount == 2)
         #expect(summary.wavCount == 4)
         #expect(summary.validationIssueCount == 2)

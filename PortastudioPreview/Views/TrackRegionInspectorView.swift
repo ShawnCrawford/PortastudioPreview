@@ -11,6 +11,10 @@ struct TrackRegionInspectorView: View {
     let selectedTrack: TrackPreview?
     let selectedRegion: TimelineRegion?
     let annotationStore: TrackAnnotationStore
+    let mixState: PreviewMixState
+    let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    let resetSelectedAction: () -> Void
+    let resetAllAction: () -> Void
 
     private var summary: ProjectHeaderSummary {
         ProjectHeaderSummary(
@@ -30,9 +34,20 @@ struct TrackRegionInspectorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 SongInspectorSection(summary: summary, project: project)
-                SelectedTrackInspectorSection(track: selectedTrack, annotationStore: annotationStore)
+                SelectedTrackInspectorSection(
+                    track: selectedTrack,
+                    annotationStore: annotationStore,
+                    mixState: mixState,
+                    selectedVirtualTrackIDs: selectedVirtualTrackIDs
+                )
                 AudioFilesInspectorSection(project: project, selectedRegion: selectedRegion)
-                InspectorActionsSection(project: project, selectedAudioFileURL: selectedAudioFileURL)
+                InspectorActionsSection(
+                    project: project,
+                    selectedAudioFileURL: selectedAudioFileURL,
+                    canResetSelected: selectedTrack != nil,
+                    resetSelectedAction: resetSelectedAction,
+                    resetAllAction: resetAllAction
+                )
             }
             .padding(14)
         }
@@ -64,6 +79,8 @@ private struct SongInspectorSection: View {
 private struct SelectedTrackInspectorSection: View {
     let track: TrackPreview?
     let annotationStore: TrackAnnotationStore
+    let mixState: PreviewMixState
+    let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
 
     var body: some View {
         InspectorSectionCard(title: "Selected Track", systemImage: "slider.horizontal.3") {
@@ -84,6 +101,14 @@ private struct SelectedTrackInspectorSection: View {
                 InspectorInfoRow(label: "Pan", value: panValue(for: track))
                 InspectorInfoRow(label: "Level", value: levelValue(for: track))
                 InspectorInfoRow(label: "Mute", value: isMuted(track) ? "On" : "Off")
+                Divider()
+                InspectorInfoRow(label: "Saved Level", value: LevelMapper.previewDisplayValue(forNormalizedPosition: mixState.levelPosition(for: annotationTrackNumber)))
+                InspectorInfoRow(label: "Saved Pan", value: PanMapper.previewDisplayValue(forNormalizedPosition: mixState.panPosition(for: annotationTrackNumber)))
+                InspectorInfoRow(label: "Saved Mute", value: mixState.isMuted(for: annotationTrackNumber) ? "On" : "Off")
+                InspectorInfoRow(label: "Solo", value: mixState.isSoloed(for: annotationTrackNumber) ? "On" : "Off")
+                InspectorInfoRow(label: "Effective", value: mixState.isEffectivelyMuted(for: annotationTrackNumber) ? "Muted" : "Audible")
+                InspectorInfoRow(label: "WAV Evidence", value: selectedVirtualTrack(for: track)?.evidenceLevel.rawValue ?? track.candidateWAVEvidence.rawValue)
+                InspectorInfoRow(label: "Take", value: selectedVirtualTrack(for: track)?.takeLabel ?? track.defaultVirtualTrackOption?.takeLabel ?? "Default")
 
                 Divider()
                 TrackLabelEditorView(trackNumber: annotationTrackNumber, annotationStore: annotationStore)
@@ -107,6 +132,11 @@ private struct SelectedTrackInspectorSection: View {
 
     private func isMuted(_ track: TrackPreview) -> Bool {
         (track.mixerSetting?.mute?.primaryByte ?? 0) != 0
+    }
+
+    private func selectedVirtualTrack(for track: TrackPreview) -> VirtualTrackOption? {
+        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: track.trackNumber) ?? track.trackNumber
+        return track.selectedVirtualTrackOption(selectedOptionID: selectedVirtualTrackIDs[channelTrackNumber])
     }
 }
 
@@ -162,9 +192,25 @@ private struct AudioFilesInspectorSection: View {
 private struct InspectorActionsSection: View {
     let project: PortastudioProject
     let selectedAudioFileURL: URL?
+    let canResetSelected: Bool
+    let resetSelectedAction: () -> Void
+    let resetAllAction: () -> Void
 
     var body: some View {
         InspectorSectionCard(title: "Actions", systemImage: "ellipsis.circle") {
+            Button("Reset Selected Channel", systemImage: "arrow.counterclockwise") {
+                resetSelectedAction()
+            }
+            .buttonStyle(.bordered)
+            .disabled(!canResetSelected)
+
+            Button("Reset All Mix", systemImage: "arrow.counterclockwise.circle") {
+                resetAllAction()
+            }
+            .buttonStyle(.bordered)
+
+            Divider()
+
             Button("Reveal Song in Finder", systemImage: "folder") {
                 NSWorkspace.shared.activateFileViewerSelecting([project.folderURL])
             }

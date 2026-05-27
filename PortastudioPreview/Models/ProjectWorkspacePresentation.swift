@@ -86,9 +86,17 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
     let levelPosition: Double
     let meterLevel: Double
     let isMuted: Bool
+    let isSoloed: Bool
+    let isEffectivelyMuted: Bool
     let muteLabel: String
+    let soloLabel: String
     let isSelected: Bool
     let colorIndex: Int
+    let virtualTrackOptions: [VirtualTrackOption]
+    let selectedVirtualTrackOptionID: VirtualTrackOption.ID?
+    let virtualTakeLabel: String
+    let evidenceLabel: String
+    let hasResolvedAudio: Bool
 
     init(
         channel: MixerChannel,
@@ -97,9 +105,13 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         panPositionOverride: Double? = nil,
         levelPositionOverride: Double? = nil,
         muteOverride: Bool? = nil,
+        soloOverride: Bool? = nil,
+        isEffectivelyMuted: Bool? = nil,
+        selectedVirtualTrackOptionID: VirtualTrackOption.ID? = nil,
         meterLevel: Double = 0
     ) {
         let track = channel.controlTrack
+        let selectedVirtualTrack = track?.selectedVirtualTrackOption(selectedOptionID: selectedVirtualTrackOptionID)
         id = channel.id
         trackNumber = channel.id
         trackNumberLabel = channel.trackNumberLabel
@@ -109,8 +121,9 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         } else {
             self.displayName = "Track \(channel.trackNumberLabel)"
         }
-        candidateWAVLabel = track?.candidateWAV?.rawFilename ?? "No Audio File"
-        candidateDetailLabel = track?.candidateWAV == nil ? "Not assigned" : "Audio file"
+        candidateWAVLabel = selectedVirtualTrack?.wavItem.rawFilename ?? track?.candidateWAV?.rawFilename ?? "No Audio File"
+        candidateDetailLabel = (selectedVirtualTrack?.wavItem ?? track?.candidateWAV) == nil ? "Unassigned" : "Audio file"
+        hasResolvedAudio = (selectedVirtualTrack?.wavItem ?? track?.candidateWAV) != nil
 
         if let panPositionOverride {
             panPosition = min(max(panPositionOverride, -1), 1)
@@ -136,9 +149,18 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         self.meterLevel = min(max(meterLevel, 0), 1)
 
         isMuted = muteOverride ?? ((track?.mixerSetting?.mute?.primaryByte ?? 0) != 0)
+        isSoloed = soloOverride ?? false
+        self.isEffectivelyMuted = isEffectivelyMuted ?? isMuted
         muteLabel = isMuted ? "Muted" : "Live"
+        soloLabel = isSoloed ? "Solo" : "Not soloed"
         self.isSelected = isSelected
         colorIndex = (channel.id - 1) % Self.paletteCount
+        virtualTrackOptions = track?.virtualTrackOptions ?? []
+        self.selectedVirtualTrackOptionID = selectedVirtualTrack?.id ?? track?.defaultVirtualTrackOptionID
+        virtualTakeLabel = selectedVirtualTrack?.takeLabel ?? track?.defaultVirtualTrackOption?.takeLabel ?? "Default"
+        evidenceLabel = selectedVirtualTrack?.evidenceLevel.rawValue
+            ?? track?.candidateWAVEvidence.rawValue
+            ?? EvidenceLevel.observed.rawValue
     }
 
     private static let paletteCount = 8
