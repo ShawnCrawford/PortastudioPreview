@@ -697,3 +697,202 @@ private struct OutputLevelView: View {
         .clipShape(.rect(cornerRadius: 3))
     }
 }
+
+#if DEBUG
+#Preview("Mixer Workspace") {
+    @Previewable @State var selectedTrackID: TrackPreview.ID? = 4
+    @Previewable @State var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
+    let fixture = PreviewFixtures.mixerWorkspace()
+
+    ProjectWorkspaceView(
+        project: fixture.project,
+        annotationStore: fixture.annotationStore,
+        selectedTrackID: $selectedTrackID,
+        playbackController: fixture.playbackController,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        playAction: {},
+        stopAction: {},
+        resetSelectedAction: {},
+        resetAllAction: {}
+    )
+    .frame(width: 1180, height: 760)
+    .task {
+        selectedVirtualTrackIDs = fixture.selectedVirtualTrackIDs
+    }
+}
+
+#Preview("Mixer Workspace - Compact") {
+    @Previewable @State var selectedTrackID: TrackPreview.ID?
+    @Previewable @State var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
+    let fixture = PreviewFixtures.compactWorkspace()
+
+    ProjectWorkspaceView(
+        project: fixture.project,
+        annotationStore: fixture.annotationStore,
+        selectedTrackID: $selectedTrackID,
+        playbackController: fixture.playbackController,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        playAction: {},
+        stopAction: {},
+        resetSelectedAction: {},
+        resetAllAction: {}
+    )
+    .frame(width: 860, height: 640)
+}
+
+#Preview("Mixer Workspace - Edited") {
+    @Previewable @State var selectedTrackID: TrackPreview.ID? = 3
+    @Previewable @State var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
+    let fixture = PreviewFixtures.editedWorkspace()
+
+    ProjectWorkspaceView(
+        project: fixture.project,
+        annotationStore: fixture.annotationStore,
+        selectedTrackID: $selectedTrackID,
+        playbackController: fixture.playbackController,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        playAction: {},
+        stopAction: {},
+        resetSelectedAction: {},
+        resetAllAction: {}
+    )
+    .frame(width: 1180, height: 760)
+    .task {
+        selectedVirtualTrackIDs = fixture.selectedVirtualTrackIDs
+    }
+}
+
+#Preview("Mixer Deck") {
+    @Previewable @State var selectedTrackID: TrackPreview.ID? = 9
+    @Previewable @State var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
+    let fixture = PreviewFixtures.mixerWorkspace()
+
+    TrackMixerDeckView(
+        channels: fixture.project.visibleMixerChannels,
+        selectedTrackID: $selectedTrackID,
+        annotationStore: fixture.annotationStore,
+        playbackController: fixture.playbackController,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        resetSelectedAction: {},
+        resetAllAction: {},
+        restartPlaybackIfNeeded: {}
+    )
+    .frame(width: 1040, height: 560)
+    .padding()
+}
+
+#Preview("Mixer Strip - States") {
+    HStack(spacing: 18) {
+        TrackMixerStripView(
+            presentation: PreviewFixtures.stripPresentation(
+                trackNumber: 1,
+                isSelected: true,
+                panPosition: -1,
+                levelPosition: 0.92,
+                meterLevel: 0.88
+            ),
+            selectAction: {},
+            setLevelPosition: { _ in },
+            setPanPosition: { _ in },
+            setMuted: { _ in },
+            setSoloed: { _ in },
+            setSelectedVirtualTrackOption: { _ in }
+        )
+        .frame(width: MixerDeckMetrics.stripWidth, height: 460)
+
+        TrackMixerStripView(
+            presentation: PreviewFixtures.stripPresentation(
+                trackNumber: 4,
+                isSelected: false,
+                panPosition: 0,
+                levelPosition: 0.56,
+                isMuted: true,
+                isEffectivelyMuted: true,
+                meterLevel: 0.15
+            ),
+            selectAction: {},
+            setLevelPosition: { _ in },
+            setPanPosition: { _ in },
+            setMuted: { _ in },
+            setSoloed: { _ in },
+            setSelectedVirtualTrackOption: { _ in }
+        )
+        .frame(width: MixerDeckMetrics.stripWidth, height: 460)
+
+        TrackMixerStripView(
+            presentation: PreviewFixtures.stripPresentation(
+                trackNumber: 8,
+                isSelected: true,
+                panPosition: 1,
+                levelPosition: 0.28,
+                isSoloed: true,
+                meterLevel: 0.42
+            ),
+            selectAction: {},
+            setLevelPosition: { _ in },
+            setPanPosition: { _ in },
+            setMuted: { _ in },
+            setSoloed: { _ in },
+            setSelectedVirtualTrackOption: { _ in }
+        )
+        .frame(width: MixerDeckMetrics.stripWidth, height: 460)
+    }
+    .padding()
+}
+
+#Preview("Pan Control") {
+    @Previewable @State var hardLeft = -1.0
+    @Previewable @State var center = 0.0
+    @Previewable @State var hardRight = 1.0
+
+    VStack(alignment: .leading, spacing: 16) {
+        LabeledContent("Hard left") {
+            PanControlView(value: hardLeft, color: .blue, onSelect: {}, onValueChanged: { hardLeft = $0 })
+        }
+        LabeledContent("Center") {
+            PanControlView(value: center, color: .teal, onSelect: {}, onValueChanged: { center = $0 })
+        }
+        LabeledContent("Hard right") {
+            PanControlView(value: hardRight, color: .orange, onSelect: {}, onValueChanged: { hardRight = $0 })
+        }
+    }
+    .padding()
+    .frame(width: 300)
+}
+
+#Preview("Fader And Meter") {
+    @Previewable @State var quiet = 0.22
+    @Previewable @State var unity = LevelMapper.normalizedPosition(for: LevelMapper.rawUnity)
+    @Previewable @State var loud = 0.96
+
+    HStack(alignment: .bottom, spacing: 28) {
+        VStack {
+            FaderTrackView(value: quiet, color: .blue, onSelect: {}, onValueChanged: { quiet = $0 })
+            Text(LevelMapper.previewDisplayValue(forNormalizedPosition: quiet))
+                .font(.caption)
+        }
+        VStack {
+            FaderTrackView(value: unity, color: .teal, onSelect: {}, onValueChanged: { unity = $0 })
+            Text(LevelMapper.previewDisplayValue(forNormalizedPosition: unity))
+                .font(.caption)
+        }
+        VStack {
+            FaderTrackView(value: loud, color: .orange, onSelect: {}, onValueChanged: { loud = $0 })
+            Text(LevelMapper.previewDisplayValue(forNormalizedPosition: loud))
+                .font(.caption)
+        }
+        VStack {
+            OutputLevelView(value: 0.15)
+            OutputLevelView(value: 0.58)
+            OutputLevelView(value: 0.93)
+        }
+        .frame(height: 220)
+    }
+    .frame(height: 280)
+    .padding()
+}
+#endif

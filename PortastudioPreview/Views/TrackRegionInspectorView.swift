@@ -267,3 +267,72 @@ private struct InspectorInfoRow: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Inspector - No Selection") {
+    let fixture = PreviewFixtures.mixerWorkspace()
+
+    TrackRegionInspectorView(
+        project: fixture.project,
+        selectedTrack: nil,
+        selectedRegion: nil,
+        annotationStore: fixture.annotationStore,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
+        resetSelectedAction: {},
+        resetAllAction: {}
+    )
+    .frame(width: 320, height: 680)
+}
+
+#Preview("Inspector - Selected Track") {
+    let fixture = PreviewFixtures.mixerWorkspace()
+
+    TrackRegionInspectorView(
+        project: fixture.project,
+        selectedTrack: fixture.project.visibleMixerChannels
+            .first { $0.id == 4 }?
+            .controlTrack,
+        selectedRegion: nil,
+        annotationStore: fixture.annotationStore,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
+        resetSelectedAction: {},
+        resetAllAction: {}
+    )
+    .frame(width: 320, height: 760)
+}
+
+#Preview("Inspector - Missing Audio") {
+    let fixture = PreviewFixtures.mixerWorkspace()
+
+    TrackRegionInspectorView(
+        project: fixture.project,
+        selectedTrack: fixture.project.tracks.first { $0.trackNumber == 7 },
+        selectedRegion: nil,
+        annotationStore: fixture.annotationStore,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
+        resetSelectedAction: {},
+        resetAllAction: {}
+    )
+    .frame(width: 320, height: 720)
+}
+
+#Preview("Inspector - Selected Region") {
+    let fixture = PreviewFixtures.mixerWorkspace()
+    let selectedTrack = fixture.project.tracks.first { $0.trackNumber == 1 }
+
+    TrackRegionInspectorView(
+        project: fixture.project,
+        selectedTrack: selectedTrack,
+        selectedRegion: selectedTrack?.timeline?.regions.first,
+        annotationStore: fixture.annotationStore,
+        mixState: fixture.mixState,
+        selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
+        resetSelectedAction: {},
+        resetAllAction: {}
+    )
+    .frame(width: 320, height: 760)
+}
+#endif
