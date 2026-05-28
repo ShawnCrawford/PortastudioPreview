@@ -300,8 +300,6 @@ struct TrackMixerDeckView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label("Mixer", systemImage: "slider.horizontal.3")
-                    .font(.headline)
                 Spacer()
                 Text("\(channels.count) track\(channels.count == 1 ? "" : "s")")
                     .font(.caption)
@@ -313,7 +311,7 @@ struct TrackMixerDeckView: View {
                 .help("Reset all mix settings")
             }
             .padding(.horizontal, MixerDeckMetrics.edgePadding)
-            .padding(.top, 18)
+            .padding(.top, 12)
             .padding(.bottom, 12)
 
             GeometryReader { proxy in
@@ -386,9 +384,6 @@ struct TrackMixerDeckView: View {
             .frame(maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(.regularMaterial, in: .rect(cornerRadius: 8))
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
         .accessibilityIdentifier("track-mixer-deck")
     }
 
