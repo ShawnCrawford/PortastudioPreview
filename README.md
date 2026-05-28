@@ -2,7 +2,7 @@
 
 PortastudioPreview is a macOS SwiftUI prototype for read-only preview of TASCAM DP-32SD song folders, with an app-owned source library that remembers opened SD card roots, backup roots, and individual songs across relaunches.
 
-The app is designed for safe inspection and stereo preview playback of validated DP-32SD project mappings. It does not write to project folders.
+The app is designed for safe inspection, annotation, and stereo preview playback of validated DP-32SD project mappings. It does not write to project folders.
 
 ## Goals
 
@@ -12,6 +12,7 @@ The app is designed for safe inspection and stereo preview playback of validated
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
 - Show confirmed WAV assignments in the mixer, with raw mixer bytes and evidence details in the inspector/detail surfaces.
 - Provide read-only stereo preview playback using confirmed track-to-WAV, timeline, mute, pan, and level mapping.
+- Adjust preview-only mix settings with app-owned level, pan, mute, solo, and virtual-take overrides.
 - Remember opened sources and songs using SwiftData and security-scoped bookmarks.
 - Show missing remembered locations as muted rows with Relocate and Forget affordances.
 - Annotate tracks with app-owned names keyed by song fingerprint; never write to source folders.
@@ -30,6 +31,21 @@ The app is designed for safe inspection and stereo preview playback of validated
 - `PortastudioPreviewTests/` Swift Testing unit/integration tests
 - `PortastudioPreviewUITests/` UI test target
 - `Docs/` local documentation index into the research repo
+- `Plans/` implementation handoff plans for major phases
+
+## Current Architecture Snapshot
+
+The app is now organized around a source library plus a focused selected-song mixer workspace.
+
+- `ContentView` owns the source-library shell and routes selection to either `ProjectOpenView`, `SourceSelectedView`, or `ProjectDetailView`.
+- `SourceLibraryStore` handles remembered source/song hydration, add/open flows, relocate/forget, fingerprints, and missing-location state.
+- `ProjectPreviewBuilder` assembles the read-only `PortastudioProject` by scanning WAV inventory, parsing `song.sys` and `edltable.sys`, assigning EDL file-list positions to tracks, creating virtual-take options, and inferring timeline regions.
+- `ProjectDetailView` owns selected-track state, inspector visibility, `PreviewPlaybackController`, `PreviewMixState`, and selected virtual-take IDs for the loaded song.
+- `ProjectWorkspaceView` is the primary song UI: header identity, Play/Pause/Stop transport, output meters, and a horizontal mixer deck with pan, fader, mute, solo, reset, and virtual-take controls.
+- `TrackRegionInspectorView` is the native right-side inspector for song summary, selected-track identity/audio/mix diagnostics, app-owned track labels, audio file list, Reveal in Finder, and reset selected channel.
+- `PreviewMixState` persists app-owned preview overrides in SwiftData through `MixOverrideRecord`; source folders remain read-only.
+- `PreviewPlaybackController` and `StereoPreviewEngine` own playback lifecycle, live mixer updates, selected virtual-take playback, elapsed time, per-track/output meters, and error state.
+- `TimelineVisualizationBuilder` and `WaveformPeakBuilder` remain pure/read-only services for waveform and timeline presentation data. Keep waveform data in memory; do not write waveform caches next to Portastudio files.
 
 ## Build and Test
 
@@ -66,13 +82,12 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 
 ### Track Selection and Inspector (Phase 6)
 
-- `ProjectDetailView` owns `selectedTrackID` and `selectedRegionID` as view-local `@State`. Selecting a track clears any active region selection, and selecting a region clears track selection.
-- `TrackTableView` is now selection-aware via a `@Binding var selectedTrackID` passed from `ProjectDetailView`. The `Table(tracks, selection:)` initializer enables single-row click selection while preserving all existing track/mixer columns.
-- The unassigned-region table inside `RegionsTimelineGroupBoxView` is similarly selection-aware via `@Binding var selectedRegionID`.
+- `ProjectDetailView` owns `selectedTrackID` as view-local `@State`; selecting a mixer strip drives the native inspector.
+- `TrackTableView` remains a reusable raw/evidence table component with `@Binding` selection support, but the current primary UI is the mixer deck in `ProjectWorkspaceView`.
 - `TrackRegionInspectorView` is a native right-side inspector attached with `.inspector(isPresented:)`. It displays:
   - **Empty state**: neutral prompt when nothing is selected.
-  - **Track inspector**: track number, assigned WAV (filename or "Unassigned" with evidence), level/pan/mute mapped values, raw byte offsets, mirror raw bytes and mismatch warnings, active-take byte and offset (track 1 only, Correlated evidence), identity context for the Phase 7 annotation key (song fingerprint + track number), and the current Phase 7 app-owned track-label editor.
-  - **Region inspector**: source filename and path, start/length/end samples with time strings, evidence level, EDL file-list ID and evidence when the source filename matches a `fileListEntries` entry, and assignment status.
+  - **Track inspector**: track number, assigned/selected WAV, selected take, evidence, parsed-vs-saved level/pan/mute values, solo/effective mute, raw byte diagnostics, mirror mismatch warnings, active-take byte and offset (track 1 only, Correlated evidence), and the current app-owned track-label editor.
+  - **Audio-file section**: selected or song-level WAV inventory, with Reveal in Finder routed to the selected audio file when present.
 - Inspector width is 240–360 pt. A toolbar button toggles it with `sidebar.right` icon.
 - Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
 - The inspector remains read-only toward Portastudio files. Phase 7 annotation edits are app-owned SwiftData writes only; no sidecar files or source-folder mutations are created.
@@ -80,26 +95,23 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 ### Waveform and Timeline Visualization (Phase 15)
 
 - Detailed handoff plan: `Plans/Phase15WaveformAndTimelineVisualization.md`.
-- Phase 15 has been promoted into the first-release visual polish path so the selected-song workspace shows a credible waveform/timeline view before shipping.
-- **`TimelineVisualizationView`**: Inserted above the existing region table in `RegionsTimelineGroupBoxView`. Shows colored waveform lanes per region, a time ruler, zoom controls (Fit / Zoom In / Zoom Out), and a playhead overlay while audio is playing.
-- **Waveform rendering**: `WaveformCanvasView` uses SwiftUI `Canvas` to render per-region peak summaries. Peak data is derived in-memory from the source WAV via `WaveformPeakBuilder` (AVAudioFile, 8192-frame chunk reads). Playable regions show colored waveforms; suppressed regions show a muted dashed-border lane with reason badge; missing-source and ambiguous-timing lanes are styled distinctly.
-- **Playback controller refactor**: `PreviewPlaybackController` (`@Observable @MainActor`) now owns the `StereoPreviewEngine` instance and exposes `isPlaying`, `elapsedSeconds`, and `playbackError`. It is held as `@State` in `ProjectDetailView` and shared to both the transport view and the timeline view.
-- **Paused mix edits**: Level, pan, mute, and solo-derived mute changes are pushed to the live preview engine while playback is paused, so resuming playback uses the current mixer state instead of stale values.
-- **Playhead**: Drawn as a ZStack overlay in `TimelineVisualizationView` only when `isPlaying`. Position derived from `elapsedSeconds × sampleRate` mapped through `sampleToX(...)`.
-- **Selection wiring**: Lane rows are tappable; selecting a lane sets `selectedRegionID` and clears `selectedTrackID` via the existing binding. The inspector shows the selected region.
-- **Zoom range**: `[1.0, 10.0]×`; base canvas width 900 pt. Zoom state is local to `TimelineVisualizationView`.
-- **Evidence guardrails**: Timeline builder uses `.ambiguousTiming` when all regions share `startSample == 0`. Track-to-WAV assignment and timeline offsets are confirmed for V1. No waveform caches or sidecar files are ever written to source folders.
-- **Tests added** (all passing):
+- Phase 15 currently has the read-only model/service foundation in the app source, while the visible selected-song workspace is mixer-first.
+- **Timeline data**: `TimelineVisualizationBuilder` converts `PortastudioProject` plus playback-plan suppression into `TimelineVisualizationModel`, including lane order, extents, ruler ticks, zoom helpers, selection flags, and suppressed/missing/ambiguous states.
+- **Waveform peaks**: `WaveformPeakBuilder` derives in-memory peak summaries from source WAVs with AVFoundation. No waveform caches or sidecar files are written to source folders.
+- **Playback controller refactor**: `PreviewPlaybackController` (`@Observable @MainActor`) owns the `StereoPreviewEngine` instance and exposes playback state, elapsed seconds, errors, output meters, and track meters to the mixer workspace.
+- **Live mix edits**: Level, pan, mute, and solo-derived mute changes are pushed to the live preview engine, so resumed or running playback reflects current app-owned mix state.
+- **UI status**: SwiftUI timeline/waveform views are not present in the current app source. Future agents implementing them should reuse the existing builders instead of duplicating timeline math or WAV peak extraction.
+- **Tests added**:
   - `WaveformPeakBuilderTests` (7 tests): silent WAV → zero peaks, non-silent → non-zero, bucket count capped, single frame, unreadable file throws, metadata correctness, read-only safety.
-  - `TimelineVisualizationBuilderTests` (24 tests): empty project, zero/delayed/multi-region extent, missing length, ambiguous/suppressed/missing-source states, selection marking and lane order, zoom clamp, ruler ticks, `sampleToX` at boundary/midpoint values.
 
 ### Song Detail Workspace (Current)
 
-- `ProjectDetailView` presents a focused selected-song workspace: song header, read-only playback controls, horizontal mixer, and native inspector.
-- The mixer uses one clear channel identity, concise audio status, pan/level/mute/solo controls, and reset-all mix access.
-- Raw filenames, evidence levels, take metadata, parsed bytes, and selected-channel reset/reveal actions live in `TrackRegionInspectorView`.
+- `ProjectDetailView` presents a focused selected-song workspace: song header, read-only playback controls, live output/track meters, horizontal mixer, and native inspector.
+- The mixer uses one clear channel identity, concise audio status, pan/fader/mute/solo controls, virtual-take picker when multiple takes are available, and reset-all mix access.
+- Mix overrides are app-owned SwiftData records (`MixOverrideRecord`) keyed by exact song fingerprint context. They include level, pan, mute, solo, and selected virtual take.
+- Raw filenames, evidence levels, take metadata, parsed bytes, saved-vs-parsed mix values, selected-channel reset, and Reveal in Finder actions live in `TrackRegionInspectorView`.
 - Critical blockers remain visible in the primary workspace: playback errors, preview unavailable status, missing audio, and no-audio channel states.
-- Preview playback remains read-only with unchanged Play/Stop semantics.
+- Preview playback remains read-only: live mix changes affect the preview engine and persisted app-owned overrides, never Portastudio source files.
 
 ### Source and Song Fingerprints (Phase 4)
 
@@ -155,6 +167,8 @@ Preview playback is read-only and evidence-scoped.
 
 - Track-to-WAV mapping is confirmed from EDL file-list position to physical track.
 - Track rows show mixer evidence, assigned WAVs, and active virtual-take options where available.
+- The selected-song mixer lets the user choose available virtual takes. If changed during playback, playback reloads while preserving position.
+- Level, pan, mute, solo, and selected virtual take are persisted as app-owned preview overrides only when the song annotation context is editable (`Exact match` fingerprint).
 - Remaining unassigned regions use EDL file-list order when available, neutral center pan, and unity gain.
 - Track 1 active virtual-take playback is applied where current captures support it. `edltable.sys` byte `0x00B01A38` is correlated with Track 1 active take; `SONG_0084` uses `0x01` and previews only `ZZ0002_1.wav`, even though all three WAV filenames end in `_1.wav`.
 - Filename suffixes such as `_1` and `_2` are not sufficient active-take evidence. Current playback first handles same-stem take alternatives, then falls back to the `SONG_0084` EDL file-list pattern for Track 1 VT2.

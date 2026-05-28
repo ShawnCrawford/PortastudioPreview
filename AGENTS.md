@@ -99,11 +99,39 @@ If the Xcode MCP is configured (sometimes called xcode-tools), prefer its tools 
 
 ## Repository Guidelines
 
+### User Collaboration and Documentation Upkeep
+
+The user often asks for broad codebase stewardship, not only narrow implementation. When making major app changes, update codebase documentation in the same turn unless the user explicitly says not to. "Major" means a change that alters product behavior, app navigation, persistence/schema, parser evidence, playback rules, source-folder safety guarantees, test-fixture policy, build/test workflow, or where future agents should look first.
+
+Keep these docs aligned:
+
+- `README.md` for the current app behavior, architecture snapshot, build/test commands, and evidence/safety rules.
+- `Docs/ProductVisionAndRoadmap.md` for product direction and current baseline.
+- `Docs/ProductVisionAndRoadMapPlanning.md` for phase status and implementation history.
+- `Docs/PortastudioResearchReferences.md` for links into the sibling research repo.
+- `AGENTS.md` for agent-facing navigation, coding constraints, and collaboration preferences.
+
+Prefer concise doc updates that name the changed files/types and preserve known evidence levels. Do not let docs imply a Portastudio write workflow exists unless one has been deliberately implemented and guarded.
+
+The user values agents that keep momentum, inspect the repo before deciding, make conservative assumptions, and explain changes in concrete app terms. Fix obvious typos in docs while editing nearby text, but do not churn unrelated documentation.
+
 ### Project Structure & Module Organization
 
 This is a separate macOS SwiftUI app repo for a read-only TASCAM DP-32SD preview prototype. Keep reverse-engineering evidence in the sibling research repo at `/Users/shawn/Projects/SwiftUI/PortastudioResearch`; do not copy large project samples or derived binary dumps into this app repo unless there is a deliberate fixture need.
 
 The app target lives in `PortastudioPreview/`, Swift Testing coverage in `PortastudioPreviewTests/`, and UI tests in `PortastudioPreviewUITests/`. Keep source split by responsibility: `App/` for the `@main` entry point and app commands, `Models/` for parsed project and track value types, `Services/` for folder loading, `song.sys`, `edltable.sys`, WAV inventory, and audio-preview code, `Views/` for SwiftUI surfaces, and `Support/` for byte, pan, and level mapping helpers.
+
+Current high-traffic files:
+
+- `PortastudioPreview/App/PortastudioPreviewApp.swift`: SwiftData schema and app/menu commands.
+- `PortastudioPreview/Views/ContentView.swift`: source-library shell, open/add folder flows, hydration, selected-project routing, annotation context loading.
+- `PortastudioPreview/Views/ProjectDetailView.swift`: selected-song state owner for inspector, playback controller, mix state, and virtual-take selection.
+- `PortastudioPreview/Views/ProjectWorkspaceView.swift`: focused mixer-deck workspace, header transport, meters, faders, pan/mute/solo, and virtual-take picker UI.
+- `PortastudioPreview/Views/TrackRegionInspectorView.swift`: right-side inspector for song, selected track, audio files, diagnostics, app-owned track labels, reveal/reset actions.
+- `PortastudioPreview/Models/PreviewMixState.swift`: app-owned persisted level/pan/mute/solo/virtual-take overrides keyed by song annotation context.
+- `PortastudioPreview/Services/ProjectPreviewBuilder.swift`: read-only project model assembly, EDL-to-track assignment, virtual-take options, timeline-region inference.
+- `PortastudioPreview/Services/PreviewPlaybackController.swift` and `StereoPreviewEngine.swift`: playback lifecycle, live mixer updates, meters, and AVFoundation scheduling.
+- `PortastudioPreview/Services/TimelineVisualizationBuilder.swift` and `WaveformPeakBuilder.swift`: pure timeline/waveform data builders; keep them read-only and test-heavy.
 
 ### Research References
 
@@ -127,7 +155,9 @@ Run targeted tests by adding `-only-testing:PortastudioPreviewTests/<TestType>/<
 
 Use SwiftUI for app structure and AVFoundation for audio preview playback. Keep parsers read-only and deterministic: accept `URL` or `Data`, return typed models, and avoid UI dependencies in parser services. Keep byte offsets hexadecimal in comments and test names when they refer to research findings, such as `0x00C4` for the track 1 level-like byte.
 
-The approximate stereo preview is intentionally conservative. Track-to-WAV assignment remains `Hypothesis`, and `StereoPreviewEngine` currently treats raw level byte `0x00` as unity gain because populated MVP folders use `0x00` on audible tracks and the real level scale is not confirmed.
+The approximate stereo preview is intentionally conservative. Track-to-WAV assignment via EDL file-list position is `Confirmed` for V1 behavior in this app. Virtual-take selection remains evidence-scoped: same-stem alternatives and the Track 1 active-take byte are `Correlated` where documented. Raw fader `0x00` maps to minimum gain through `LevelMapper`; do not treat it as unity unless new research and tests justify that change.
+
+Mix edits in the app are app-owned preview overrides. Level, pan, mute, solo, and selected virtual take persist through `MixOverrideRecord` only when the selected song has an editable exact fingerprint context. These settings must never be written back into `song.sys`, `edltable.sys`, WAV metadata, or sidecar files in the source folder.
 
 ### Testing Guidelines
 
