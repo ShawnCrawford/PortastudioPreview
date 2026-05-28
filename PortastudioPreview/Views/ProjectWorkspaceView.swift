@@ -336,7 +336,7 @@ struct TrackMixerDeckView: View {
 
             GeometryReader { proxy in
                 ScrollView(.horizontal) {
-                    HStack(alignment: .center, spacing: MixerDeckMetrics.stripSpacing) {
+                    LazyHStack(alignment: .center, spacing: MixerDeckMetrics.stripSpacing) {
                         ForEach(channels) { channel in
                             let trackNumber = channel.id
                             let presentation = TrackMixerStripPresentation(
@@ -423,8 +423,8 @@ struct TrackMixerDeckView: View {
 private enum MixerDeckMetrics {
     static let edgePadding: CGFloat = 28
     static let channelVerticalPadding: CGFloat = 18
-    static let stripSpacing: CGFloat = 18
-    static let stripWidth: CGFloat = 148
+    static let stripSpacing: CGFloat = 10
+    static let stripWidth: CGFloat = 172
     static let minimumStripHeight: CGFloat = 390
     static let compactMinimumStripHeight: CGFloat = 300
 }
@@ -500,7 +500,7 @@ private struct TrackMixerStripView: View {
             }
             .frame(height: 22)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 VStack(spacing: 4) {
                     Text(presentation.panDisplayLabel)
                         .font(.caption)
@@ -530,7 +530,9 @@ private struct TrackMixerStripView: View {
                     }
                     .toggleStyle(.button)
                     .controlSize(.small)
+                    .labelStyle(.iconOnly)
                     .tint(.orange)
+                    .frame(width: 28, height: 24)
                     .help(presentation.isMuted ? "Unmute track" : "Mute track")
                     .accessibilityValue(presentation.isMuted ? "On" : "Off")
                 }
@@ -552,7 +554,9 @@ private struct TrackMixerStripView: View {
                     }
                     .toggleStyle(.button)
                     .controlSize(.small)
+                    .labelStyle(.iconOnly)
                     .tint(.yellow)
+                    .frame(width: 28, height: 24)
                     .help(presentation.isSoloed ? "Clear solo" : "Solo track")
                     .accessibilityValue(presentation.isSoloed ? "On" : "Off")
                 }
@@ -579,6 +583,7 @@ private struct TrackMixerStripView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
+        .frame(width: MixerDeckMetrics.stripWidth)
         .frame(maxHeight: .infinity)
         .background(presentation.isSelected ? trackColor.opacity(0.13) : Color.clear)
         .clipShape(.rect(cornerRadius: 10))
