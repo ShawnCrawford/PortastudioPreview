@@ -77,9 +77,10 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
     let id: Int
     let trackNumber: Int
     let trackNumberLabel: String
-    let displayName: String
+    let channelTitle: String
+    let channelSubtitle: String?
     let candidateWAVLabel: String
-    let candidateDetailLabel: String
+    let audioStatusLabel: String
     let panPosition: Double
     let panDisplayLabel: String
     let levelLabel: String
@@ -115,15 +116,27 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         id = channel.id
         trackNumber = channel.id
         trackNumberLabel = channel.trackNumberLabel
+        let defaultTrackName = "Track \(channel.trackNumberLabel)"
         if let displayName = displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
            !displayName.isEmpty {
-            self.displayName = displayName
+            channelTitle = displayName
+            channelSubtitle = displayName.localizedCaseInsensitiveCompare(defaultTrackName) == .orderedSame
+                ? nil
+                : defaultTrackName
         } else {
-            self.displayName = "Track \(channel.trackNumberLabel)"
+            channelTitle = defaultTrackName
+            channelSubtitle = nil
         }
-        candidateWAVLabel = selectedVirtualTrack?.wavItem.rawFilename ?? track?.candidateWAV?.rawFilename ?? "No Audio File"
-        candidateDetailLabel = (selectedVirtualTrack?.wavItem ?? track?.candidateWAV) == nil ? "Unassigned" : "Audio file"
-        hasResolvedAudio = (selectedVirtualTrack?.wavItem ?? track?.candidateWAV) != nil
+        let resolvedWAV = selectedVirtualTrack?.wavItem ?? track?.candidateWAV
+        candidateWAVLabel = resolvedWAV?.rawFilename ?? "No Audio File"
+        hasResolvedAudio = resolvedWAV != nil
+        if hasResolvedAudio {
+            audioStatusLabel = "Audio assigned"
+        } else if track?.isActiveTrackCandidate == true {
+            audioStatusLabel = "Missing audio"
+        } else {
+            audioStatusLabel = "No audio"
+        }
 
         if let panPositionOverride {
             panPosition = min(max(panPositionOverride, -1), 1)

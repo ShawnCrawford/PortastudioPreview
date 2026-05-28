@@ -14,7 +14,6 @@ struct ProjectWorkspaceView: View {
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let playAction: () -> Void
     let stopAction: () -> Void
-    let resetSelectedAction: () -> Void
     let resetAllAction: () -> Void
     let reloadPlaybackPreservingPositionAction: () -> Void
 
@@ -39,7 +38,6 @@ struct ProjectWorkspaceView: View {
                 playbackController: playbackController,
                 mixState: mixState,
                 selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
-                resetSelectedAction: resetSelectedAction,
                 resetAllAction: resetAllAction,
                 reloadPlaybackPreservingPositionAction: reloadPlaybackPreservingPositionAction
             )
@@ -314,7 +312,6 @@ struct TrackMixerDeckView: View {
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
-    let resetSelectedAction: () -> Void
     let resetAllAction: () -> Void
     let reloadPlaybackPreservingPositionAction: () -> Void
 
@@ -327,13 +324,8 @@ struct TrackMixerDeckView: View {
                 Text("\(channels.count) track\(channels.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Button("Reset Selected", systemImage: "arrow.counterclockwise") {
-                    resetSelectedAction()
-                }
-                .disabled(selectedTrackID == nil)
-                .help("Reset selected channel")
 
-                Button("Reset All", systemImage: "arrow.counterclockwise.circle") {
+                Button("Reset All Mix", systemImage: "arrow.counterclockwise.circle") {
                     resetAllAction()
                 }
                 .help("Reset all mix settings")
@@ -464,57 +456,49 @@ private struct TrackMixerStripView: View {
     var body: some View {
         VStack(spacing: 12) {
             Button(action: selectAction) {
-                VStack(spacing: 4) {
-                    Text("Track \(presentation.trackNumberLabel)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(presentation.displayName)
+                VStack(spacing: 3) {
+                    Text(presentation.channelTitle)
                         .font(.callout)
                         .bold()
                         .lineLimit(1)
                         .truncationMode(.tail)
+                    if let channelSubtitle = presentation.channelSubtitle {
+                        Text(channelSubtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
                 .frame(height: 42)
             }
             .buttonStyle(.plain)
 
-            VStack(spacing: 2) {
-                Text("Audio File")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                Text(presentation.candidateWAVLabel)
-                    .font(.caption)
-                    .foregroundStyle(presentation.hasResolvedAudio ? .secondary : .tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text(presentation.hasResolvedAudio ? "\(presentation.evidenceLabel) · \(presentation.virtualTakeLabel)" : "No audio")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-            }
-            .frame(height: 44)
+            Text(presentation.audioStatusLabel)
+                .font(.caption)
+                .foregroundStyle(presentation.hasResolvedAudio ? .secondary : .tertiary)
+                .lineLimit(1)
+                .frame(height: 18)
+                .help(presentation.hasResolvedAudio ? presentation.candidateWAVLabel : presentation.audioStatusLabel)
 
-            if presentation.virtualTrackOptions.count > 1 {
-                Picker("Virtual Take", selection: Binding(
-                    get: { presentation.selectedVirtualTrackOptionID ?? presentation.virtualTrackOptions[0].id },
-                    set: { selectedID in
-                        selectAction()
-                        setSelectedVirtualTrackOption(selectedID)
+            VStack(spacing: 0) {
+                if presentation.virtualTrackOptions.count > 1 {
+                    Picker("Virtual Take", selection: Binding(
+                        get: { presentation.selectedVirtualTrackOptionID ?? presentation.virtualTrackOptions[0].id },
+                        set: { selectedID in
+                            selectAction()
+                            setSelectedVirtualTrackOption(selectedID)
+                        }
+                    )) {
+                        ForEach(presentation.virtualTrackOptions) { option in
+                            Text(option.takeLabel).tag(option.id)
+                        }
                     }
-                )) {
-                    ForEach(presentation.virtualTrackOptions) { option in
-                        Text(option.takeLabel).tag(option.id)
-                    }
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .accessibilityLabel("Virtual take")
                 }
-                .labelsHidden()
-                .controlSize(.small)
-                .accessibilityLabel("Virtual take")
-            } else {
-                Text(presentation.virtualTakeLabel)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .frame(height: 22)
             }
+            .frame(height: 22)
 
             HStack(spacing: 10) {
                 VStack(spacing: 4) {
@@ -607,8 +591,8 @@ private struct TrackMixerStripView: View {
         }
         .contentShape(.rect)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Track \(presentation.trackNumberLabel), \(presentation.displayName)")
-        .accessibilityValue("\(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel), \(presentation.soloLabel)")
+        .accessibilityLabel("Track \(presentation.trackNumberLabel), \(presentation.channelTitle)")
+        .accessibilityValue("\(presentation.audioStatusLabel), \(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel), \(presentation.soloLabel)")
     }
 }
 
@@ -784,7 +768,6 @@ private struct OutputLevelView: View {
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
         playAction: {},
         stopAction: {},
-        resetSelectedAction: {},
         resetAllAction: {},
         reloadPlaybackPreservingPositionAction: {}
     )
@@ -808,7 +791,6 @@ private struct OutputLevelView: View {
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
         playAction: {},
         stopAction: {},
-        resetSelectedAction: {},
         resetAllAction: {},
         reloadPlaybackPreservingPositionAction: {}
     )
@@ -829,7 +811,6 @@ private struct OutputLevelView: View {
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
         playAction: {},
         stopAction: {},
-        resetSelectedAction: {},
         resetAllAction: {},
         reloadPlaybackPreservingPositionAction: {}
     )
@@ -851,7 +832,6 @@ private struct OutputLevelView: View {
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
-        resetSelectedAction: {},
         resetAllAction: {},
         reloadPlaybackPreservingPositionAction: {}
     )

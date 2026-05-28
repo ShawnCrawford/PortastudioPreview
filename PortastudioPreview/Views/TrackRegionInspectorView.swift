@@ -14,7 +14,6 @@ struct TrackRegionInspectorView: View {
     let mixState: PreviewMixState
     let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let resetSelectedAction: () -> Void
-    let resetAllAction: () -> Void
 
     private var summary: ProjectHeaderSummary {
         ProjectHeaderSummary(
@@ -27,7 +26,16 @@ struct TrackRegionInspectorView: View {
         if let url = selectedRegion?.sourceURL {
             return url
         }
+        if let selectedTrack,
+           let selectedVirtualTrack = selectedVirtualTrack(for: selectedTrack) {
+            return selectedVirtualTrack.wavItem.url
+        }
         return selectedTrack?.candidateWAV?.url
+    }
+
+    private func selectedVirtualTrack(for track: TrackPreview) -> VirtualTrackOption? {
+        let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: track.trackNumber) ?? track.trackNumber
+        return track.selectedVirtualTrackOption(selectedOptionID: selectedVirtualTrackIDs[channelTrackNumber])
     }
 
     var body: some View {
@@ -45,8 +53,7 @@ struct TrackRegionInspectorView: View {
                     project: project,
                     selectedAudioFileURL: selectedAudioFileURL,
                     canResetSelected: selectedTrack != nil,
-                    resetSelectedAction: resetSelectedAction,
-                    resetAllAction: resetAllAction
+                    resetSelectedAction: resetSelectedAction
                 )
             }
             .padding(14)
@@ -87,30 +94,55 @@ private struct SelectedTrackInspectorSection: View {
             if let track {
                 let annotationTrackNumber = MixerChannelLayout.leadingTrackNumber(for: track.trackNumber) ?? track.trackNumber
                 let trackLabel = MixerChannelLayout.trackNumberLabel(forTrackNumber: track.trackNumber)
+                let selectedVirtualTrack = selectedVirtualTrack(for: track)
+                let selectedWAV = selectedVirtualTrack?.wavItem ?? track.candidateWAV
+                let trackName = annotationStore.trackName(for: annotationTrackNumber) ?? "Track \(trackLabel)"
+
+                InspectorSubheading("Identity")
                 InspectorInfoRow(label: "Track", value: "Track \(trackLabel)")
-                InspectorInfoRow(
-                    label: "Name",
-                    value: annotationStore.trackName(for: annotationTrackNumber) ?? "Track \(trackLabel)",
-                    valueStyle: .primary
-                )
-                InspectorInfoRow(
-                    label: "Audio File",
-                    value: track.candidateWAV?.rawFilename ?? "No Audio File",
-                    valueStyle: track.candidateWAV == nil ? .secondary : .primary
-                )
-                InspectorInfoRow(label: "Pan", value: panValue(for: track))
-                InspectorInfoRow(label: "Level", value: levelValue(for: track))
-                InspectorInfoRow(label: "Mute", value: isMuted(track) ? "On" : "Off")
+                InspectorInfoRow(label: "Name", value: trackName, valueStyle: .primary)
+                InspectorInfoRow(label: "Status", value: audioStatus(for: track, selectedWAV: selectedWAV), valueStyle: selectedWAV == nil ? .secondary : .primary)
+
                 Divider()
+
+                InspectorSubheading("Audio Source")
+                InspectorInfoRow(
+                    label: "Filename",
+                    value: selectedWAV?.rawFilename ?? "No audio file",
+                    valueStyle: selectedWAV == nil ? .secondary : .primary
+                )
+                InspectorInfoRow(label: "Take", value: selectedVirtualTrack?.takeLabel ?? track.defaultVirtualTrackOption?.takeLabel ?? "Default")
+                InspectorInfoRow(label: "Evidence", value: selectedVirtualTrack?.evidenceLevel.rawValue ?? track.candidateWAVEvidence.rawValue)
+
+                Divider()
+
+                InspectorSubheading("Mix")
+                InspectorInfoRow(label: "Parsed Level", value: levelValue(for: track))
+                InspectorInfoRow(label: "Parsed Pan", value: panValue(for: track))
+                InspectorInfoRow(label: "Parsed Mute", value: isMuted(track) ? "On" : "Off")
                 InspectorInfoRow(label: "Saved Level", value: LevelMapper.previewDisplayValue(forNormalizedPosition: mixState.levelPosition(for: annotationTrackNumber)))
                 InspectorInfoRow(label: "Saved Pan", value: PanMapper.previewDisplayValue(forNormalizedPosition: mixState.panPosition(for: annotationTrackNumber)))
                 InspectorInfoRow(label: "Saved Mute", value: mixState.isMuted(for: annotationTrackNumber) ? "On" : "Off")
                 InspectorInfoRow(label: "Solo", value: mixState.isSoloed(for: annotationTrackNumber) ? "On" : "Off")
                 InspectorInfoRow(label: "Effective", value: mixState.isEffectivelyMuted(for: annotationTrackNumber) ? "Muted" : "Audible")
-                InspectorInfoRow(label: "WAV Evidence", value: selectedVirtualTrack(for: track)?.evidenceLevel.rawValue ?? track.candidateWAVEvidence.rawValue)
-                InspectorInfoRow(label: "Take", value: selectedVirtualTrack(for: track)?.takeLabel ?? track.defaultVirtualTrackOption?.takeLabel ?? "Default")
 
                 Divider()
+
+                InspectorSubheading("Diagnostics")
+                InspectorInfoRow(label: "Raw Bytes", value: rawBytes(for: track), valueStyle: .secondary)
+                if let activeTakeByte = track.track1ActiveTakeCandidate {
+                    InspectorInfoRow(
+                        label: "Active Take",
+                        value: "\(HexFormatter.offset(EdlTableParser.track1ActiveTakeCandidateOffset))=\(HexFormatter.byte(activeTakeByte))",
+                        valueStyle: .secondary
+                    )
+                }
+                if hasMirrorMismatch(track) {
+                    InspectorInfoRow(label: "Mirror", value: "Mismatch detected", valueStyle: .orange)
+                }
+
+                Divider()
+                InspectorSubheading("Label")
                 TrackLabelEditorView(trackNumber: annotationTrackNumber, annotationStore: annotationStore)
             } else {
                 Text("Select a track in the mixer to view details.")
@@ -118,6 +150,13 @@ private struct SelectedTrackInspectorSection: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func audioStatus(for track: TrackPreview, selectedWAV: WAVInventoryItem?) -> String {
+        if selectedWAV != nil {
+            return "Audio assigned"
+        }
+        return track.isActiveTrackCandidate ? "Missing audio" : "No audio"
     }
 
     private func panValue(for track: TrackPreview) -> String {
@@ -137,6 +176,24 @@ private struct SelectedTrackInspectorSection: View {
     private func selectedVirtualTrack(for track: TrackPreview) -> VirtualTrackOption? {
         let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: track.trackNumber) ?? track.trackNumber
         return track.selectedVirtualTrackOption(selectedOptionID: selectedVirtualTrackIDs[channelTrackNumber])
+    }
+
+    private func rawBytes(for track: TrackPreview) -> String {
+        if let mixerSetting = track.mixerSetting {
+            return mixerSetting.rawBytesDescription
+        }
+
+        return "n/a"
+    }
+
+    private func hasMirrorMismatch(_ track: TrackPreview) -> Bool {
+        guard let mixerSetting = track.mixerSetting else {
+            return false
+        }
+
+        return mixerSetting.level.hasMirrorMismatch
+            || mixerSetting.pan.hasMirrorMismatch
+            || (mixerSetting.mute?.hasMirrorMismatch ?? false)
     }
 }
 
@@ -194,7 +251,6 @@ private struct InspectorActionsSection: View {
     let selectedAudioFileURL: URL?
     let canResetSelected: Bool
     let resetSelectedAction: () -> Void
-    let resetAllAction: () -> Void
 
     var body: some View {
         InspectorSectionCard(title: "Actions", systemImage: "ellipsis.circle") {
@@ -203,11 +259,6 @@ private struct InspectorActionsSection: View {
             }
             .buttonStyle(.bordered)
             .disabled(!canResetSelected)
-
-            Button("Reset All Mix", systemImage: "arrow.counterclockwise.circle") {
-                resetAllAction()
-            }
-            .buttonStyle(.bordered)
 
             Divider()
 
@@ -223,6 +274,21 @@ private struct InspectorActionsSection: View {
             .buttonStyle(.bordered)
             .disabled(selectedAudioFileURL == nil)
         }
+    }
+}
+
+private struct InspectorSubheading: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .font(.caption)
+            .bold()
+            .foregroundStyle(.secondary)
     }
 }
 
@@ -279,8 +345,7 @@ private struct InspectorInfoRow: View {
         annotationStore: fixture.annotationStore,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
-        resetSelectedAction: {},
-        resetAllAction: {}
+        resetSelectedAction: {}
     )
     .frame(width: 320, height: 680)
 }
@@ -297,8 +362,7 @@ private struct InspectorInfoRow: View {
         annotationStore: fixture.annotationStore,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
-        resetSelectedAction: {},
-        resetAllAction: {}
+        resetSelectedAction: {}
     )
     .frame(width: 320, height: 760)
 }
@@ -313,8 +377,7 @@ private struct InspectorInfoRow: View {
         annotationStore: fixture.annotationStore,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
-        resetSelectedAction: {},
-        resetAllAction: {}
+        resetSelectedAction: {}
     )
     .frame(width: 320, height: 720)
 }
@@ -330,8 +393,7 @@ private struct InspectorInfoRow: View {
         annotationStore: fixture.annotationStore,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: fixture.selectedVirtualTrackIDs,
-        resetSelectedAction: {},
-        resetAllAction: {}
+        resetSelectedAction: {}
     )
     .frame(width: 320, height: 760)
 }

@@ -10,7 +10,7 @@ The app is designed for safe inspection and stereo preview playback of validated
 - Open an individual DP-32SD song folder.
 - Classify selected folders conservatively as media roots, backup roots, or song folders.
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
-- Show track-level mixer bytes and confirmed WAV assignments.
+- Show confirmed WAV assignments in the mixer, with raw mixer bytes and evidence details in the inspector/detail surfaces.
 - Provide read-only stereo preview playback using confirmed track-to-WAV, timeline, mute, pan, and level mapping.
 - Remember opened sources and songs using SwiftData and security-scoped bookmarks.
 - Show missing remembered locations as muted rows with Relocate and Forget affordances.
@@ -60,8 +60,8 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - `SongAnnotationContext` carries the song fingerprint, match state, folder URL, and folder name. `isEditable` returns `true` only when `matchState == .exact` and fingerprint is non-empty.
 - `SourceLibraryStore.selectedSongAnnotationContext()` builds and returns context for the selected song. `ContentView` calls this via `.task(id: store.selectedProject?.folderURL)` so context reloads on selection change.
 - `TrackTableView` shows a "Name" column populated from `annotationStore` when available.
-- `TrackRegionInspectorView` replaces the Phase 6 placeholder rows with a `TrackLabelEditorView` in a "Label" section. The editor saves on Return and on focus loss; when `isEditable` is false, the field is read-only with an orange warning when the fingerprint has changed.
-- Song display-name override is stored in `LibrarySongRecord.displayNameOverride`. The nav title and overview section show the override name when set.
+- `TrackRegionInspectorView` replaces the Phase 6 placeholder rows with a grouped selected-track inspector and `TrackLabelEditorView` in a "Label" section. The editor saves on Return and on focus loss; when `isEditable` is false, the field is read-only with an orange warning when the fingerprint has changed.
+- Song display-name override is stored in `LibrarySongRecord.displayNameOverride`. The nav title and song header show the override name when set.
 - The app schema includes `TrackAnnotationRecord.self` in the `ModelContainer` schema alongside `LibrarySourceRecord` and `LibrarySongRecord`.
 
 ### Track Selection and Inspector (Phase 6)
@@ -93,13 +93,13 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
   - `WaveformPeakBuilderTests` (7 tests): silent WAV → zero peaks, non-silent → non-zero, bucket count capped, single frame, unreadable file throws, metadata correctness, read-only safety.
   - `TimelineVisualizationBuilderTests` (24 tests): empty project, zero/delayed/multi-region extent, missing length, ambiguous/suppressed/missing-source states, selection marking and lane order, zoom clamp, ruler ticks, `sampleToX` at boundary/midpoint values.
 
-### Song Detail Workspace (Phase 5)
+### Song Detail Workspace (Current)
 
-- `ProjectDetailView` is now a scrollable selected-song workspace with native `GroupBox` sections for **Overview**, **Validation**, **Tracks**, **Regions / Timeline**, and **Preview**.
-- Overview adds view-only summary metrics (folder/path, track count, WAV count, validation issue count, unassigned region count, EDL file-list count, timeline candidate count, preview availability) derived from existing models.
-- Track and region research/debug visibility remains intact: `TrackTableView` is still the canonical raw track/mixer table, and unassigned region rows remain visible with evidence labels.
-- Regions/timeline summary includes sample positions plus readable time text.
-- Preview transport remains read-only with unchanged Play/Stop semantics and clearer disabled/empty-state copy when no playable WAV regions are available.
+- `ProjectDetailView` presents a focused selected-song workspace: song header, read-only playback controls, horizontal mixer, and native inspector.
+- The mixer uses one clear channel identity, concise audio status, pan/level/mute/solo controls, and reset-all mix access.
+- Raw filenames, evidence levels, take metadata, parsed bytes, and selected-channel reset/reveal actions live in `TrackRegionInspectorView`.
+- Critical blockers remain visible in the primary workspace: playback errors, preview unavailable status, missing audio, and no-audio channel states.
+- Preview playback remains read-only with unchanged Play/Stop semantics.
 
 ### Source and Song Fingerprints (Phase 4)
 

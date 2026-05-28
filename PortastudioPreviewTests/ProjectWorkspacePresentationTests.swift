@@ -125,9 +125,10 @@ struct ProjectWorkspacePresentationTests {
 
         #expect(strip.id == 3)
         #expect(strip.trackNumberLabel == "3")
-        #expect(strip.displayName == "Lead Vocal")
+        #expect(strip.channelTitle == "Lead Vocal")
+        #expect(strip.channelSubtitle == "Track 3")
         #expect(strip.candidateWAVLabel == "ZZ0003_1.wav")
-        #expect(strip.candidateDetailLabel == "Audio file")
+        #expect(strip.audioStatusLabel == "Audio assigned")
         #expect(strip.panDisplayLabel == "R1")
         #expect(strip.panPosition > 0)
         #expect(strip.levelLabel == "0 dB")
@@ -155,10 +156,11 @@ struct ProjectWorkspacePresentationTests {
             isSelected: false
         )
 
-        #expect(strip.displayName == "Track 4")
+        #expect(strip.channelTitle == "Track 4")
+        #expect(strip.channelSubtitle == nil)
         #expect(strip.trackNumberLabel == "4")
         #expect(strip.candidateWAVLabel == "No Audio File")
-        #expect(strip.candidateDetailLabel == "Unassigned")
+        #expect(strip.audioStatusLabel == "No audio")
         #expect(strip.panDisplayLabel == "C")
         #expect(strip.panPosition == 0)
         #expect(strip.levelLabel == "n/a")
@@ -203,14 +205,101 @@ struct ProjectWorkspacePresentationTests {
             cleanSummary.issueLabel ?? "",
             cleanSummary.previewUnavailableLabel ?? "",
             issueSummary.issueLabel ?? "",
-            noFileStrip.candidateWAVLabel,
-            noFileStrip.candidateDetailLabel
+            noFileStrip.audioStatusLabel
         ].joined(separator: " ").lowercased()
 
         let blockedTerms = ["hypothesis", "validated", "evidence", "edl file list", "preview domain", "exact match"]
         for term in blockedTerms {
             #expect(!primaryCopy.contains(term))
         }
+    }
+
+    @Test func mixerPrimaryChannelIdentityAvoidsDuplicateDefaultTrackName() {
+        let strip = TrackMixerStripPresentation(
+            channel: MixerChannel(
+                leadingTrackNumber: 4,
+                memberTracks: [makeTrack(trackNumber: 4, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false)]
+            ),
+            displayName: nil,
+            isSelected: false
+        )
+
+        #expect(strip.channelTitle == "Track 4")
+        #expect(strip.channelSubtitle == nil)
+    }
+
+    @Test func mixerPrimaryChannelIdentityShowsCustomNameWithSubtleTrackNumber() {
+        let strip = TrackMixerStripPresentation(
+            channel: MixerChannel(
+                leadingTrackNumber: 3,
+                memberTracks: [makeTrack(trackNumber: 3, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false)]
+            ),
+            displayName: "Lead Vocal",
+            isSelected: false
+        )
+
+        #expect(strip.channelTitle == "Lead Vocal")
+        #expect(strip.channelSubtitle == "Track 3")
+    }
+
+    @Test func mixerPrimaryAudioCopyExcludesTechnicalDetails() {
+        let strip = TrackMixerStripPresentation(
+            channel: MixerChannel(
+                leadingTrackNumber: 3,
+                memberTracks: [makeTrack(trackNumber: 3, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false, assigned: true)]
+            ),
+            displayName: "Lead Vocal",
+            isSelected: false
+        )
+
+        let primaryCopy = [
+            strip.channelTitle,
+            strip.channelSubtitle ?? "",
+            strip.audioStatusLabel
+        ].joined(separator: " ").lowercased()
+
+        #expect(!primaryCopy.contains("zz0003_1.wav"))
+        #expect(!primaryCopy.contains("confirmed"))
+        #expect(!primaryCopy.contains("take"))
+        #expect(primaryCopy.contains("audio assigned"))
+    }
+
+    @Test func mixerPrimaryAudioCopyKeepsNoAudioStateVisible() {
+        let inactiveStrip = TrackMixerStripPresentation(
+            channel: MixerChannel(
+                leadingTrackNumber: 8,
+                memberTracks: [TrackPreview(
+                    trackNumber: 8,
+                    candidateWAV: nil,
+                    mixerSetting: nil,
+                    track1ActiveTakeCandidate: nil,
+                    timeline: nil,
+                    virtualTrackOptions: [],
+                    defaultVirtualTrackOptionID: nil
+                )]
+            ),
+            displayName: nil,
+            isSelected: false
+        )
+        let missingStrip = TrackMixerStripPresentation(
+            channel: MixerChannel(
+                leadingTrackNumber: 9,
+                memberTracks: [TrackPreview(
+                    trackNumber: 9,
+                    candidateWAV: nil,
+                    mixerSetting: nil,
+                    track1ActiveTakeCandidate: nil,
+                    timeline: TrackTimeline(trackNumber: 9, regions: [], evidenceLevel: .hypothesis),
+                    virtualTrackOptions: [],
+                    defaultVirtualTrackOptionID: nil
+                )]
+            ),
+            displayName: nil,
+            isSelected: false
+        )
+
+        #expect(inactiveStrip.audioStatusLabel == "No audio")
+        #expect(missingStrip.audioStatusLabel == "Missing audio")
     }
 
     @Test func visibleMixerChannelsGroupTrack9And10IntoSingleRow() {
