@@ -44,7 +44,7 @@ enum PreviewPlaybackState: Equatable {
     case paused
 }
 
-/// Shared transport model for approximate stereo preview playback.
+/// Shared transport model for read-only stereo preview playback.
 ///
 /// Owns `StereoPreviewEngine` and provides playback state and `elapsedSeconds`
 /// for workspace transport display.

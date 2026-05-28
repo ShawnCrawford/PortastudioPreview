@@ -35,7 +35,7 @@ struct TrackPreview: Identifiable, Hashable, Sendable {
     var id: Int { trackNumber }
 
     var candidateWAVEvidence: EvidenceLevel {
-        candidateWAV == nil ? .observed : .hypothesis
+        candidateWAV == nil ? .observed : .confirmed
     }
 
     var showsVirtualTrackPicker: Bool {

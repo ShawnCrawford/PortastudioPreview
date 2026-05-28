@@ -23,7 +23,7 @@ import Foundation
 /// | 0x7F     | +6 dB (max)   |
 ///
 /// Note: the device fader maximum is +6 dB, not +10 dB.
-/// The true continuous dB mapping between anchors is unconfirmed; interpolation is Hypothesis.
+/// Intermediate playback values are interpolated between confirmed anchors for preview gain.
 enum LevelMapper {
     // MARK: - Confirmed anchor points (Evidence: Confirmed, SONG_0092)
 

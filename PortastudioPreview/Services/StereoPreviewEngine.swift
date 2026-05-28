@@ -310,7 +310,7 @@ final class StereoPreviewEngine {
         var result: [PlayableRegion] = []
 
         // Assigned tracks with known timelines use their mixer settings directly.
-        // This path correctly applies mute, approximate volume, and pan without relying
+        // This path correctly applies mute, volume, and pan without relying
         // on positional EDL-index inference.
         for track in project.tracks {
             let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: track.trackNumber) ?? track.trackNumber

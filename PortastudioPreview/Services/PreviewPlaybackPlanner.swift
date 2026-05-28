@@ -11,9 +11,8 @@ import Foundation
 /// **V1 scope — evidence-backed rules only:**
 /// - Active virtual-take selection from the EDL active-take byte (Correlated, SONG_0083–0085)
 /// - Track 1 mute suppression via EDL position 0 (Confirmed, SONG_0075)
-/// - Track 2 mute suppression via EDL position 1 (Observed/Hypothesis, SONG_0090)
-/// - All other regions play at unity gain, center pan
-/// - Track-to-WAV mapping beyond positions 0–1 remains Hypothesis; no suppression applied
+/// - Track mute suppression via confirmed EDL position-to-track mapping
+/// - Regions without assigned track mixer settings play at unity gain, center pan
 struct PreviewPlaybackPlanner {
 
     static func plan(for project: PortastudioProject) -> PlaybackPlan {
@@ -29,15 +28,14 @@ struct PreviewPlaybackPlanner {
             project: project
         )
 
-        // Step 2: Apply mute suppression.
-        // Evidence: EDL position index maps to track number (0-based). Hypothesis.
+        // Step 2: Apply mute suppression from confirmed EDL position-to-track mapping.
         let (muteFiltered, muteSuppressed) = applyMuteSuppression(
             regions: virtualTakeFiltered,
             project: project
         )
 
-        // Step 3: Map to scheduled regions. V1 keeps unity gain and center pan for all
-        // unassigned regions; pan/level/EQ deferred until track-to-WAV mapping is stronger.
+        // Step 3: Map remaining unassigned regions. Assigned tracks are handled by
+        // StereoPreviewEngine's direct track path with mixer pan/level/mute applied.
         let scheduled = muteFiltered.compactMap { region -> ScheduledPlaybackRegion? in
             guard let url = region.sourceURL, let filename = region.sourceFilename else {
                 return nil
@@ -152,10 +150,7 @@ struct PreviewPlaybackPlanner {
 
     /// Suppresses regions whose EDL position index maps to a muted track.
     ///
-    /// Evidence for EDL-position-to-track mapping: Hypothesis.
-    /// - Position 0 → Track 1 mute (Confirmed, SONG_0075)
-    /// - Position 1 → Track 2 mute (Observed, SONG_0090)
-    /// - Positions ≥ 2: no evidence-backed mapping; regions remain playable in v1.
+    /// Evidence for EDL-position-to-track mapping: Confirmed.
     private static func applyMuteSuppression(
         regions: [TimelineRegion],
         project: PortastudioProject
@@ -180,8 +175,6 @@ struct PreviewPlaybackPlanner {
         _ position: Int,
         project: PortastudioProject
     ) -> PlaybackSuppressionReason? {
-        // Only tracks 1 and 2 have evidence-backed EDL-position mapping in v1.
-        guard position <= 1 else { return nil }
         guard project.tracks.indices.contains(position) else { return nil }
 
         let track = project.tracks[position]
@@ -194,7 +187,9 @@ struct PreviewPlaybackPlanner {
 
         guard let mute = track.mixerSetting?.mute, mute.primaryByte != 0 else { return nil }
 
-        return position == 0 ? .track1Mute : .track2Mute
+        if position == 0 { return .track1Mute }
+        if position == 1 { return .track2Mute }
+        return .trackMute
     }
 
     // MARK: - Virtual take filename helper

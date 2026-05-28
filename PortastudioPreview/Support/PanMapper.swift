@@ -22,7 +22,7 @@ import Foundation
 /// | 0x44     | R4            |
 /// | 0x7F     | R (hard right)|
 ///
-/// The full linear mapping between anchors is Hypothesis; these anchors are Confirmed.
+/// Intermediate playback values are linearly mapped between confirmed anchors.
 enum PanMapper {
     // MARK: - Confirmed anchor points (Evidence: Confirmed, SONG_0092)
 

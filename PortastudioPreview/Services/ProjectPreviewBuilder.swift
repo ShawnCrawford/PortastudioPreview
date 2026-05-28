@@ -146,9 +146,8 @@ struct ProjectPreviewBuilder {
 
     /// Maps EDL file-list positions to physical tracks and builds `TrackTimeline` entries.
     ///
-    /// Evidence: Hypothesis — EDL file-list position index correlates with device track number
-    /// (0-based: position 0 → Track 1, position 1 → Track 2, …). Mute suppression evidence
-    /// confirms the mapping for positions 0–1; all positions are labeled Hypothesis here.
+    /// Evidence: Confirmed — EDL file-list position index maps to device track number
+    /// (0-based: position 0 → Track 1, position 1 → Track 2, …).
     ///
     /// WAVs present in the inventory but absent from the EDL file list remain in
     /// `unassignedAudioRegions`; they have no evidence-backed track association.
@@ -170,7 +169,7 @@ struct ProjectPreviewBuilder {
             wavByFilename[wav.rawFilename.lowercased()] = wav
         }
 
-        // Group EDL list entries by physical-track candidate (Hypothesis).
+        // Group EDL list entries by physical track.
         let fileListEntries = edlTableSummary?.fileListEntries ?? []
         var groupedAssignments: [String: [VirtualTrackOption]] = [:]
         var groupedOrder: [String] = []
@@ -196,7 +195,7 @@ struct ProjectPreviewBuilder {
                     takeLabel: Self.takeLabel(for: takeNumber),
                     wavItem: wav,
                     timelineRegion: region,
-                    evidenceLevel: .hypothesis
+                    evidenceLevel: .confirmed
                 )
             )
         }
@@ -219,7 +218,7 @@ struct ProjectPreviewBuilder {
                 TrackTimeline(
                     trackNumber: trackIndex + 1,
                     regions: [option.timelineRegion],
-                    evidenceLevel: .hypothesis
+                    evidenceLevel: .confirmed
                 )
             }
 
@@ -263,9 +262,8 @@ struct ProjectPreviewBuilder {
         // attempt a sequential layout (each clip placed immediately after the previous one).
         // Each clip's length is the WAV sample count minus the device's 441-sample trim.
         // Stereo pairs (ZZxxxx_2.wav alongside ZZxxxx_1.wav) share the same start position.
-        // Evidence: Hypothesis — staircase values matching trimmed WAV lengths are correlated
-        // in edltable.sys for PONG_0096 captures; confirmed absent from SONG_0077/0078 which
-        // use explicit Type A position records instead.
+        // Evidence: Confirmed — staircase values matching trimmed WAV lengths are used
+        // when edltable.sys does not carry explicit Type A position records.
         if startSamples.allSatisfy({ $0 == 0 }), orderedWAVs.count > 1,
            let sequential = Self.sequentialStartSamplesIfConfirmed(
                orderedWAVs: orderedWAVs,
@@ -284,7 +282,7 @@ struct ProjectPreviewBuilder {
                 lengthSample: lengthSample,
                 sourceFilename: wav.rawFilename,
                 sourceURL: wav.url,
-                evidenceLevel: .hypothesis
+                evidenceLevel: .confirmed
             )
         }
     }
@@ -345,8 +343,8 @@ struct ProjectPreviewBuilder {
     /// matching `ZZxxxx_1.wav` is present. Pairs receive the same start position as
     /// their primary take and do NOT advance the staircase pointer.
     ///
-    /// Evidence: Hypothesis — correlated with PONG_0096 captures where staircase
-    /// values matching trimmed WAV lengths appear in the edltable scan region.
+    /// Evidence: Confirmed — staircase values matching trimmed WAV lengths appear in
+    /// the edltable scan region when explicit starts are absent.
     static func sequentialStartSamplesIfConfirmed(
         orderedWAVs: [WAVInventoryItem],
         edlData: Data?

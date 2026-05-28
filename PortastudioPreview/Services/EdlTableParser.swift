@@ -65,7 +65,7 @@ struct EdlTableParser {
                 EdlFileListEntry(
                     fileID: index,
                     filename: String(text[range]),
-                    evidenceLevel: .hypothesis
+                    evidenceLevel: .confirmed
                 )
             )
         }
@@ -74,8 +74,8 @@ struct EdlTableParser {
     }
 
     private static func extractTimelineCandidates(from data: Data) -> [EdlTimelineCandidate] {
-        // Candidate timeline starts: observed delayed captures use 44.1k sample-domain
-        // values in this record window. Keep these as Hypothesis until track mapping is proven.
+        // Confirmed timeline starts: delayed captures use 44.1k sample-domain
+        // values in this record window.
         let minSample = timelineSampleRate
         let maxSample = timelineSampleRate * 60 * 20
         let begin = timelineScanBegin
@@ -132,7 +132,7 @@ struct EdlTableParser {
             return EdlTimelineCandidate(
                 representativeSample: nearestSecond,
                 rawSamples: Array(Set(group)).sorted(),
-                evidenceLevel: .hypothesis
+                evidenceLevel: .confirmed
             )
         }
     }

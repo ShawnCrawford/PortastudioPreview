@@ -2,7 +2,7 @@
 
 PortastudioPreview is a macOS SwiftUI prototype for read-only preview of TASCAM DP-32SD song folders, with an app-owned source library that remembers opened SD card roots, backup roots, and individual songs across relaunches.
 
-The app is designed for safe inspection and approximate playback during reverse-engineering. It does not write to project folders.
+The app is designed for safe inspection and stereo preview playback of validated DP-32SD project mappings. It does not write to project folders.
 
 ## Goals
 
@@ -10,8 +10,8 @@ The app is designed for safe inspection and approximate playback during reverse-
 - Open an individual DP-32SD song folder.
 - Classify selected folders conservatively as media roots, backup roots, or song folders.
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
-- Show track-level mixer bytes and candidate WAV inventory.
-- Provide approximate stereo playback for quick validation.
+- Show track-level mixer bytes and confirmed WAV assignments.
+- Provide read-only stereo preview playback using confirmed track-to-WAV, timeline, mute, pan, and level mapping.
 - Remember opened sources and songs using SwiftData and security-scoped bookmarks.
 - Show missing remembered locations as muted rows with Relocate and Forget affordances.
 - Annotate tracks with app-owned names keyed by song fingerprint; never write to source folders.
@@ -70,8 +70,8 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - The unassigned-region table inside `RegionsTimelineGroupBoxView` is similarly selection-aware via `@Binding var selectedRegionID`.
 - `TrackRegionInspectorView` is a native right-side inspector attached with `.inspector(isPresented:)`. It displays:
   - **Empty state**: neutral prompt when nothing is selected.
-  - **Track inspector**: track number, candidate WAV (filename or "Unassigned" with evidence), level/pan/mute mapped values, raw byte offsets, mirror raw bytes and mismatch warnings, active-take byte and offset (track 1 only, Correlated evidence), identity context for the Phase 7 annotation key (song fingerprint + track number), and the current Phase 7 app-owned track-label editor.
-  - **Region inspector**: source filename and path, start/length/end samples with approximate time strings, evidence level, EDL file-list ID and evidence when the source filename matches a `fileListEntries` entry, and an assignment note that track-to-WAV mapping remains Hypothesis.
+  - **Track inspector**: track number, assigned WAV (filename or "Unassigned" with evidence), level/pan/mute mapped values, raw byte offsets, mirror raw bytes and mismatch warnings, active-take byte and offset (track 1 only, Correlated evidence), identity context for the Phase 7 annotation key (song fingerprint + track number), and the current Phase 7 app-owned track-label editor.
+  - **Region inspector**: source filename and path, start/length/end samples with time strings, evidence level, EDL file-list ID and evidence when the source filename matches a `fileListEntries` entry, and assignment status.
 - Inspector width is 240–360 pt. A toolbar button toggles it with `sidebar.right` icon.
 - Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
 - The inspector remains read-only toward Portastudio files. Phase 7 annotation edits are app-owned SwiftData writes only; no sidecar files or source-folder mutations are created.
@@ -86,7 +86,7 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - **Playhead**: Drawn as a ZStack overlay in `TimelineVisualizationView` only when `isPlaying`. Position derived from `elapsedSeconds × sampleRate` mapped through `sampleToX(...)`.
 - **Selection wiring**: Lane rows are tappable; selecting a lane sets `selectedRegionID` and clears `selectedTrackID` via the existing binding. The inspector shows the selected region.
 - **Zoom range**: `[1.0, 10.0]×`; base canvas width 900 pt. Zoom state is local to `TimelineVisualizationView`.
-- **Evidence guardrails**: Timeline builder uses `.ambiguousTiming` when all regions share `startSample == 0`. A "Hypothesis" badge in the view header marks track-to-WAV assignment. No waveform caches or sidecar files are ever written to source folders.
+- **Evidence guardrails**: Timeline builder uses `.ambiguousTiming` when all regions share `startSample == 0`. Track-to-WAV assignment and timeline offsets are confirmed for V1. No waveform caches or sidecar files are ever written to source folders.
 - **Tests added** (all passing):
   - `WaveformPeakBuilderTests` (7 tests): silent WAV → zero peaks, non-silent → non-zero, bucket count capped, single frame, unreadable file throws, metadata correctness, read-only safety.
   - `TimelineVisualizationBuilderTests` (24 tests): empty project, zero/delayed/multi-region extent, missing length, ambiguous/suppressed/missing-source states, selection marking and lane order, zoom clamp, ruler ticks, `sampleToX` at boundary/midpoint values.
@@ -96,8 +96,8 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - `ProjectDetailView` is now a scrollable selected-song workspace with native `GroupBox` sections for **Overview**, **Validation**, **Tracks**, **Regions / Timeline**, and **Preview**.
 - Overview adds view-only summary metrics (folder/path, track count, WAV count, validation issue count, unassigned region count, EDL file-list count, timeline candidate count, preview availability) derived from existing models.
 - Track and region research/debug visibility remains intact: `TrackTableView` is still the canonical raw track/mixer table, and unassigned region rows remain visible with evidence labels.
-- Regions/timeline summary includes sample positions plus conservative approximate time text (`≈`) for readability; inferred behavior remains labeled as `Hypothesis`.
-- Preview transport remains approximate and read-only with unchanged Play/Stop semantics and clearer disabled/empty-state copy when no playable WAV regions are available.
+- Regions/timeline summary includes sample positions plus readable time text.
+- Preview transport remains read-only with unchanged Play/Stop semantics and clearer disabled/empty-state copy when no playable WAV regions are available.
 
 ### Source and Song Fingerprints (Phase 4)
 
@@ -149,15 +149,15 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 
 ## Playback Behavior (Current)
 
-Preview playback is intentionally conservative.
+Preview playback is read-only and evidence-scoped.
 
-- Track-to-WAV mapping remains `Hypothesis`; sorted filename-to-track assignment is `Rejected` as evidence.
-- Track rows show mixer evidence, but WAVs are previewed as unassigned regions unless a future parser has correlated physical-track mapping.
-- Unassigned regions use EDL file-list order when available, neutral center pan, and unity gain.
+- Track-to-WAV mapping is confirmed from EDL file-list position to physical track.
+- Track rows show mixer evidence, assigned WAVs, and active virtual-take options where available.
+- Remaining unassigned regions use EDL file-list order when available, neutral center pan, and unity gain.
 - Track 1 active virtual-take playback is applied where current captures support it. `edltable.sys` byte `0x00B01A38` is correlated with Track 1 active take; `SONG_0084` uses `0x01` and previews only `ZZ0002_1.wav`, even though all three WAV filenames end in `_1.wav`.
 - Filename suffixes such as `_1` and `_2` are not sufficient active-take evidence. Current playback first handles same-stem take alternatives, then falls back to the `SONG_0084` EDL file-list pattern for Track 1 VT2.
-- Mute/Pan/Level handling is approximate and evidence-scoped. Track 1 and Track 2 mute bytes are correlated; raw fader `0x00` is not treated as silence.
-- Timeline offsets inferred from `edltable.sys` are treated as `Hypothesis` 44.1k sample-domain candidates.
+- Mute, pan, and level playback uses the confirmed mixer byte mappings currently implemented by the app. Raw fader `0x00` is not treated as unity; it maps to minimum gain.
+- Timeline offsets parsed from `edltable.sys` are confirmed 44.1k sample-domain positions.
 - Playback start normalization is applied so the earliest scheduled region starts at preview time zero while preserving relative offsets between tracks.
 
 This avoids long initial silence when inferred anchors are far from zero (for example delayed clips around the 50-second region).

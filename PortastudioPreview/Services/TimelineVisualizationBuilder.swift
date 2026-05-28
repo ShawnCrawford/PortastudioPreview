@@ -213,8 +213,8 @@ private extension PlaybackSuppressionReason {
         switch self {
         case .track1ActiveVirtualTake: return "Inactive virtual take"
         case .track1Mute: return "Track muted (Confirmed)"
-        case .track2Mute: return "Track muted (Observed)"
-        case .unsupportedMapping: return "Unsupported mapping"
+        case .track2Mute: return "Track muted (Confirmed)"
+        case .trackMute: return "Track muted (Confirmed)"
         }
     }
 }

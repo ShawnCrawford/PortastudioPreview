@@ -89,8 +89,7 @@ struct PreviewPlaybackPlannerTests {
         #expect(plan.suppressedEntries.first?.reason == .track2Mute)
     }
 
-    @Test func track3MuteDoesNotSuppressThirdEDLPositionBeyondEvidencedMapping() {
-        // No evidence-backed EDL-position mapping beyond track 2 in v1.
+    @Test func track3MuteSuppressesThirdEDLPosition() {
         let project = makeProject(
             regions: [
                 region("ZZ0002_1.wav"),
@@ -105,8 +104,9 @@ struct PreviewPlaybackPlannerTests {
         )
         let plan = PreviewPlaybackPlanner.plan(for: project)
 
-        #expect(plan.playableFilenames == ["ZZ0002_1.wav", "ZZ0001_1.wav", "ZZ0000_1.wav"])
-        #expect(plan.suppressedFilenames.isEmpty)
+        #expect(plan.playableFilenames == ["ZZ0002_1.wav", "ZZ0001_1.wav"])
+        #expect(plan.suppressedFilenames == ["ZZ0000_1.wav"])
+        #expect(plan.suppressedEntries.first?.reason == .trackMute)
     }
 
     @Test func allTracksWithinEvidenceMutedProducesEmptyPlan() {

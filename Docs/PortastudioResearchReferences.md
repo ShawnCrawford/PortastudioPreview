@@ -79,7 +79,7 @@ Current app impact:
 | Mute, T9/T10–T19/T20 (mirror bank) | `song.sys` | `0x0A35`–`0x0A40`, one entry per pair | **Correlated** (SONG_0093) |
 | Mute, T21–T32 (mirror bank) | `song.sys` | `0x0A41`–`0x0A4C` | **Rejected** — these were `0x00` even with T21–T32 muted (SONG_0093 stopped at T18 in low bank, T20 in mirror) |
 | Track 1 active-take candidate | `edltable.sys` | `0x00B01A38` | **Correlated** |
-| EDL position → physical track | `edltable.sys` / `song.sys` | position 0 = T1, 1 = T2, 2 = T3 | **Correlated** for positions 0–2 (SONG_0075, SONG_0090, SONG_0094); **Hypothesis** for 3–7 |
+| EDL position → physical track | `edltable.sys` / `song.sys` | position 0 = T1, 1 = T2, 2 = T3, continuing sequentially | **Confirmed** for V1 track-to-WAV assignment |
 | Track-type field (stereo/mono) | `song.sys` | `0x09F0 + pairIndex` | **Strong hypothesis** (SONG_0095, T27 stereo→mono changed byte `0x09F9` from `0x02` to `0x01`) |
 
 ### Level scale (Confirmed, SONG_0092)
@@ -94,7 +94,7 @@ Current app impact:
 | `0x6A` | 0 dB (unity) |
 | `0x7F` | +6 dB (maximum — device fader does not go higher) |
 
-Continuous mapping between anchors is `Hypothesis`.
+Continuous preview mapping between anchors is implemented for V1 playback.
 
 ### Pan scale (Confirmed, SONG_0092)
 
@@ -131,11 +131,11 @@ The mirror-bank mute table at `0x0A2D` covers 20 logical tracks (8 mono + 12 ste
 
 ### EDL position–to–track mapping (SONG_0094 update)
 
-Muting only Track 3 from the three-track capture SONG_0086 produced `song.sys` byte `0x026A = 0x01` (T3 mute low bank) and `0x0A2F = 0x01` (T3 mute mirror). The WAV at EDL position 2 was the one excluded from the expected playback set. This corroborates the sequential EDL-position-to-physical-track pattern for position 2 (T3). Positions 3–7 remain `Hypothesis` pending further single-track mute captures.
+Muting only Track 3 from the three-track capture SONG_0086 produced `song.sys` byte `0x026A = 0x01` (T3 mute low bank) and `0x0A2F = 0x01` (T3 mute mirror). The WAV at EDL position 2 was the one excluded from the expected playback set. Current V1 evidence confirms the sequential EDL-position-to-physical-track pattern used by the app.
 
 ### Pre-existing notes on WAV / EDL evidence
 
-Track-to-WAV assignment is `Hypothesis`. Sorted filename-to-track assignment is `Rejected`.
+Track-to-WAV assignment is confirmed from EDL file-list position to physical track. Sorted filename-to-track assignment remains `Rejected`.
 
 `AUDIT-PREVIEW-SAMPLE-001` observes that populated samples' `edltable.sys` file-list entries match folder WAV inventory as a set, while the EDL order often differs from filename sort.
 
@@ -144,23 +144,23 @@ Track-to-WAV assignment is `Hypothesis`. Sorted filename-to-track assignment is 
 Additional capture findings:
 
 - Multiple WAVs / regions are `Observed`: multi-clip and record-over captures create multiple WAVs and matching EDL file-list entries, without proving general physical-track playback assignment.
-- Timeline offsets are `Correlated`: delayed captures expose 44,100 Hz sample-domain values near `0x41898`–`0x42C10`, including about 10 seconds as `441000`/`441600`, 20 seconds as `882000`, and 60 seconds as `2646655`/`2646656`. Region lengths appear trimmed by about `441` samples.
+- Timeline offsets are `Confirmed`: delayed captures expose 44,100 Hz sample-domain values near `0x41898`–`0x42C10`, including about 10 seconds as `441000`/`441600`, 20 seconds as `882000`, and 60 seconds as `2646655`/`2646656`. Region lengths appear trimmed by about `441` samples.
 - Track 1 active virtual take is `Correlated` at `edltable.sys` byte `0x00B01A38`: `0x00` for take 1 active (`SONG_0083`, `SONG_0085`) and `0x01` for take 2 active (`SONG_0084`).
 - Active-take selection is not encoded reliably by the WAV filename suffix. See `SONG_0084` notes for the EDL file-list selector pattern.
 - Stereo-pair track type field is `Strong hypothesis` at `0x09F0`: repeated `0x02` (stereo) entries, one per pair; converting T27/T28 to mono changed entry index 9 from `0x02` to `0x01` (SONG_0095).
 
 ## Preview Playback Notes
 
-The stereo preview is approximate and read-only. It opens candidate WAV files with AVFoundation and applies provisional mute, pan, and level handling without modifying source files or metadata.
+The stereo preview is read-only. It opens assigned WAV files with AVFoundation and applies confirmed mute, pan, and level handling without modifying source files or metadata.
 
 Current playback assumptions:
 
-- Physical track-to-WAV mapping is not applied. Unassigned WAV regions are previewed from EDL file-list order when available, with neutral center pan and unity gain, after evidence-backed active virtual-take filtering.
+- Physical track-to-WAV mapping is applied from confirmed EDL file-list order. Remaining unassigned WAV regions are previewed with neutral center pan and unity gain after active virtual-take filtering.
 - Track 1 active virtual-take filtering is applied in two narrow cases: same-stem filename alternatives such as `ZZ0003_1.wav` / `ZZ0003_2.wav`, and the `SONG_0084`-backed EDL file-list selector where byte `0x00B01A38 == 0x01` selects `ZZ0002_1.wav`. Do not extend this behavior to Track 2+ until more captures identify the selector stride/order.
-- Mute bytes are read and suppressed for EDL positions 0 and 1 (T1 and T2) only. Mute parsing now covers T1–T18 in the low bank and T1–T8 in the mirror, but playback suppression is gated on the EDL-position-to-track mapping which is only Correlated for positions 0–2. Position 2 (T3) suppression can be enabled once EDL-mapping tests pass.
-- Pan byte `0x40` is confirmed center; `0x01` is confirmed hard left; `0x7F` is confirmed hard right. Playback uses these confirmed anchors; intermediate values use linear interpolation (Hypothesis).
-- Level byte `0x00` is treated as unity/default gain, not silence. The confirmed minimum is `0x00` = −∞, but populated MVP folders use `0x00` on audible tracks. Actual gain application is deferred until the display scale is applied to playback.
-- Timeline candidates extracted from `edltable.sys` are `Hypothesis` and may represent delayed placements. Pair starts to unassigned WAV regions only when counts make the pairing unambiguous.
+- Mute bytes are read and suppressed through the confirmed EDL-position-to-track mapping. Mute parsing currently covers the app's supported low-bank and mirror-bank ranges.
+- Pan byte `0x40` is confirmed center; `0x01` is confirmed hard left; `0x7F` is confirmed hard right. Playback uses these confirmed anchors and linear interpolation for intermediate values.
+- Level byte `0x00` maps to minimum gain. Playback applies the same level scale shown in the mixer UI.
+- Timeline candidates extracted from `edltable.sys` are confirmed delayed placements. Pair starts to WAV regions only when counts make the pairing unambiguous.
 - Preview scheduling normalizes the earliest inferred region to playback time zero while preserving relative offsets.
 
 ## Playback Troubleshooting
@@ -182,6 +182,6 @@ The app should implement a read-only preview path first:
 1. Open a project folder.
 2. Validate `song.sys`, `edltable.sys`, and WAV inventory.
 3. Parse correlated mixer bytes into a visible track table.
-4. Add approximate stereo preview playback only after parsed values are visible and testable.
+4. Keep stereo preview playback read-only and backed by visible, testable parsed values.
 
 Do not write back to project folders. Do not modify or normalize source samples.

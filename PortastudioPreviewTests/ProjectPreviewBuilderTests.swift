@@ -48,14 +48,14 @@ struct ProjectPreviewBuilderTests {
 
         let project = try ProjectPreviewBuilder().build(folderURL: folder.url)
 
-        // EDL position 0 → track 1 (Hypothesis)
+        // EDL position 0 → track 1 (Confirmed)
         #expect(project.tracks[0].candidateWAV?.rawFilename == "ZZ0002_1.wav")
         #expect(project.tracks[0].timeline != nil)
-        #expect(project.tracks[0].timeline?.evidenceLevel == .hypothesis)
-        // EDL position 1 → track 2 (Hypothesis)
+        #expect(project.tracks[0].timeline?.evidenceLevel == .confirmed)
+        // EDL position 1 → track 2 (Confirmed)
         #expect(project.tracks[1].candidateWAV?.rawFilename == "ZZ0001_1.wav")
         #expect(project.tracks[1].timeline != nil)
-        // EDL position 2 → track 3 (Hypothesis)
+        // EDL position 2 → track 3 (Confirmed)
         #expect(project.tracks[2].candidateWAV?.rawFilename == "ZZ0000_1.wav")
         #expect(project.tracks[2].timeline != nil)
         // Tracks beyond the EDL list remain unassigned

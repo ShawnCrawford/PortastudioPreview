@@ -48,7 +48,7 @@ struct EdlTableParserTests {
         #expect(summary.fileListEntries[1].filename == "ZZ0003_1.wav")
         #expect(summary.timelineAnchors == [441_000, 882_000])
         #expect(summary.timelineCandidates[0].rawSamples == [440_999, 441_000, 441_600])
-        #expect(summary.timelineCandidates[0].evidenceLevel == .hypothesis)
+        #expect(summary.timelineCandidates[0].evidenceLevel == .confirmed)
     }
 
     @Test func parsesFileListEntriesBeyondInitialMVPWindow() throws {

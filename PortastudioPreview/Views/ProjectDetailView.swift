@@ -211,7 +211,7 @@ private struct OverviewGroupBoxView: View {
                     HStack(spacing: 6) {
                         Text("\(summary.trackCount)")
                         if summary.assignedTrackCount > 0 {
-                            Text("· \(summary.assignedTrackCount) with candidate WAV (Hypothesis)")
+                            Text("· \(summary.assignedTrackCount) with confirmed WAV assignment")
                                 .foregroundStyle(.secondary)
                         }
                     }

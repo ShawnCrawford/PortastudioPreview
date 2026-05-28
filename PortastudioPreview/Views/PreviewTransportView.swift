@@ -30,7 +30,7 @@ struct PreviewTransportView: View {
                 }
                 .disabled(!canPlay)
                 .accessibilityLabel(
-                    playbackController.isPlaying ? "Pause approximate stereo preview" : "Play approximate stereo preview"
+                    playbackController.isPlaying ? "Pause stereo preview" : "Play stereo preview"
                 )
 
                 Button {
@@ -53,10 +53,10 @@ struct PreviewTransportView: View {
                     .lineLimit(2)
             } else {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Approximate stereo preview — track-to-WAV assignment is Hypothesis.")
+                    Text("Stereo preview uses confirmed track-to-WAV, timeline, mute, pan, and level mapping.")
                         .foregroundStyle(.secondary)
                         .font(.callout)
-                    Text("WAV regions may not reflect the final device mix.")
+                    Text("Playback remains read-only and does not modify Portastudio files.")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }

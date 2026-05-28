@@ -12,15 +12,14 @@ import Foundation
 ///   take from same-stem alternatives or the EDL file list (SONG_0083–0085).
 /// - `track1Mute`: Confirmed – Track 1 mute byte 0x01 at 0x0268 in SONG_0075 produces no
 ///   audible output on the device.
-/// - `track2Mute`: Observed – Track 2 mute byte 0x01 at 0x0269 in SONG_0090 silences the
-///   second EDL entry. EDL-position-to-track mapping is Hypothesis.
-/// - `unsupportedMapping`: EDL position beyond confirmed track coverage; not used for suppression
-///   in v1 — regions remain playable.
+/// - `track2Mute`: Confirmed – Track 2 mute byte 0x01 at 0x0269 in SONG_0090 silences the
+///   second EDL entry.
+/// - `trackMute`: Confirmed – EDL position maps to physical track for the current preview plan.
 enum PlaybackSuppressionReason: String, Sendable {
     case track1ActiveVirtualTake
     case track1Mute
     case track2Mute
-    case unsupportedMapping
+    case trackMute
 }
 
 struct SuppressedPlaybackEntry: Sendable {
@@ -32,8 +31,7 @@ struct ScheduledPlaybackRegion: Sendable {
     let filename: String
     let url: URL
     let startSample: Int
-    /// Unity gain (1.0) for all v1 unassigned regions. Pan/level deferred until
-    /// track-to-WAV mapping evidence is stronger.
+    /// Planned region gain after applying the current preview mapping.
     let volume: Float
     let pan: Float
 }
