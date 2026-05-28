@@ -100,10 +100,10 @@ Status (partially implemented): the read-only model/service foundation exists in
 Status (current): the selected-song experience is now a focused mixer workspace rather than a section/table-first project detail.
 
 - `ProjectDetailView` owns selected-track state, inspector visibility, `PreviewPlaybackController`, `PreviewMixState`, and selected virtual-take IDs.
-- `ProjectWorkspaceView` shows header identity, Play/Pause/Stop transport, elapsed time, output meters, issue status, and `TrackMixerDeckView`.
+- `ProjectWorkspaceView` shows a cohesive utility header (identity, transport, elapsed time, output meters, issue status) and `TrackMixerDeckView` with selected-strip emphasis and fader/meter-first hierarchy.
 - `TrackMixerDeckView` provides per-channel pan, fader, mute, solo, reset-all, live track meter, and virtual-take picker controls.
 - `PreviewMixState` persists app-owned level, pan, mute, solo, and selected virtual-take overrides through SwiftData `MixOverrideRecord`, but only when the song annotation context is editable.
-- `TrackRegionInspectorView` is the diagnostics and utility surface for song summary, selected-track audio/take/evidence, parsed-vs-saved mix values, raw bytes, app-owned labels, audio file list, Reveal in Finder, and reset selected channel.
+- `TrackRegionInspectorView` is the utility surface for song summary, selected-track audio/take/mix values, app-owned labels, audio file list, Reveal in Finder, and reset selected channel, with parser/raw-byte diagnostics grouped under a Technical Details disclosure.
 - This workflow remains read-only toward Portastudio folders. Mix overrides change app preview behavior and SwiftData only.
 
 ### Phase 16: AudioDepot Import Staging

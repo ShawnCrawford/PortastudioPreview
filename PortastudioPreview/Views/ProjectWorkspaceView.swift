@@ -29,8 +29,6 @@ struct ProjectWorkspaceView: View {
                 stopAction: stopAction
             )
 
-            Divider()
-
             TrackMixerDeckView(
                 channels: project.visibleMixerChannels,
                 selectedTrackID: $selectedTrackID,
@@ -123,7 +121,13 @@ private struct ProjectHeaderView: View {
             }
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.vertical, 12)
+        .background(.thinMaterial)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.22))
+                .frame(height: 1)
+        }
         .accessibilityElement(children: .contain)
     }
 
@@ -228,6 +232,9 @@ private struct HeaderTransportControls: View {
             .accessibilityLabel("Stop playback")
         }
         .controlSize(.large)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: .capsule)
     }
 }
 
@@ -278,7 +285,7 @@ private struct MeterRow: View {
 
     private var meterStyle: LinearGradient {
         LinearGradient(
-            colors: [.mint.opacity(0.75), .teal.opacity(0.75), .blue.opacity(0.75)],
+            colors: [.mint.opacity(0.7), .teal.opacity(0.65), .blue.opacity(0.6)],
             startPoint: .leading,
             endPoint: .trailing
         )
@@ -400,8 +407,8 @@ struct TrackMixerDeckView: View {
 private enum MixerDeckMetrics {
     static let edgePadding: CGFloat = 28
     static let channelVerticalPadding: CGFloat = 18
-    static let stripSpacing: CGFloat = 10
-    static let stripWidth: CGFloat = 172
+    static let stripSpacing: CGFloat = 12
+    static let stripWidth: CGFloat = 182
     static let minimumStripHeight: CGFloat = 390
     static let compactMinimumStripHeight: CGFloat = 300
 }
@@ -414,6 +421,7 @@ private struct TrackMixerStripView: View {
     let setMuted: (Bool) -> Void
     let setSoloed: (Bool) -> Void
     let setSelectedVirtualTrackOption: (VirtualTrackOption.ID) -> Void
+    @State private var isHovered = false
 
     private static let colors: [Color] = [
         .blue.opacity(0.75),
@@ -430,34 +438,54 @@ private struct TrackMixerStripView: View {
         Self.colors[presentation.colorIndex % Self.colors.count]
     }
 
+    private var stripBackground: some ShapeStyle {
+        if presentation.isSelected {
+            return AnyShapeStyle(trackColor.opacity(0.18))
+        }
+        if isHovered {
+            return AnyShapeStyle(.primary.opacity(0.045))
+        }
+        return AnyShapeStyle(.clear)
+    }
+
+    private var stripBorderColor: Color {
+        if presentation.isSelected {
+            return trackColor.opacity(0.42)
+        }
+        if isHovered {
+            return Color.secondary.opacity(0.18)
+        }
+        return Color.clear
+    }
+
     var body: some View {
-        VStack(spacing: 12) {
-            Button(action: selectAction) {
-                VStack(spacing: 3) {
-                    Text(presentation.channelTitle)
-                        .font(.callout)
-                        .bold()
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    if let channelSubtitle = presentation.channelSubtitle {
-                        Text(channelSubtitle)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+        VStack(spacing: 10) {
+            VStack(spacing: 2) {
+                Button(action: selectAction) {
+                    VStack(spacing: 3) {
+                        Text(presentation.channelTitle)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(presentation.isSelected ? Color.primary : Color.primary.opacity(0.9))
                             .lineLimit(1)
+                            .truncationMode(.tail)
+                        if let channelSubtitle = presentation.channelSubtitle {
+                            Text(channelSubtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
+                    .frame(height: 40)
                 }
-                .frame(height: 42)
-            }
-            .buttonStyle(.plain)
+                .buttonStyle(.plain)
 
-            Text(presentation.audioStatusLabel)
-                .font(.caption)
-                .foregroundStyle(presentation.hasResolvedAudio ? .secondary : .tertiary)
-                .lineLimit(1)
-                .frame(height: 18)
-                .help(presentation.hasResolvedAudio ? presentation.candidateWAVLabel : presentation.audioStatusLabel)
+                Text(presentation.audioStatusLabel)
+                    .font(.caption2)
+                    .foregroundStyle(presentation.hasResolvedAudio ? .secondary : .tertiary)
+                    .lineLimit(1)
+                    .frame(height: 16)
+                    .help(presentation.hasResolvedAudio ? presentation.candidateWAVLabel : presentation.audioStatusLabel)
 
-            VStack(spacing: 0) {
                 if presentation.virtualTrackOptions.count > 1 {
                     Picker("Virtual Take", selection: Binding(
                         get: { presentation.selectedVirtualTrackOptionID ?? presentation.virtualTrackOptions[0].id },
@@ -473,24 +501,33 @@ private struct TrackMixerStripView: View {
                     .labelsHidden()
                     .controlSize(.small)
                     .accessibilityLabel("Virtual take")
+                } else {
+                    Spacer()
+                        .frame(height: 22)
                 }
             }
-            .frame(height: 22)
+
+            Divider()
+                .opacity(0.4)
 
             HStack(spacing: 8) {
                 VStack(spacing: 4) {
                     Text(presentation.panDisplayLabel)
-                        .font(.caption)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                         .monospacedDigit()
                     PanControlView(
                         value: presentation.panPosition,
                         color: trackColor,
+                        isSelected: presentation.isSelected,
                         onSelect: selectAction,
                         onValueChanged: setPanPosition
                     )
                 }
 
-                VStack(spacing: 4) {
+                Spacer(minLength: 0)
+
+                HStack(spacing: 6) {
                     Toggle(
                         isOn: Binding(
                             get: { presentation.isMuted },
@@ -512,9 +549,7 @@ private struct TrackMixerStripView: View {
                     .frame(width: 28, height: 24)
                     .help(presentation.isMuted ? "Unmute track" : "Mute track")
                     .accessibilityValue(presentation.isMuted ? "On" : "Off")
-                }
 
-                VStack(spacing: 4) {
                     Toggle(
                         isOn: Binding(
                             get: { presentation.isSoloed },
@@ -540,38 +575,43 @@ private struct TrackMixerStripView: View {
             }
 
             HStack(alignment: .bottom, spacing: 10) {
-                LevelScaleView()
+                LevelScaleView(isSelected: presentation.isSelected)
                 FaderTrackView(
                     value: presentation.levelPosition,
                     color: trackColor,
+                    isSelected: presentation.isSelected,
                     onSelect: selectAction,
                     onValueChanged: setLevelPosition
                 )
-                OutputLevelView(value: presentation.isEffectivelyMuted ? 0 : presentation.meterLevel)
+                OutputLevelView(
+                    value: presentation.isEffectivelyMuted ? 0 : presentation.meterLevel,
+                    isSelected: presentation.isSelected
+                )
             }
-            .frame(minHeight: 220, maxHeight: .infinity)
+            .frame(minHeight: 238, maxHeight: .infinity)
 
             Text(presentation.levelLabel)
-                .font(.caption)
+                .font(.caption2)
+                .foregroundStyle(presentation.isSelected ? Color.primary : Color.secondary)
                 .monospacedDigit()
                 .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(.primary.opacity(0.08), in: .rect(cornerRadius: 4))
+                .padding(.vertical, 4)
+                .background(Color.primary.opacity(presentation.isSelected ? 0.13 : 0.07), in: .rect(cornerRadius: 5))
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .padding(.vertical, 11)
         .frame(width: MixerDeckMetrics.stripWidth)
         .frame(maxHeight: .infinity)
-        .background(presentation.isSelected ? trackColor.opacity(0.13) : Color.clear)
+        .background(stripBackground)
         .clipShape(.rect(cornerRadius: 10))
         .overlay {
             RoundedRectangle(cornerRadius: 10)
-                .stroke(
-                    presentation.isSelected ? trackColor.opacity(0.35) : Color.secondary.opacity(0.12),
-                    lineWidth: 1
-                )
+                .stroke(stripBorderColor, lineWidth: 1)
         }
         .contentShape(.rect)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Track \(presentation.trackNumberLabel), \(presentation.channelTitle)")
         .accessibilityValue("\(presentation.audioStatusLabel), \(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel), \(presentation.soloLabel)")
@@ -581,8 +621,10 @@ private struct TrackMixerStripView: View {
 private struct PanControlView: View {
     let value: Double
     let color: Color
+    let isSelected: Bool
     let onSelect: () -> Void
     let onValueChanged: (Double) -> Void
+    @State private var isHovered = false
 
     private let centerDetent: Double = 0.04
 
@@ -594,7 +636,7 @@ private struct PanControlView: View {
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(.quaternary)
+                    .fill(isSelected ? Color.secondary.opacity(0.36) : Color.secondary.opacity(0.16))
                     .frame(height: 4)
                     .frame(maxHeight: .infinity, alignment: .center)
 
@@ -604,10 +646,10 @@ private struct PanControlView: View {
                     .position(x: centerX, y: proxy.size.height / 2)
 
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(.background)
+                    .fill(Color.primary.opacity(isHovered ? 0.1 : 0.075))
                     .overlay {
                         RoundedRectangle(cornerRadius: 4)
-                            .stroke(color.opacity(0.75), lineWidth: 1)
+                            .stroke(color.opacity(isSelected ? 0.82 : 0.68), lineWidth: 1)
                     }
                     .frame(width: 12, height: 12)
                     .position(x: knobX, y: proxy.size.height / 2)
@@ -623,6 +665,9 @@ private struct PanControlView: View {
             )
         }
         .frame(width: 72, height: 16)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .accessibilityLabel("Pan")
         .accessibilityValue(PanMapper.previewDisplayValue(forNormalizedPosition: value))
         .accessibilityAdjustableAction { direction in
@@ -645,12 +690,14 @@ private struct PanControlView: View {
 }
 
 private struct LevelScaleView: View {
+    let isSelected: Bool
+
     var body: some View {
         VStack {
             ForEach(["10", "0", "-10", "-30", "-60"], id: \.self) { label in
                 Text(label)
                     .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isSelected ? .secondary : .tertiary)
                 Spacer(minLength: 0)
             }
         }
@@ -661,8 +708,10 @@ private struct LevelScaleView: View {
 private struct FaderTrackView: View {
     let value: Double
     let color: Color
+    let isSelected: Bool
     let onSelect: () -> Void
     let onValueChanged: (Double) -> Void
+    @State private var isHovered = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -671,21 +720,21 @@ private struct FaderTrackView: View {
 
             ZStack(alignment: .top) {
                 Capsule()
-                    .fill(.quaternary)
-                    .frame(width: 6)
+                    .fill(isSelected ? Color.secondary.opacity(0.42) : Color.secondary.opacity(0.18))
+                    .frame(width: 7)
                     .frame(maxHeight: .infinity)
                 Capsule()
-                    .fill(color.opacity(0.45))
-                    .frame(width: 6, height: max(proxy.size.height * clamped, 3))
+                    .fill(color.opacity(isSelected ? 0.56 : 0.42))
+                    .frame(width: 7, height: max(proxy.size.height * clamped, 3))
                     .frame(maxHeight: .infinity, alignment: .bottom)
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(.background)
-                    .shadow(radius: 1, y: 1)
+                    .fill(Color.primary.opacity(isHovered ? 0.12 : 0.085))
+                    .shadow(color: .black.opacity(isHovered ? 0.18 : 0.1), radius: 1.2, y: 1)
                     .overlay {
                         RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+                            .stroke(color.opacity(isSelected ? 0.55 : 0.34), lineWidth: 1)
                     }
-                    .frame(width: 24, height: 14)
+                    .frame(width: 25, height: 15)
                     .offset(y: handleY - 6)
             }
             .frame(maxWidth: .infinity)
@@ -700,6 +749,9 @@ private struct FaderTrackView: View {
             )
         }
         .frame(width: 34)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .accessibilityLabel("Level")
         .accessibilityValue(LevelMapper.previewDisplayValue(forNormalizedPosition: value))
         .accessibilityAdjustableAction { direction in
@@ -718,13 +770,14 @@ private struct FaderTrackView: View {
 
 private struct OutputLevelView: View {
     let value: Double
+    let isSelected: Bool
 
     var body: some View {
         GeometryReader { proxy in
             let clamped = min(max(value, 0), 1)
             ZStack(alignment: .bottom) {
                 Rectangle()
-                    .fill(.quaternary)
+                    .fill(isSelected ? Color.secondary.opacity(0.36) : Color.secondary.opacity(0.16))
                 Rectangle()
                     .fill(.linearGradient(colors: [.mint.opacity(0.85), .teal.opacity(0.85)], startPoint: .bottom, endPoint: .top))
                     .frame(height: clamped == 0 ? 0 : max(proxy.size.height * clamped, 2))
@@ -887,13 +940,13 @@ private struct OutputLevelView: View {
 
     VStack(alignment: .leading, spacing: 16) {
         LabeledContent("Hard left") {
-            PanControlView(value: hardLeft, color: .blue, onSelect: {}, onValueChanged: { hardLeft = $0 })
+            PanControlView(value: hardLeft, color: .blue, isSelected: false, onSelect: {}, onValueChanged: { hardLeft = $0 })
         }
         LabeledContent("Center") {
-            PanControlView(value: center, color: .teal, onSelect: {}, onValueChanged: { center = $0 })
+            PanControlView(value: center, color: .teal, isSelected: true, onSelect: {}, onValueChanged: { center = $0 })
         }
         LabeledContent("Hard right") {
-            PanControlView(value: hardRight, color: .orange, onSelect: {}, onValueChanged: { hardRight = $0 })
+            PanControlView(value: hardRight, color: .orange, isSelected: false, onSelect: {}, onValueChanged: { hardRight = $0 })
         }
     }
     .padding()
@@ -907,24 +960,24 @@ private struct OutputLevelView: View {
 
     HStack(alignment: .bottom, spacing: 28) {
         VStack {
-            FaderTrackView(value: quiet, color: .blue, onSelect: {}, onValueChanged: { quiet = $0 })
+            FaderTrackView(value: quiet, color: .blue, isSelected: false, onSelect: {}, onValueChanged: { quiet = $0 })
             Text(LevelMapper.previewDisplayValue(forNormalizedPosition: quiet))
                 .font(.caption)
         }
         VStack {
-            FaderTrackView(value: unity, color: .teal, onSelect: {}, onValueChanged: { unity = $0 })
+            FaderTrackView(value: unity, color: .teal, isSelected: true, onSelect: {}, onValueChanged: { unity = $0 })
             Text(LevelMapper.previewDisplayValue(forNormalizedPosition: unity))
                 .font(.caption)
         }
         VStack {
-            FaderTrackView(value: loud, color: .orange, onSelect: {}, onValueChanged: { loud = $0 })
+            FaderTrackView(value: loud, color: .orange, isSelected: false, onSelect: {}, onValueChanged: { loud = $0 })
             Text(LevelMapper.previewDisplayValue(forNormalizedPosition: loud))
                 .font(.caption)
         }
         VStack {
-            OutputLevelView(value: 0.15)
-            OutputLevelView(value: 0.58)
-            OutputLevelView(value: 0.93)
+            OutputLevelView(value: 0.15, isSelected: false)
+            OutputLevelView(value: 0.58, isSelected: true)
+            OutputLevelView(value: 0.93, isSelected: false)
         }
         .frame(height: 220)
     }

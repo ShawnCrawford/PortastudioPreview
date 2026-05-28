@@ -42,6 +42,8 @@ struct SourceLibrarySidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .environment(\.defaultMinListRowHeight, 24)
+        .tint(.accentColor.opacity(0.78))
         .searchable(text: $searchText, placement: .sidebar, prompt: "Search Audio Sources and Songs")
         .accessibilityIdentifier("sidebar-source-list")
     }
@@ -279,28 +281,43 @@ struct SourceLibrarySidebarView: View {
 
 private struct SourceLibrarySongRow: View {
     let song: SourceLibrarySong
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 9) {
             ZStack {
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(.teal.opacity(0.12))
+                    .fill(.teal.opacity(isHovered ? 0.16 : 0.1))
                 Image(systemName: "waveform")
                     .font(.caption)
-                    .foregroundStyle(.teal)
+                    .foregroundStyle(.teal.opacity(isHovered ? 0.95 : 0.8))
             }
             .frame(width: 24, height: 24)
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.displayName)
+                    .font(.subheadline)
                     .lineLimit(1)
                 Text(secondaryText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 1)
+        .contentShape(.rect)
+        .background {
+            if isHovered {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.primary.opacity(0.04))
+            }
+        }
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
 

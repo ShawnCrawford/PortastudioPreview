@@ -14,6 +14,7 @@ struct TrackRegionInspectorView: View {
     let mixState: PreviewMixState
     let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
     let resetSelectedAction: () -> Void
+    @State private var isTechnicalDetailsExpanded = false
 
     private var summary: ProjectHeaderSummary {
         ProjectHeaderSummary(
@@ -46,7 +47,8 @@ struct TrackRegionInspectorView: View {
                     track: selectedTrack,
                     annotationStore: annotationStore,
                     mixState: mixState,
-                    selectedVirtualTrackIDs: selectedVirtualTrackIDs
+                    selectedVirtualTrackIDs: selectedVirtualTrackIDs,
+                    isTechnicalDetailsExpanded: $isTechnicalDetailsExpanded
                 )
                 AudioFilesInspectorSection(project: project, selectedRegion: selectedRegion)
                 InspectorActionsSection(
@@ -56,8 +58,9 @@ struct TrackRegionInspectorView: View {
                     resetSelectedAction: resetSelectedAction
                 )
             }
-            .padding(14)
+            .padding(12)
         }
+        .background(.thinMaterial)
     }
 }
 
@@ -88,6 +91,7 @@ private struct SelectedTrackInspectorSection: View {
     let annotationStore: TrackAnnotationStore
     let mixState: PreviewMixState
     let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    @Binding var isTechnicalDetailsExpanded: Bool
 
     var body: some View {
         InspectorSectionCard(title: "Selected Track", systemImage: "slider.horizontal.3") {
@@ -117,29 +121,36 @@ private struct SelectedTrackInspectorSection: View {
                 Divider()
 
                 InspectorSubheading("Mix")
-                InspectorInfoRow(label: "Parsed Level", value: levelValue(for: track))
-                InspectorInfoRow(label: "Parsed Pan", value: panValue(for: track))
-                InspectorInfoRow(label: "Parsed Mute", value: isMuted(track) ? "On" : "Off")
-                InspectorInfoRow(label: "Saved Level", value: LevelMapper.previewDisplayValue(forNormalizedPosition: mixState.levelPosition(for: annotationTrackNumber)))
-                InspectorInfoRow(label: "Saved Pan", value: PanMapper.previewDisplayValue(forNormalizedPosition: mixState.panPosition(for: annotationTrackNumber)))
-                InspectorInfoRow(label: "Saved Mute", value: mixState.isMuted(for: annotationTrackNumber) ? "On" : "Off")
+                InspectorInfoRow(label: "Level", value: LevelMapper.previewDisplayValue(forNormalizedPosition: mixState.levelPosition(for: annotationTrackNumber)), valueStyle: .primary)
+                InspectorInfoRow(label: "Pan", value: PanMapper.previewDisplayValue(forNormalizedPosition: mixState.panPosition(for: annotationTrackNumber)), valueStyle: .primary)
+                InspectorInfoRow(label: "Mute", value: mixState.isMuted(for: annotationTrackNumber) ? "On" : "Off")
                 InspectorInfoRow(label: "Solo", value: mixState.isSoloed(for: annotationTrackNumber) ? "On" : "Off")
-                InspectorInfoRow(label: "Effective", value: mixState.isEffectivelyMuted(for: annotationTrackNumber) ? "Muted" : "Audible")
+                InspectorInfoRow(label: "Status", value: mixState.isEffectivelyMuted(for: annotationTrackNumber) ? "Muted" : "Audible")
 
                 Divider()
 
-                InspectorSubheading("Diagnostics")
-                InspectorInfoRow(label: "Raw Bytes", value: rawBytes(for: track), valueStyle: .secondary)
-                if let activeTakeByte = track.track1ActiveTakeCandidate {
-                    InspectorInfoRow(
-                        label: "Active Take",
-                        value: "\(HexFormatter.offset(EdlTableParser.track1ActiveTakeCandidateOffset))=\(HexFormatter.byte(activeTakeByte))",
-                        valueStyle: .secondary
-                    )
+                DisclosureGroup("Technical Details", isExpanded: $isTechnicalDetailsExpanded) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        InspectorInfoRow(label: "Parsed Level", value: levelValue(for: track), valueStyle: .secondary)
+                        InspectorInfoRow(label: "Parsed Pan", value: panValue(for: track), valueStyle: .secondary)
+                        InspectorInfoRow(label: "Parsed Mute", value: isMuted(track) ? "On" : "Off", valueStyle: .secondary)
+                        InspectorInfoRow(label: "Raw Bytes", value: rawBytes(for: track), valueStyle: .secondary)
+                        if let activeTakeByte = track.track1ActiveTakeCandidate {
+                            InspectorInfoRow(
+                                label: "Active Take",
+                                value: "\(HexFormatter.offset(EdlTableParser.track1ActiveTakeCandidateOffset))=\(HexFormatter.byte(activeTakeByte))",
+                                valueStyle: .secondary
+                            )
+                        }
+                        InspectorInfoRow(label: "Evidence", value: selectedVirtualTrack?.evidenceLevel.rawValue ?? track.candidateWAVEvidence.rawValue, valueStyle: .secondary)
+                        if hasMirrorMismatch(track) {
+                            InspectorInfoRow(label: "Mirror", value: "Mismatch detected", valueStyle: .orange)
+                        }
+                    }
+                    .padding(.top, 6)
                 }
-                if hasMirrorMismatch(track) {
-                    InspectorInfoRow(label: "Mirror", value: "Mismatch detected", valueStyle: .orange)
-                }
+                .font(.caption)
+                .tint(.secondary)
 
                 Divider()
                 InspectorSubheading("Label")
@@ -228,6 +239,7 @@ private struct AudioFilesInspectorSection: View {
                 ForEach(project.wavInventory.prefix(8), id: \.url) { item in
                     Text(item.rawFilename)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
@@ -286,9 +298,9 @@ private struct InspectorSubheading: View {
 
     var body: some View {
         Text(title)
-            .font(.caption)
-            .bold()
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(.secondary)
+            .textCase(.uppercase)
     }
 }
 
@@ -298,16 +310,20 @@ private struct InspectorSectionCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 9) {
             Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             content
         }
-        .padding(12)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: .rect(cornerRadius: 10))
+        .background(.ultraThinMaterial, in: .rect(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.secondary.opacity(0.14), lineWidth: 0.5)
+        }
     }
 }
 
@@ -319,7 +335,7 @@ private struct InspectorInfoRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(label)
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .frame(width: 80, alignment: .leading)
 
