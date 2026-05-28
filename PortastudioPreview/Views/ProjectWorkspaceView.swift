@@ -139,26 +139,22 @@ private struct HeaderIdentityView: View {
     let summary: ProjectHeaderSummary
 
     var body: some View {
-        HStack(spacing: 14) {
-            ProjectGlyphView()
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(summary.title)
-                    .font(.title2)
-                    .bold()
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(summary.metadataLine)
-                    Text("\(summary.deviceContext) · \(summary.formatLabel)")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(summary.title)
+                .font(.title2)
+                .bold()
                 .lineLimit(1)
+                .truncationMode(.tail)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary.metadataLine)
+                Text("\(summary.deviceContext) · \(summary.formatLabel)")
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -201,20 +197,6 @@ private struct HeaderIssueStatusView: View {
         }
         .font(.caption)
         .lineLimit(1)
-    }
-}
-
-private struct ProjectGlyphView: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.quaternary)
-            Image(systemName: "slider.horizontal.below.rectangle")
-                .font(.title2)
-                .foregroundStyle(.teal)
-        }
-        .frame(width: 48, height: 48)
-        .accessibilityHidden(true)
     }
 }
 
