@@ -43,6 +43,7 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 
 - **Sidebar search/filter**: `SourceLibrarySidebarView` now owns `@State private var searchText` and computes `FilterResult` via `SourceLibrarySearch.filter(sources:individualSongs:missingItems:searchText:)`. Source name/kind/path and nested song name/path matching is case-insensitive. A source match shows all its children; a song-only match narrows the children shown. A `noResultsSection` appears when search is active and all sections are empty.
 - **Toolbar/command polish**: Toolbar "Add SD Card or Backup…" and "Open Individual Song…" buttons now have `.help(…)` tooltips and `.accessibilityIdentifier` labels. Keyboard shortcuts were already present from earlier phases.
+- **Open-state action polish**: `ProjectOpenView` builds both first-run actions with SwiftUI's text + `systemImage` button API, keeping the add-source and open-song controls consistent with the rest of the macOS command surface.
 - **SourceSelectedView**: Selecting a source row in the sidebar (without loading a specific song) now shows a polished intermediate detail view with source name, kind, path, song count, and match state. Previously this showed a blank detail area.
 - **Empty and missing states**: "No sources added", "No songs opened", and "No missing items" rows are suppressed during active search to avoid conflating empty-section feedback with no-results feedback. The unified "No results for…" row handles the active-search case.
 - **Accessibility**: Added `.accessibilityLabel`, `.accessibilityHint`, `.accessibilityIdentifier`, and `.accessibilityHidden(true)` to decorative icons and interactive elements across `ProjectOpenView`, `ProjectDetailView`, `TrackLabelEditorView`, and sidebar rows.
@@ -83,6 +84,7 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - **`TimelineVisualizationView`**: Inserted above the existing region table in `RegionsTimelineGroupBoxView`. Shows colored waveform lanes per region, a time ruler, zoom controls (Fit / Zoom In / Zoom Out), and a playhead overlay while audio is playing.
 - **Waveform rendering**: `WaveformCanvasView` uses SwiftUI `Canvas` to render per-region peak summaries. Peak data is derived in-memory from the source WAV via `WaveformPeakBuilder` (AVAudioFile, 8192-frame chunk reads). Playable regions show colored waveforms; suppressed regions show a muted dashed-border lane with reason badge; missing-source and ambiguous-timing lanes are styled distinctly.
 - **Playback controller refactor**: `PreviewPlaybackController` (`@Observable @MainActor`) now owns the `StereoPreviewEngine` instance and exposes `isPlaying`, `elapsedSeconds`, and `playbackError`. It is held as `@State` in `ProjectDetailView` and shared to both the transport view and the timeline view.
+- **Paused mix edits**: Level, pan, mute, and solo-derived mute changes are pushed to the live preview engine while playback is paused, so resuming playback uses the current mixer state instead of stale values.
 - **Playhead**: Drawn as a ZStack overlay in `TimelineVisualizationView` only when `isPlaying`. Position derived from `elapsedSeconds × sampleRate` mapped through `sampleToX(...)`.
 - **Selection wiring**: Lane rows are tappable; selecting a lane sets `selectedRegionID` and clears `selectedTrackID` via the existing binding. The inspector shows the selected region.
 - **Zoom range**: `[1.0, 10.0]×`; base canvas width 900 pt. Zoom state is local to `TimelineVisualizationView`.
@@ -157,6 +159,7 @@ Preview playback is read-only and evidence-scoped.
 - Track 1 active virtual-take playback is applied where current captures support it. `edltable.sys` byte `0x00B01A38` is correlated with Track 1 active take; `SONG_0084` uses `0x01` and previews only `ZZ0002_1.wav`, even though all three WAV filenames end in `_1.wav`.
 - Filename suffixes such as `_1` and `_2` are not sufficient active-take evidence. Current playback first handles same-stem take alternatives, then falls back to the `SONG_0084` EDL file-list pattern for Track 1 VT2.
 - Mute, pan, and level playback uses the confirmed mixer byte mappings currently implemented by the app. Raw fader `0x00` is not treated as unity; it maps to minimum gain.
+- Mix changes made while playback is paused are applied to the live engine before resume; idle changes remain stored only as pending overrides until playback starts.
 - Timeline offsets parsed from `edltable.sys` are confirmed 44.1k sample-domain positions.
 - Playback start normalization is applied so the earliest scheduled region starts at preview time zero while preserving relative offsets between tracks.
 

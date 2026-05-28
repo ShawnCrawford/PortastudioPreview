@@ -18,9 +18,7 @@ struct ProjectOpenView: View {
 
             VStack(spacing: 20) {
                 VStack(spacing: 8) {
-                    Button(action: addSourceAction) {
-                        Label("Add Audio Source...", systemImage: "externaldrive.badge.plus")
-                    }
+                    Button("Add Audio Source...", systemImage: "externaldrive.badge.plus", action: addSourceAction)
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("open-view-add-source")
                     .accessibilityLabel("Add audio source")
@@ -31,9 +29,7 @@ struct ProjectOpenView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Button(action: openAction) {
-                        Label("Open Individual Song...", systemImage: "folder")
-                    }
+                    Button("Open Individual Song...", systemImage: "folder", action: openAction)
                     .accessibilityIdentifier("open-view-open-song")
                     .accessibilityLabel("Open Individual Song")
                     .accessibilityHint("Open a single song folder")

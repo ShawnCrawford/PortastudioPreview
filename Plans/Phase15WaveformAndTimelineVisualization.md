@@ -60,8 +60,8 @@ Native SwiftUI adaptation:
 - `WAVInventoryItem` only stores `url`, `rawFilename`, and `byteCount`; waveform peak data, sample rate, channel count, and duration are not persisted.
 - `SampleTimeFormatter` formats approximate sample positions at 48,000 Hz for UI display.
 - `PreviewPlaybackPlanner.plan(for:)` returns playable scheduled regions after active-take filtering and limited mute suppression. This is the best existing source for "what will preview play" state.
-- `StereoPreviewEngine` starts/stops approximate AVFoundation playback but does not expose progress timing or a playback clock for playhead animation.
-- `PreviewTransportView` owns `isPlaying` locally and only exposes Play/Stop controls. It does not coordinate with the timeline view yet.
+- `StereoPreviewEngine` starts/stops approximate AVFoundation playback and receives live level, pan, and mute updates from `PreviewPlaybackController`.
+- `PreviewPlaybackController` owns shared transport state for the header and timeline. It applies level, pan, mute, and solo-derived mute edits while playback is paused so resume uses current mixer settings.
 - `README.md` documents that track-to-WAV mapping remains `Hypothesis`, unassigned regions use EDL file-list order when available, timeline offsets are `Hypothesis` 44.1k/48k-domain candidates depending on source, and preview start normalization avoids long initial silence while preserving relative offsets.
 
 ## Implementation Direction

@@ -302,6 +302,32 @@ struct PreviewPlaybackControllerTests {
         #expect(engine.lastUpdatedPanPosition == nil)
     }
 
+    @Test func setTrackVolumeUpdatesEngineWhilePausedBeforeResume() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        controller.pause()
+
+        controller.setTrackVolume(0.35, for: 2)
+
+        #expect(engine.lastUpdatedVolumeTrackNumber == 2)
+        #expect(engine.lastUpdatedVolumePosition == 0.35)
+    }
+
+    @Test func setTrackPanUpdatesEngineWhilePausedBeforeResume() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        controller.pause()
+
+        controller.setTrackPan(-0.4, for: 3)
+
+        #expect(engine.lastUpdatedPanTrackNumber == 3)
+        #expect(engine.lastUpdatedPanPosition == -0.4)
+    }
+
     @Test func setTrackMuteUpdatesEngineDuringActivePlayback() {
         let engine = SpyPreviewEngine()
         let controller = PreviewPlaybackController(engine: engine)
@@ -334,6 +360,32 @@ struct PreviewPlaybackControllerTests {
 
         #expect(engine.lastUpdatedMuteTrackNumber == nil)
         #expect(engine.lastUpdatedMuteState == nil)
+    }
+
+    @Test func setTrackMuteUpdatesEngineWhilePausedBeforeResume() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        controller.pause()
+
+        controller.setTrackMute(true, for: 4)
+
+        #expect(engine.lastUpdatedMuteTrackNumber == 4)
+        #expect(engine.lastUpdatedMuteState == true)
+    }
+
+    @Test func applyTrackMutesUpdatesEngineWhilePausedBeforeResume() {
+        let engine = SpyPreviewEngine()
+        let controller = PreviewPlaybackController(engine: engine)
+
+        controller.startPreview(for: sampleProject)
+        controller.pause()
+
+        controller.applyTrackMutes([1: true, 2: false])
+
+        #expect(engine.updatedMuteStates[1] == true)
+        #expect(engine.updatedMuteStates[2] == false)
     }
 
     @Test func startPreviewPublishesOutputMeterLevelsFromEngine() async {
@@ -369,10 +421,13 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
     var lastStartTrackMuteOverrides: [Int: Bool]?
     var lastStartSelectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID]?
     var lastStartStartingAt: Double?
+    var lastUpdatedVolumeTrackNumber: Int?
+    var lastUpdatedVolumePosition: Double?
     var lastUpdatedPanTrackNumber: Int?
     var lastUpdatedPanPosition: Double?
     var lastUpdatedMuteTrackNumber: Int?
     var lastUpdatedMuteState: Bool?
+    var updatedMuteStates: [Int: Bool] = [:]
     var outputLevelsToEmitOnStart: StereoMeterLevels?
     private var onPlaybackCompleted: (() -> Void)?
 
@@ -411,7 +466,10 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
         stopCallCount += 1
     }
 
-    func updateTrackVolume(trackNumber: Int, levelPosition: Double) {}
+    func updateTrackVolume(trackNumber: Int, levelPosition: Double) {
+        lastUpdatedVolumeTrackNumber = trackNumber
+        lastUpdatedVolumePosition = levelPosition
+    }
 
     func updateTrackPan(trackNumber: Int, panPosition: Double) {
         lastUpdatedPanTrackNumber = trackNumber
@@ -421,6 +479,7 @@ private final class SpyPreviewEngine: PreviewPlaybackEngineProtocol {
     func updateTrackMute(trackNumber: Int, isMuted: Bool) {
         lastUpdatedMuteTrackNumber = trackNumber
         lastUpdatedMuteState = isMuted
+        updatedMuteStates[trackNumber] = isMuted
     }
 
     func completePlayback() {

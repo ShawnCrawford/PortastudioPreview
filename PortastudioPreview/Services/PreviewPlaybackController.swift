@@ -216,7 +216,7 @@ final class PreviewPlaybackController {
         let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
         trackVolumeOverrides[channelTrackNumber] = levelPosition
 
-        guard isPlaying else {
+        guard canStop else {
             return
         }
 
@@ -227,7 +227,7 @@ final class PreviewPlaybackController {
         let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
         trackPanOverrides[channelTrackNumber] = panPosition
 
-        guard isPlaying else {
+        guard canStop else {
             return
         }
 
@@ -238,7 +238,7 @@ final class PreviewPlaybackController {
         let channelTrackNumber = MixerChannelLayout.leadingTrackNumber(for: trackNumber) ?? trackNumber
         trackMuteOverrides[channelTrackNumber] = isMuted
 
-        guard isPlaying else {
+        guard canStop else {
             return
         }
 
@@ -248,7 +248,7 @@ final class PreviewPlaybackController {
     func applyTrackMutes(_ muteOverrides: [Int: Bool]) {
         trackMuteOverrides = muteOverrides
 
-        guard isPlaying else {
+        guard canStop else {
             return
         }
 
