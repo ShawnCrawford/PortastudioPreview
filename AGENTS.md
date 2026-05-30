@@ -129,6 +129,7 @@ Current high-traffic files:
 - `PortastudioPreview/Views/ProjectWorkspaceView.swift`: focused mixer-deck workspace, header transport, meters, faders, pan/mute/solo, and virtual-take picker UI.
 - `PortastudioPreview/Views/TrackRegionInspectorView.swift`: right-side inspector for song, selected track, audio files, diagnostics, app-owned track labels, reveal/reset actions.
 - `PortastudioPreview/Models/PreviewMixState.swift`: app-owned persisted level/pan/mute/solo/virtual-take overrides keyed by song annotation context.
+- `PortastudioPreview/Models/PortastudioProject.swift`: keep `tracks` at full parser scope; `visibleMixerChannels` should stay UI-facing and include only tracks with resolved assigned audio (candidate WAV or virtual-take options).
 - `PortastudioPreview/Services/ProjectPreviewBuilder.swift`: read-only project model assembly, EDL-to-track assignment, virtual-take options, timeline-region inference.
 - `PortastudioPreview/Services/PreviewPlaybackController.swift` and `StereoPreviewEngine.swift`: playback lifecycle, live mixer updates, meters, and AVFoundation scheduling.
 - `PortastudioPreview/Services/TimelineVisualizationBuilder.swift` and `WaveformPeakBuilder.swift`: pure timeline/waveform data builders; keep them read-only and test-heavy.

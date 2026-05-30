@@ -132,9 +132,14 @@ struct MixOverridePersistenceTests {
     }
 
     private func makeTrack(trackNumber: Int) -> TrackPreview {
-        TrackPreview(
+        let wav = WAVInventoryItem(
+            url: URL(fileURLWithPath: "/tmp/SONG_mix/ZZ000\(trackNumber)_1.wav"),
+            rawFilename: "ZZ000\(trackNumber)_1.wav",
+            byteCount: 1_000
+        )
+        return TrackPreview(
             trackNumber: trackNumber,
-            candidateWAV: nil,
+            candidateWAV: wav,
             mixerSetting: TrackMixerSetting(
                 trackNumber: trackNumber,
                 level: MixerSetting(name: "Level", primaryOffset: 0, primaryByte: LevelMapper.rawUnity, mirrorOffset: nil, mirrorByte: nil, evidenceLevel: .correlated),

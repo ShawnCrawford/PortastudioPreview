@@ -10,7 +10,7 @@ The app is designed for safe inspection, annotation, and stereo preview playback
 - Open an individual DP-32SD song folder.
 - Classify selected folders conservatively as media roots, backup roots, or song folders.
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
-- Show confirmed WAV assignments in the mixer, with musician-facing track info first and parser diagnostics in expandable technical details.
+- Show only recorded/resolved channels in the mixer (assigned WAV or virtual-take options), with musician-facing track info first and parser diagnostics in expandable technical details.
 - Provide read-only stereo preview playback using confirmed track-to-WAV, timeline, mute, pan, and level mapping.
 - Adjust preview-only mix settings with app-owned level, pan, mute, solo, and virtual-take overrides.
 - Remember opened sources and songs using SwiftData and security-scoped bookmarks.
@@ -40,6 +40,7 @@ The app is now organized around a source library plus a focused selected-song mi
 - `ContentView` owns the source-library shell and routes selection to either `ProjectOpenView`, `SourceSelectedView`, or `ProjectDetailView`.
 - `SourceLibraryStore` handles remembered source/song hydration, add/open flows, relocate/forget, fingerprints, and missing-location state.
 - `ProjectPreviewBuilder` assembles the read-only `PortastudioProject` by scanning WAV inventory, parsing `song.sys` and `edltable.sys`, assigning EDL file-list positions to tracks, creating virtual-take options, and inferring timeline regions.
+- `PortastudioProject.tracks` keeps full parser scope (physical tracks), while `visibleMixerChannels` filters to displayable recorded channels for the UI mixer.
 - `ProjectDetailView` owns selected-track state, inspector visibility, `PreviewPlaybackController`, `PreviewMixState`, and selected virtual-take IDs for the loaded song.
 - `ProjectWorkspaceView` is the primary song UI: a cohesive utility header plus a horizontal mixer deck where selected channels receive subtle native emphasis and fader/meter controls remain the primary visual focus.
 - `TrackRegionInspectorView` is the native right-side inspector for song summary, selected-track identity/audio/mix values, app-owned track labels, audio file list, Reveal in Finder, and reset selected channel, with parser-level data under a collapsed Technical Details disclosure.
@@ -108,6 +109,7 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 
 - `ProjectDetailView` presents a focused selected-song workspace: song header, read-only playback controls, live output/track meters, horizontal mixer, and native inspector.
 - The mixer uses one clear channel identity, concise audio status, grouped controls, and fader-dominant layout hierarchy, with virtual-take picker when multiple takes are available and reset-all mix access.
+- Empty/unresolved channels are hidden from the main mixer surface. For stereo pairs (`9/10` through `31/32`), a single pair row appears when either side has resolved audio, and includes only active member tracks.
 - Mix overrides are app-owned SwiftData records (`MixOverrideRecord`) keyed by exact song fingerprint context. They include level, pan, mute, solo, and selected virtual take.
 - Raw filenames, evidence levels, take metadata, parsed bytes, saved-vs-parsed mix values, selected-channel reset, and Reveal in Finder actions live in `TrackRegionInspectorView`.
 - Critical blockers remain visible in the primary workspace: playback errors, preview unavailable status, missing audio, and no-audio channel states.

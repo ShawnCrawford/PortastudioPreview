@@ -110,9 +110,14 @@ struct PreviewMixStateTests {
     }
 
     private func makeTrack(trackNumber: Int, panByte: UInt8, muteByte: UInt8) -> TrackPreview {
-        TrackPreview(
+        let wav = WAVInventoryItem(
+            url: URL(fileURLWithPath: "/tmp/SONG_mixstate/ZZ000\(trackNumber)_1.wav"),
+            rawFilename: "ZZ000\(trackNumber)_1.wav",
+            byteCount: 1_000
+        )
+        return TrackPreview(
             trackNumber: trackNumber,
-            candidateWAV: nil,
+            candidateWAV: wav,
             mixerSetting: TrackMixerSetting(
                 trackNumber: trackNumber,
                 level: setting(name: "Level", primaryOffset: 0x00C4, primaryByte: 0x6A),

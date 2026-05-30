@@ -29,7 +29,7 @@ struct SongDetailSummaryTests {
 
         let summary = SongDetailSummary(project: project)
 
-        #expect(summary.trackCount == 3)
+        #expect(summary.trackCount == 2)
         #expect(summary.assignedTrackCount == 2)
         #expect(summary.wavCount == 4)
         #expect(summary.validationIssueCount == 2)
@@ -76,6 +76,20 @@ struct SongDetailSummaryTests {
         )
 
         #expect(project.visibleTracks.map(\.trackNumber) == [1, 3])
+    }
+
+    @Test func trackOneActiveTakeWithoutResolvedAudioIsHiddenFromVisibleMixerChannels() {
+        let project = makeProject(
+            tracks: [
+                makeTrack(trackNumber: 1, assigned: false, activeTakeCandidate: 0x01)
+            ],
+            wavInventoryCount: 0,
+            validationIssues: [],
+            unassignedRegions: [],
+            edlSummary: nil
+        )
+
+        #expect(project.visibleMixerChannels.isEmpty)
     }
 
     // MARK: - Helpers

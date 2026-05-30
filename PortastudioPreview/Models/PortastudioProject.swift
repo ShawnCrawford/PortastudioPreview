@@ -27,10 +27,13 @@ struct PortastudioProject: Sendable {
         return MixerChannelLayout.allLeadingTrackNumbers.compactMap { leadingTrackNumber in
             let members = MixerChannelLayout.memberTrackNumbers(forLeadingTrackNumber: leadingTrackNumber)
                 .compactMap { tracksByNumber[$0] }
-            guard !members.isEmpty else {
+            let visibleMembers = members.filter { track in
+                track.candidateWAV != nil || !track.virtualTrackOptions.isEmpty
+            }
+            guard !visibleMembers.isEmpty else {
                 return nil
             }
-            return MixerChannel(leadingTrackNumber: leadingTrackNumber, memberTracks: members)
+            return MixerChannel(leadingTrackNumber: leadingTrackNumber, memberTracks: visibleMembers)
         }
     }
 }

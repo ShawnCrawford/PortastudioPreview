@@ -49,7 +49,7 @@ struct ProjectWorkspacePresentationTests {
         let project = makeProject(
             validationIssues: [],
             regions: [makeRegion(filename: "ZZ0001_1.wav", startSample: 0, length: 96_000)],
-            tracks: [makeTrack(trackNumber: 1, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false)]
+            tracks: [makeTrack(trackNumber: 1, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false, assigned: true)]
         )
 
         let summary = ProjectHeaderSummary(project: project, displayName: "Band Take")
@@ -307,8 +307,8 @@ struct ProjectWorkspacePresentationTests {
             validationIssues: [],
             regions: [],
             tracks: [
-                makeTrack(trackNumber: 9, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false),
-                makeTrack(trackNumber: 10, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false)
+                makeTrack(trackNumber: 9, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false, assigned: true),
+                makeTrack(trackNumber: 10, level: LevelMapper.rawUnity, pan: PanMapper.rawCenter, muted: false, assigned: true)
             ]
         )
 
