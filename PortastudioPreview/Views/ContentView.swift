@@ -19,6 +19,9 @@ struct ContentView: View {
 private struct ContentViewBody: View {
     @State private var store: SourceLibraryStore
     @State private var annotationStore: TrackAnnotationStore
+    #if DEBUG
+    private let uiTestMixerWorkspaceEnabled = ProcessInfo.processInfo.arguments.contains("--ui-test-mixer-workspace")
+    #endif
 
     init(modelContext: ModelContext) {
         _store = State(wrappedValue: SourceLibraryStore(modelContext: modelContext))
@@ -26,6 +29,19 @@ private struct ContentViewBody: View {
     }
 
     var body: some View {
+        #if DEBUG
+        if uiTestMixerWorkspaceEnabled {
+            UITestMixerWorkspaceHostView()
+                .accessibilityIdentifier("ui-test-mixer-workspace")
+        } else {
+            mainContent
+        }
+        #else
+        mainContent
+        #endif
+    }
+
+    private var mainContent: some View {
         NavigationSplitView {
             SourceLibrarySidebarView(store: store)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260)
@@ -102,6 +118,33 @@ private struct ContentViewBody: View {
         }
     }
 }
+
+#if DEBUG
+@MainActor
+private struct UITestMixerWorkspaceHostView: View {
+    @State private var selectedTrackID: TrackPreview.ID?
+    @State private var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
+    @State private var fixture = PreviewFixtures.mixerWorkspace()
+
+    var body: some View {
+        ProjectWorkspaceView(
+            project: fixture.project,
+            annotationStore: fixture.annotationStore,
+            selectedTrackID: $selectedTrackID,
+            playbackController: fixture.playbackController,
+            mixState: fixture.mixState,
+            selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+            playAction: {},
+            stopAction: {},
+            resetAllAction: {},
+            reloadPlaybackPreservingPositionAction: {}
+        )
+        .task {
+            selectedVirtualTrackIDs = fixture.selectedVirtualTrackIDs
+        }
+    }
+}
+#endif
 
 #Preview {
     ContentView()

@@ -459,149 +459,163 @@ private struct TrackMixerStripView: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
-            VStack(spacing: 2) {
-                Button(action: selectAction) {
-                    VStack(spacing: 3) {
-                        Text(presentation.channelTitle)
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(presentation.isSelected ? Color.primary : Color.primary.opacity(0.9))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        if let channelSubtitle = presentation.channelSubtitle {
-                            Text(channelSubtitle)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
-                    .frame(height: 40)
-                }
-                .buttonStyle(.plain)
-
-                Text(presentation.audioStatusLabel)
-                    .font(.caption2)
-                    .foregroundStyle(presentation.hasResolvedAudio ? .secondary : .tertiary)
-                    .lineLimit(1)
-                    .frame(height: 16)
-                    .help(presentation.hasResolvedAudio ? presentation.candidateWAVLabel : presentation.audioStatusLabel)
-
-                if presentation.virtualTrackOptions.count > 1 {
-                    Picker("Virtual Take", selection: Binding(
-                        get: { presentation.selectedVirtualTrackOptionID ?? presentation.virtualTrackOptions[0].id },
-                        set: { selectedID in
-                            selectAction()
-                            setSelectedVirtualTrackOption(selectedID)
-                        }
-                    )) {
-                        ForEach(presentation.virtualTrackOptions) { option in
-                            Text(option.takeLabel).tag(option.id)
-                        }
-                    }
-                    .labelsHidden()
-                    .controlSize(.small)
-                    .accessibilityLabel("Virtual take")
-                } else {
-                    Spacer()
-                        .frame(height: 22)
-                }
+        ZStack {
+            Button(action: selectAction) {
+                Color.clear
             }
+            .buttonStyle(.plain)
+            .contentShape(.rect)
+            .accessibilityHidden(true)
+            .accessibilityIdentifier("mixer-strip-select-\(presentation.trackNumber)")
 
-            Divider()
-                .opacity(0.4)
+            VStack(spacing: 10) {
+                VStack(spacing: 2) {
+                    Button(action: selectAction) {
+                        VStack(spacing: 3) {
+                            Text(presentation.channelTitle)
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(presentation.isSelected ? Color.primary : Color.primary.opacity(0.9))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            if let channelSubtitle = presentation.channelSubtitle {
+                                Text(channelSubtitle)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .frame(height: 40)
+                    }
+                    .buttonStyle(.plain)
 
-            HStack(spacing: 8) {
-                VStack(spacing: 4) {
-                    Text(presentation.panDisplayLabel)
+                    Text(presentation.audioStatusLabel)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                    PanControlView(
-                        value: presentation.panPosition,
+                        .foregroundStyle(presentation.hasResolvedAudio ? .secondary : .tertiary)
+                        .lineLimit(1)
+                        .frame(height: 16)
+                        .help(presentation.hasResolvedAudio ? presentation.candidateWAVLabel : presentation.audioStatusLabel)
+
+                    if presentation.virtualTrackOptions.count > 1 {
+                        Picker("Virtual Take", selection: Binding(
+                            get: { presentation.selectedVirtualTrackOptionID ?? presentation.virtualTrackOptions[0].id },
+                            set: { selectedID in
+                                selectAction()
+                                setSelectedVirtualTrackOption(selectedID)
+                            }
+                        )) {
+                            ForEach(presentation.virtualTrackOptions) { option in
+                                Text(option.takeLabel).tag(option.id)
+                            }
+                        }
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .accessibilityLabel("Virtual take")
+                    } else {
+                        Spacer()
+                            .frame(height: 22)
+                    }
+                }
+
+                Divider()
+                    .opacity(0.4)
+
+                HStack(spacing: 8) {
+                    VStack(spacing: 4) {
+                        Text(presentation.panDisplayLabel)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        PanControlView(
+                            value: presentation.panPosition,
+                            color: trackColor,
+                            isSelected: presentation.isSelected,
+                            onSelect: selectAction,
+                            onValueChanged: setPanPosition
+                        )
+                    }
+
+                    Spacer(minLength: 0)
+
+                    HStack(spacing: 6) {
+                        Toggle(
+                            isOn: Binding(
+                                get: { presentation.isMuted },
+                                set: { newValue in
+                                    selectAction()
+                                    setMuted(newValue)
+                                }
+                            )
+                        ) {
+                            Label(
+                                "Mute",
+                                systemImage: presentation.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+                            )
+                        }
+                        .toggleStyle(.button)
+                        .controlSize(.small)
+                        .labelStyle(.iconOnly)
+                        .tint(.orange)
+                        .frame(width: 28, height: 24)
+                        .help(presentation.isMuted ? "Unmute track" : "Mute track")
+                        .accessibilityValue(presentation.isMuted ? "On" : "Off")
+                        .accessibilityIdentifier("mixer-strip-mute-\(presentation.trackNumber)")
+
+                        Toggle(
+                            isOn: Binding(
+                                get: { presentation.isSoloed },
+                                set: { newValue in
+                                    selectAction()
+                                    setSoloed(newValue)
+                                }
+                            )
+                        ) {
+                            Label(
+                                "Solo",
+                                systemImage: presentation.isSoloed ? "headphones.circle.fill" : "headphones"
+                            )
+                        }
+                        .toggleStyle(.button)
+                        .controlSize(.small)
+                        .labelStyle(.iconOnly)
+                        .tint(.yellow)
+                        .frame(width: 28, height: 24)
+                        .help(presentation.isSoloed ? "Clear solo" : "Solo track")
+                        .accessibilityValue(presentation.isSoloed ? "On" : "Off")
+                        .accessibilityIdentifier("mixer-strip-solo-\(presentation.trackNumber)")
+                    }
+                }
+
+                HStack(alignment: .bottom, spacing: 10) {
+                    LevelScaleView(isSelected: presentation.isSelected)
+                    FaderTrackView(
+                        value: presentation.levelPosition,
                         color: trackColor,
                         isSelected: presentation.isSelected,
                         onSelect: selectAction,
-                        onValueChanged: setPanPosition
+                        onValueChanged: setLevelPosition
+                    )
+                    .accessibilityIdentifier("mixer-strip-level-\(presentation.trackNumber)")
+                    OutputLevelView(
+                        value: presentation.isEffectivelyMuted ? 0 : presentation.meterLevel,
+                        isSelected: presentation.isSelected
                     )
                 }
+                .frame(minHeight: 238, maxHeight: .infinity)
 
-                Spacer(minLength: 0)
-
-                HStack(spacing: 6) {
-                    Toggle(
-                        isOn: Binding(
-                            get: { presentation.isMuted },
-                            set: { newValue in
-                                selectAction()
-                                setMuted(newValue)
-                            }
-                        )
-                    ) {
-                        Label(
-                            "Mute",
-                            systemImage: presentation.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
-                        )
-                    }
-                    .toggleStyle(.button)
-                    .controlSize(.small)
-                    .labelStyle(.iconOnly)
-                    .tint(.orange)
-                    .frame(width: 28, height: 24)
-                    .help(presentation.isMuted ? "Unmute track" : "Mute track")
-                    .accessibilityValue(presentation.isMuted ? "On" : "Off")
-
-                    Toggle(
-                        isOn: Binding(
-                            get: { presentation.isSoloed },
-                            set: { newValue in
-                                selectAction()
-                                setSoloed(newValue)
-                            }
-                        )
-                    ) {
-                        Label(
-                            "Solo",
-                            systemImage: presentation.isSoloed ? "headphones.circle.fill" : "headphones"
-                        )
-                    }
-                    .toggleStyle(.button)
-                    .controlSize(.small)
-                    .labelStyle(.iconOnly)
-                    .tint(.yellow)
-                    .frame(width: 28, height: 24)
-                    .help(presentation.isSoloed ? "Clear solo" : "Solo track")
-                    .accessibilityValue(presentation.isSoloed ? "On" : "Off")
-                }
+                Text(presentation.levelLabel)
+                    .font(.caption2)
+                    .foregroundStyle(presentation.isSelected ? Color.primary : Color.secondary)
+                    .monospacedDigit()
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.primary.opacity(presentation.isSelected ? 0.13 : 0.07), in: .rect(cornerRadius: 5))
+                    .accessibilityIdentifier("mixer-strip-level-label-\(presentation.trackNumber)")
             }
-
-            HStack(alignment: .bottom, spacing: 10) {
-                LevelScaleView(isSelected: presentation.isSelected)
-                FaderTrackView(
-                    value: presentation.levelPosition,
-                    color: trackColor,
-                    isSelected: presentation.isSelected,
-                    onSelect: selectAction,
-                    onValueChanged: setLevelPosition
-                )
-                OutputLevelView(
-                    value: presentation.isEffectivelyMuted ? 0 : presentation.meterLevel,
-                    isSelected: presentation.isSelected
-                )
-            }
-            .frame(minHeight: 238, maxHeight: .infinity)
-
-            Text(presentation.levelLabel)
-                .font(.caption2)
-                .foregroundStyle(presentation.isSelected ? Color.primary : Color.secondary)
-                .monospacedDigit()
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.primary.opacity(presentation.isSelected ? 0.13 : 0.07), in: .rect(cornerRadius: 5))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .frame(width: MixerDeckMetrics.stripWidth)
+            .frame(maxHeight: .infinity)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
-        .frame(width: MixerDeckMetrics.stripWidth)
-        .frame(maxHeight: .infinity)
         .background(stripBackground)
         .clipShape(.rect(cornerRadius: 10))
         .overlay {
@@ -614,7 +628,8 @@ private struct TrackMixerStripView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Track \(presentation.trackNumberLabel), \(presentation.channelTitle)")
-        .accessibilityValue("\(presentation.audioStatusLabel), \(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel), \(presentation.soloLabel)")
+        .accessibilityValue("\(presentation.audioStatusLabel), \(presentation.levelLabel), pan \(presentation.panDisplayLabel), \(presentation.muteLabel), \(presentation.soloLabel), \(presentation.isSelected ? "Selected" : "Not selected")")
+        .accessibilityIdentifier("mixer-strip-\(presentation.trackNumber)")
     }
 }
 

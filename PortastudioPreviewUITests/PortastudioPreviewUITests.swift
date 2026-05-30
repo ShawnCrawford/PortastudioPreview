@@ -10,23 +10,84 @@ import XCTest
 final class PortastudioPreviewUITests: XCTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    @MainActor
+    func testStripBackgroundClickSelectsTrack() throws {
+        let app = try launchMixerWorkspace()
+
+        let track2Background = app.buttons["mixer-strip-select-2"]
+        XCTAssertTrue(track2Background.waitForExistence(timeout: 5))
+        track2Background.click()
+
+        assertTrackIsSelected(app, trackNumber: 2)
+        assertTrackIsNotSelected(app, trackNumber: 1)
+    }
+
+    @MainActor
+    func testFaderInteractionSelectsTrackAndChangesLevel() throws {
+        let app = try launchMixerWorkspace()
+
+        let levelLabel = app.staticTexts["mixer-strip-level-label-3"]
+        XCTAssertTrue(levelLabel.waitForExistence(timeout: 5))
+        let originalLevel = levelLabel.label
+
+        let levelControl = app.otherElements["mixer-strip-level-3"]
+        XCTAssertTrue(levelControl.waitForExistence(timeout: 5))
+        let startCoordinate = levelControl.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        let endCoordinate = levelControl.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        startCoordinate.press(forDuration: 0.05, thenDragTo: endCoordinate)
+
+        assertTrackIsSelected(app, trackNumber: 3)
+        XCTAssertNotEqual(levelLabel.label, originalLevel)
+    }
+
+    @MainActor
+    func testMuteAndSoloToggleSelectTrack() throws {
+        let app = try launchMixerWorkspace()
+
+        let muteToggle = app.buttons["mixer-strip-mute-4"]
+        XCTAssertTrue(muteToggle.waitForExistence(timeout: 5))
+        muteToggle.click()
+        assertTrackIsSelected(app, trackNumber: 4)
+
+        let soloToggle = app.buttons["mixer-strip-solo-6"]
+        XCTAssertTrue(soloToggle.waitForExistence(timeout: 5))
+        soloToggle.click()
+        assertTrackIsSelected(app, trackNumber: 6)
     }
 
     @MainActor
     func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            let app = XCUIApplication()
+            app.launchArguments.append("--ui-test-mixer-workspace")
+            app.launch()
         }
+    }
+
+    private func launchMixerWorkspace() throws -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments.append("--ui-test-mixer-workspace")
+        app.launch()
+        guard app.otherElements["project-workspace"].waitForExistence(timeout: 5) else {
+            throw XCTSkip("UI test fixture workspace was not available in this run.")
+        }
+        return app
+    }
+
+    private func assertTrackIsSelected(_ app: XCUIApplication, trackNumber: Int, file: StaticString = #filePath, line: UInt = #line) {
+        let strip = app.otherElements["mixer-strip-\(trackNumber)"]
+        XCTAssertTrue(strip.waitForExistence(timeout: 5), file: file, line: line)
+        let selected = (strip.value as? String)?.localizedStandardContains("Selected") == true
+        XCTAssertTrue(selected, "Expected track \(trackNumber) to be selected.", file: file, line: line)
+    }
+
+    private func assertTrackIsNotSelected(_ app: XCUIApplication, trackNumber: Int, file: StaticString = #filePath, line: UInt = #line) {
+        let strip = app.otherElements["mixer-strip-\(trackNumber)"]
+        XCTAssertTrue(strip.waitForExistence(timeout: 5), file: file, line: line)
+        let selected = (strip.value as? String)?.localizedStandardContains("Selected") == true
+        XCTAssertFalse(selected, "Expected track \(trackNumber) to not be selected.", file: file, line: line)
     }
 }
