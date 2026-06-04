@@ -12,6 +12,10 @@ struct ProjectWorkspaceView: View {
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    let canSelectPreviousChannel: Bool
+    let canSelectNextChannel: Bool
+    let selectPreviousChannelAction: () -> Void
+    let selectNextChannelAction: () -> Void
     let playAction: () -> Void
     let stopAction: () -> Void
     let resetAllAction: () -> Void
@@ -36,6 +40,10 @@ struct ProjectWorkspaceView: View {
                 playbackController: playbackController,
                 mixState: mixState,
                 selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+                canSelectPreviousChannel: canSelectPreviousChannel,
+                canSelectNextChannel: canSelectNextChannel,
+                selectPreviousChannelAction: selectPreviousChannelAction,
+                selectNextChannelAction: selectNextChannelAction,
                 resetAllAction: resetAllAction,
                 reloadPlaybackPreservingPositionAction: reloadPlaybackPreservingPositionAction
             )
@@ -45,6 +53,16 @@ struct ProjectWorkspaceView: View {
         .frame(minWidth: 760, minHeight: 620)
         .background(.background)
         .accessibilityIdentifier("project-workspace")
+        .onMoveCommand { direction in
+            switch direction {
+            case .left:
+                selectPreviousChannelAction()
+            case .right:
+                selectNextChannelAction()
+            default:
+                break
+            }
+        }
     }
 }
 
@@ -238,6 +256,32 @@ private struct HeaderTransportControls: View {
     }
 }
 
+private struct HeaderChannelNavigationControls: View {
+    let canSelectPreviousChannel: Bool
+    let canSelectNextChannel: Bool
+    let selectPreviousChannelAction: () -> Void
+    let selectNextChannelAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button("Previous Channel", systemImage: "chevron.left") {
+                selectPreviousChannelAction()
+            }
+            .buttonStyle(.bordered)
+            .disabled(!canSelectPreviousChannel)
+            .help("Select previous mixer channel")
+
+            Button("Next Channel", systemImage: "chevron.right") {
+                selectNextChannelAction()
+            }
+            .buttonStyle(.bordered)
+            .disabled(!canSelectNextChannel)
+            .help("Select next mixer channel")
+        }
+        .controlSize(.small)
+    }
+}
+
 private struct PreviewActivityMeter: View {
     let playbackController: PreviewPlaybackController
 
@@ -301,12 +345,24 @@ struct TrackMixerDeckView: View {
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    let canSelectPreviousChannel: Bool
+    let canSelectNextChannel: Bool
+    let selectPreviousChannelAction: () -> Void
+    let selectNextChannelAction: () -> Void
     let resetAllAction: () -> Void
     let reloadPlaybackPreservingPositionAction: () -> Void
+    @State private var selectedScrollTargetID: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(spacing: 12) {
+                HeaderChannelNavigationControls(
+                    canSelectPreviousChannel: canSelectPreviousChannel,
+                    canSelectNextChannel: canSelectNextChannel,
+                    selectPreviousChannelAction: selectPreviousChannelAction,
+                    selectNextChannelAction: selectNextChannelAction
+                )
+
                 Spacer()
                 Text("\(channels.count) track\(channels.count == 1 ? "" : "s")")
                     .font(.caption)
@@ -372,12 +428,14 @@ struct TrackMixerDeckView: View {
                                     }
                                 }
                             )
+                            .id(trackNumber)
                             .frame(
                                 width: MixerDeckMetrics.stripWidth,
                                 height: stripHeight(availableHeight: proxy.size.height)
                             )
                         }
                     }
+                    .scrollTargetLayout()
                     .padding(.horizontal, MixerDeckMetrics.edgePadding)
                     .padding(.vertical, MixerDeckMetrics.channelVerticalPadding)
                     .frame(
@@ -386,12 +444,31 @@ struct TrackMixerDeckView: View {
                         alignment: .center
                     )
                 }
-                .scrollIndicators(.hidden)
+                .scrollPosition(id: $selectedScrollTargetID, anchor: .center)
             }
             .frame(maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .focusable()
+        .onChange(of: selectedTrackID) { _, newValue in
+            selectedScrollTargetID = scrollTargetID(for: newValue)
+        }
+        .onChange(of: channels.map(\.id)) { _, _ in
+            selectedScrollTargetID = scrollTargetID(for: selectedTrackID)
+        }
+        .task {
+            selectedScrollTargetID = scrollTargetID(for: selectedTrackID)
+        }
         .accessibilityIdentifier("track-mixer-deck")
+    }
+
+    private func scrollTargetID(for selectedTrackID: TrackPreview.ID?) -> Int? {
+        guard let selectedTrackID,
+              channels.contains(where: { $0.id == selectedTrackID }) else {
+            return channels.first?.id
+        }
+
+        return selectedTrackID
     }
 
     private func stripHeight(availableHeight: CGFloat) -> CGFloat {
@@ -816,6 +893,10 @@ private struct OutputLevelView: View {
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        canSelectPreviousChannel: selectedTrackID != nil && selectedTrackID != fixture.project.visibleMixerChannels.first?.id,
+        canSelectNextChannel: !fixture.project.visibleMixerChannels.isEmpty,
+        selectPreviousChannelAction: {},
+        selectNextChannelAction: {},
         playAction: {},
         stopAction: {},
         resetAllAction: {},
@@ -839,6 +920,10 @@ private struct OutputLevelView: View {
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        canSelectPreviousChannel: selectedTrackID != nil && selectedTrackID != fixture.project.visibleMixerChannels.first?.id,
+        canSelectNextChannel: !fixture.project.visibleMixerChannels.isEmpty,
+        selectPreviousChannelAction: {},
+        selectNextChannelAction: {},
         playAction: {},
         stopAction: {},
         resetAllAction: {},
@@ -859,6 +944,10 @@ private struct OutputLevelView: View {
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        canSelectPreviousChannel: selectedTrackID != nil && selectedTrackID != fixture.project.visibleMixerChannels.first?.id,
+        canSelectNextChannel: !fixture.project.visibleMixerChannels.isEmpty,
+        selectPreviousChannelAction: {},
+        selectNextChannelAction: {},
         playAction: {},
         stopAction: {},
         resetAllAction: {},
@@ -882,6 +971,10 @@ private struct OutputLevelView: View {
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+        canSelectPreviousChannel: false,
+        canSelectNextChannel: !fixture.project.visibleMixerChannels.isEmpty,
+        selectPreviousChannelAction: {},
+        selectNextChannelAction: {},
         resetAllAction: {},
         reloadPlaybackPreservingPositionAction: {}
     )

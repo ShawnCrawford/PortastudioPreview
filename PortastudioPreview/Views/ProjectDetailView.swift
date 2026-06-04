@@ -31,6 +31,10 @@ struct ProjectDetailView: View {
             playbackController: playbackController,
             mixState: mixState,
             selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+            canSelectPreviousChannel: channelNavigation.canSelectPreviousChannel(selectedTrackID: selectedTrackID),
+            canSelectNextChannel: channelNavigation.canSelectNextChannel(selectedTrackID: selectedTrackID),
+            selectPreviousChannelAction: selectPreviousChannel,
+            selectNextChannelAction: selectNextChannel,
             playAction: playPausePreview,
             stopAction: stopPreview,
             resetAllAction: resetAllMix,
@@ -92,13 +96,21 @@ struct ProjectDetailView: View {
         playbackController.canPlay(project, selectedVirtualTrackOptionIDs: selectedVirtualTrackIDs)
     }
 
+    private var channelNavigation: MixerChannelNavigation {
+        MixerChannelNavigation(channels: project.visibleMixerChannels)
+    }
+
     private var mixerCommandActions: MixerCommandActions {
         MixerCommandActions(
             canPlay: canPlay && !playbackController.isPlaying,
             canStop: playbackController.canStop,
             hasSelectedChannel: selectedTrackID != nil,
+            canSelectPreviousChannel: channelNavigation.canSelectPreviousChannel(selectedTrackID: selectedTrackID),
+            canSelectNextChannel: channelNavigation.canSelectNextChannel(selectedTrackID: selectedTrackID),
             play: playPreview,
             stop: stopPreview,
+            selectPreviousChannel: selectPreviousChannel,
+            selectNextChannel: selectNextChannel,
             toggleMuteSelected: toggleMuteSelected,
             toggleSoloSelected: toggleSoloSelected,
             resetSelected: resetSelectedChannel,
@@ -161,6 +173,22 @@ struct ProjectDetailView: View {
         mixState.resetAll()
         selectedVirtualTrackIDs = mixState.selectedVirtualTrackOptionIDs
         applyCurrentMixToPlayback()
+    }
+
+    private func selectPreviousChannel() {
+        guard let previousChannelID = channelNavigation.selectPreviousChannel(from: selectedTrackID) else {
+            return
+        }
+
+        selectedTrackID = previousChannelID
+    }
+
+    private func selectNextChannel() {
+        guard let nextChannelID = channelNavigation.selectNextChannel(from: selectedTrackID) else {
+            return
+        }
+
+        selectedTrackID = nextChannelID
     }
 
     private func applyCurrentMixToPlayback() {

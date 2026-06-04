@@ -71,6 +71,18 @@ struct ProjectCommands: Commands {
 
             Divider()
 
+            Button("Previous Channel") {
+                mixerCommandActions?.selectPreviousChannel()
+            }
+            .disabled(mixerCommandActions?.canSelectPreviousChannel != true)
+
+            Button("Next Channel") {
+                mixerCommandActions?.selectNextChannel()
+            }
+            .disabled(mixerCommandActions?.canSelectNextChannel != true)
+
+            Divider()
+
             Button("Mute Selected Channel") {
                 mixerCommandActions?.toggleMuteSelected()
             }
@@ -104,8 +116,12 @@ struct MixerCommandActions {
     let canPlay: Bool
     let canStop: Bool
     let hasSelectedChannel: Bool
+    let canSelectPreviousChannel: Bool
+    let canSelectNextChannel: Bool
     let play: () -> Void
     let stop: () -> Void
+    let selectPreviousChannel: () -> Void
+    let selectNextChannel: () -> Void
     let toggleMuteSelected: () -> Void
     let toggleSoloSelected: () -> Void
     let resetSelected: () -> Void

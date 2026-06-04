@@ -129,7 +129,7 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 ### Persistence and Remembered Locations
 
 - Opened sources and songs are persisted using **SwiftData** (`LibrarySourceRecord`, `LibrarySongRecord`) injected into `SourceLibraryStore` via `ModelContainer` from `PortastudioPreviewApp`.
-- Security-scoped bookmarks are created and resolved by `SecurityScopedBookmarkService` (production) / `PassthroughBookmarkService` (test seam).
+- Security-scoped bookmarks are created and resolved by `SecurityScopedBookmarkService` (production) / `PassthroughBookmarkService` (test seam); source-root scans and fingerprint passes run while the selected root's security scope is active.
 - On launch, `hydrateFromPersistence()` reloads all remembered sources and songs; records whose bookmark and fallback path both fail resolve as muted missing rows rather than being deleted.
 - Source records cascade-delete their nested song records when forgotten.
 - Standalone individual songs use `isStandalone = true` in the SwiftData model to distinguish them from source-nested songs.

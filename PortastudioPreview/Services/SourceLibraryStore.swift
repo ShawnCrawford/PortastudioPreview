@@ -507,6 +507,12 @@ final class SourceLibraryStore {
 
     private func persistAndLoadSourceRoot(at url: URL, kind: SourceKind, existingID: UUID? = nil) async {
         let bookmarkData = try? bookmarkService.createBookmark(for: url)
+        let secured = url.startAccessingSecurityScopedResource()
+        defer {
+            if secured {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
         let sourceID: UUID
 
         if let context = modelContext {
