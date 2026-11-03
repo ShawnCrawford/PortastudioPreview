@@ -2,7 +2,7 @@
 
 This plan splits the roadmap into **Part 1: first shippable product experience** and **Part 2: pre-release/after-release expansion**. Part 1 focuses on making the current parser MVP feel like a useful native macOS app. Part 2 keeps the larger management workflows planned, but avoids blocking the first round of implementation.
 
-Update on May 7, 2026: Phase 15 is promoted into the first-release visual polish path because waveform and timeline presentation are needed for the app to feel credible at release. The phase number is preserved so it stays aligned with the broader roadmap, but its implementation should happen before the first release while backup/export/restore work remains separate.
+Update on November 3, 2026: Phase 15 is the first-release track-timeline visualization. Waveform drawing is deferred; the priority is showing which tracks contain parsed audio regions and where those regions fall in song time. Backup/export/restore remain separate work.
 
 ## Scope
 
@@ -87,13 +87,13 @@ Expand local annotations beyond track labels: track colors, notes, tags, song di
 
 Add first-class browsing for master mixes, exported tracks, project WAVs, and `AudioDepot` assets with duration, sample rate, bit depth, channels, file size, modified date, playback, and Reveal in Finder.
 
-### Phase 15: Waveform and Timeline Visualization
+### Phase 15: Track Timeline Visualization
 
-Add custom SwiftUI `Canvas` waveform strips, region lanes, zoom, playhead display, and evidence-scoped timeline visualization. This is high-value polish but custom enough to defer.
+Show audio-region start and length along song time in track-aligned rows, with zoom and horizontal/vertical scrolling. Region bars should show filenames and evidence, and selecting one should update the existing inspector. Use the selected virtual take for each track. Keep files without supported track assignments in explicitly unassigned rows. Preserve unresolved timing caveats and the source-folder read-only guarantee.
 
-Plan status (created on May 7, 2026): detailed first-release handoff saved at `Plans/Phase15WaveformAndTimelineVisualization.md`. The plan keeps Phase 15 read-only and UI-focused: derive in-memory waveform peak summaries from selected-song WAVs, render a custom SwiftUI timeline above the existing region table, add zoom/ruler/selection/playhead affordances, and preserve all current `Hypothesis` evidence caveats. It explicitly defers editing, scrubbing, backup/export, media asset browsing, AudioDepot workflows, restore, source-folder waveform caches, and any promotion of track-to-WAV assignment evidence.
+Deferred from this phase: waveform drawing, playhead synchronization, scrubbing/seeking, timeline editing, backup/export, media browsing, AudioDepot workflows, and restore.
 
-Status (partially implemented): the read-only model/service foundation exists in the current app source. `WaveformPeakSummary.swift`, `TimelineVisualizationModel.swift`, `TimelineVisualizationBuilder.swift`, and `WaveformPeakBuilder.swift` build in-memory waveform/timeline data without source-folder writes. `PreviewPlaybackController` is active in the mixer workspace and exposes playback state, elapsed time, errors, and meters. The SwiftUI timeline views described in the original plan (`TimelineVisualizationView`, `WaveformCanvasView`, `RegionsTimelineGroupBoxView`) are not present in the current source tree; future implementation should reuse the existing builders rather than reimplementing timeline math or WAV peak extraction. `WaveformPeakBuilderTests.swift` covers waveform extraction/read-only safety.
+Status: `TimelineVisualizationModel`, `TimelineVisualizationBuilder`, and `TimelineVisualizationView` now present the track-first overview. The builder uses each track's selected take and keeps unassigned WAV regions separate. The visible UI does not draw waveforms; the existing in-memory `WaveformPeakBuilder` is not used by this view. Selecting a region is wired to the inspector. Build verification remains pending.
 
 ### Current Mixer Workspace and Preview Overrides
 

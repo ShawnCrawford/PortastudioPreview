@@ -58,8 +58,8 @@ The core safety rule remains: the app should not modify Portastudio project file
 | Commands | Supports `Open Individual Song...` with `Command-O` and `Add SD Card or Backup...` with `Command-Shift-O`. Toolbar buttons have `.help(…)` tooltips. |
 | Project detail | Uses a focused selected-song mixer workspace. `ProjectDetailView` owns selected track, inspector visibility, `PreviewPlaybackController`, `PreviewMixState`, and virtual-take selection. `ProjectWorkspaceView` shows header identity, transport, meters, and the horizontal mixer deck. |
 | Track display | The primary track surface is `TrackMixerDeckView` inside `ProjectWorkspaceView`: one strip per visible mixer channel with identity, audio status, virtual-take picker when available, pan, mute, solo, fader, meter, and selected-channel affordance. The visible mixer list includes only channels with resolved assigned audio (candidate WAV or virtual-take options), while full parser track scope remains available in the underlying model for diagnostics. `TrackTableView` remains available as a raw/evidence table component for parser-oriented surfaces and tests. |
-| Region display | Timeline-region model and waveform builders remain in the codebase. Current selected-song workspace emphasizes mixer-first preview; region/file details surface through `TrackRegionInspectorView` and the audio-file inspector section. |
-| Waveform/timeline visualization | Model/service foundation exists. `TimelineVisualizationBuilder` builds `TimelineVisualizationModel` from project data and playback suppression state; `WaveformPeakBuilder` derives in-memory peak summaries from WAV files without writing caches. The SwiftUI timeline/waveform views from the Phase 15 plan are not currently present in the source tree. |
+| Region display | The selected-song workspace leads with a scrollable track timeline that plots parsed region extents by song time. Region/file details also surface in `TrackRegionInspectorView`. Waveform drawing is deferred. |
+| Track timeline | `TimelineVisualizationView` presents time-positioned regions by physical track, with zoom and scrolling. Track rows use the selected virtual take; files without a supported track assignment remain explicitly unassigned. Waveform drawing and timeline seeking/editing are deferred. |
 | Inspector | `TrackRegionInspectorView` is a native right-side `.inspector` panel. It shows song summary, selected-track identity, resolved audio source/take/evidence, parsed-vs-saved mix state, raw byte diagnostics, active-take byte (track 1), editable track-name field, audio-file list, Reveal in Finder, and reset selected channel. Toolbar toggle controls visibility. |
 | Preview playback | Uses AVFoundation through `StereoPreviewEngine` under `PreviewPlaybackController`; transport supports Play/Pause/Stop, elapsed time, output meters, track meters, live level/pan/mute updates, solo-derived effective mutes, selected virtual takes, and reload-preserving-position when virtual take changes during playback. |
 | Mix override persistence | `PreviewMixState` persists app-owned level, pan, mute, solo, and selected virtual-take overrides through SwiftData `MixOverrideRecord`, keyed by exact song fingerprint context. Overrides affect only app preview and are never written to Portastudio files. |
@@ -639,15 +639,14 @@ Release-planning update on May 7, 2026: Phase 15 is an exception to the original
 - Add song-level Master Mixes and Rendered/Other WAV sections.
 - Preserve project parser evidence separately from media browsing.
 
-#### Phase 15: Waveform and Timeline Visualization
+#### Phase 15: Track Timeline Visualization
 
-- Add custom SwiftUI `Canvas` waveform strips.
-- Add region lanes, zoom, playhead display, and evidence-scoped timeline visualization.
-- Keep ambiguous regions visually distinct.
-- Preserve confirmed physical track mapping while keeping still-unknown parser fields evidence-labeled.
-- Implementation plan created on May 7, 2026: `Plans/Phase15WaveformAndTimelineVisualization.md`.
-- Promoted into the first-release visual polish path. The plan keeps this work read-only and selected-song scoped, using derived waveform peaks and custom SwiftUI timeline rendering while deferring editing, scrubbing, media asset browsing, export, backup, AudioDepot staging, restore, and source-folder waveform caches.
-- Visual target: carry forward the supplied reference's compact audio-workstation structure, colored waveform lanes, ruler/playhead, transport/time header, and right inspector while keeping controls, materials, typography, and sidebar behavior native SwiftUI/macOS.
+- Show where audio regions fall across song time, aligned by physical track, with zoom and horizontal/vertical scrolling.
+- Use the currently selected virtual take for each track. Keep files with no supported track association in clearly unassigned rows.
+- Preserve region evidence and unresolved timing caveats; do not infer track assignment from visual order.
+- Waveform drawing, scrubbing, seeking, editing, backup/export, media browsing, AudioDepot, and restore are deferred.
+- Implementation plan: `Plans/Phase15WaveformAndTimelineVisualization.md`.
+- The selected-song workspace now places the track timeline before the mixer, with region selection wired to the inspector. The waveform peak service remains available but is not part of the visible timeline.
 
 #### Phase 16: AudioDepot Import Staging
 

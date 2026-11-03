@@ -12,6 +12,7 @@ struct ProjectDetailView: View {
     let annotationStore: TrackAnnotationStore
 
     @State private var selectedTrackID: TrackPreview.ID?
+    @State private var selectedRegionID: TimelineRegion.ID?
     @State private var isInspectorPresented = true
     @State private var playbackController = PreviewPlaybackController()
     @State private var mixState: PreviewMixState
@@ -28,6 +29,7 @@ struct ProjectDetailView: View {
             project: project,
             annotationStore: annotationStore,
             selectedTrackID: $selectedTrackID,
+            selectedRegionID: $selectedRegionID,
             playbackController: playbackController,
             mixState: mixState,
             selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
@@ -56,10 +58,8 @@ struct ProjectDetailView: View {
         .inspector(isPresented: $isInspectorPresented) {
             TrackRegionInspectorView(
                 project: project,
-                selectedTrack: project.visibleMixerChannels
-                    .first { $0.id == selectedTrackID }?
-                    .controlTrack,
-                selectedRegion: nil,
+                selectedTrack: project.tracks.first { $0.trackNumber == selectedTrackID },
+                selectedRegion: selectedRegion,
                 annotationStore: annotationStore,
                 mixState: mixState,
                 selectedVirtualTrackIDs: selectedVirtualTrackIDs,
@@ -74,6 +74,7 @@ struct ProjectDetailView: View {
         }
         .onChange(of: project.folderURL) { _, _ in
             selectedTrackID = nil
+            selectedRegionID = nil
             mixState = PreviewMixState(project: project)
             mixState.configure(modelContext: modelContext)
             mixState.loadOverrides(context: annotationStore.annotationContext)
@@ -90,6 +91,16 @@ struct ProjectDetailView: View {
 
     private func toggleInspector() {
         isInspectorPresented.toggle()
+    }
+
+    private var selectedRegion: TimelineRegion? {
+        guard let selectedRegionID else { return nil }
+        if let region = project.tracks
+            .flatMap({ $0.virtualTrackOptions.map(\.timelineRegion) + ($0.timeline?.regions ?? []) })
+            .first(where: { $0.id == selectedRegionID }) {
+            return region
+        }
+        return project.unassignedAudioRegions.first { $0.id == selectedRegionID }
     }
 
     private var canPlay: Bool {

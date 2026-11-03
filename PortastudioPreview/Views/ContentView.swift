@@ -123,6 +123,7 @@ private struct ContentViewBody: View {
 @MainActor
 private struct UITestMixerWorkspaceHostView: View {
     @State private var selectedTrackID: TrackPreview.ID?
+    @State private var selectedRegionID: TimelineRegion.ID?
     @State private var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
     @State private var fixture = PreviewFixtures.mixerWorkspace()
 
@@ -131,6 +132,7 @@ private struct UITestMixerWorkspaceHostView: View {
             project: fixture.project,
             annotationStore: fixture.annotationStore,
             selectedTrackID: $selectedTrackID,
+            selectedRegionID: $selectedRegionID,
             playbackController: fixture.playbackController,
             mixState: fixture.mixState,
             selectedVirtualTrackIDs: $selectedVirtualTrackIDs,

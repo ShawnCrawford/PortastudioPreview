@@ -9,6 +9,7 @@ struct ProjectWorkspaceView: View {
     let project: PortastudioProject
     let annotationStore: TrackAnnotationStore
     @Binding var selectedTrackID: TrackPreview.ID?
+    @Binding var selectedRegionID: TimelineRegion.ID?
     let playbackController: PreviewPlaybackController
     let mixState: PreviewMixState
     @Binding var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
@@ -22,33 +23,44 @@ struct ProjectWorkspaceView: View {
     let reloadPlaybackPreservingPositionAction: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            ProjectHeaderView(
-                project: project,
-                annotationStore: annotationStore,
-                playbackController: playbackController,
-                mixState: mixState,
-                selectedVirtualTrackIDs: selectedVirtualTrackIDs,
-                playAction: playAction,
-                stopAction: stopAction
-            )
+        ScrollView(.vertical) {
+            VStack(spacing: 12) {
+                ProjectHeaderView(
+                    project: project,
+                    annotationStore: annotationStore,
+                    playbackController: playbackController,
+                    mixState: mixState,
+                    selectedVirtualTrackIDs: selectedVirtualTrackIDs,
+                    playAction: playAction,
+                    stopAction: stopAction
+                )
 
-            TrackMixerDeckView(
-                channels: project.visibleMixerChannels,
-                selectedTrackID: $selectedTrackID,
-                annotationStore: annotationStore,
-                playbackController: playbackController,
-                mixState: mixState,
-                selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
-                canSelectPreviousChannel: canSelectPreviousChannel,
-                canSelectNextChannel: canSelectNextChannel,
-                selectPreviousChannelAction: selectPreviousChannelAction,
-                selectNextChannelAction: selectNextChannelAction,
-                resetAllAction: resetAllAction,
-                reloadPlaybackPreservingPositionAction: reloadPlaybackPreservingPositionAction
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityIdentifier("editor-surface-mixer")
+                TimelineVisualizationView(
+                    project: project,
+                    selectedTrackID: $selectedTrackID,
+                    selectedRegionID: $selectedRegionID,
+                    selectedVirtualTrackIDs: selectedVirtualTrackIDs
+                )
+                .frame(height: 410)
+                .accessibilityIdentifier("editor-surface-timeline")
+
+                TrackMixerDeckView(
+                    channels: project.visibleMixerChannels,
+                    selectedTrackID: $selectedTrackID,
+                    annotationStore: annotationStore,
+                    playbackController: playbackController,
+                    mixState: mixState,
+                    selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
+                    canSelectPreviousChannel: canSelectPreviousChannel,
+                    canSelectNextChannel: canSelectNextChannel,
+                    selectPreviousChannelAction: selectPreviousChannelAction,
+                    selectNextChannelAction: selectNextChannelAction,
+                    resetAllAction: resetAllAction,
+                    reloadPlaybackPreservingPositionAction: reloadPlaybackPreservingPositionAction
+                )
+                .frame(height: 430)
+                .accessibilityIdentifier("editor-surface-mixer")
+            }
         }
         .frame(minWidth: 760, minHeight: 620)
         .background(.background)
@@ -883,6 +895,7 @@ private struct OutputLevelView: View {
 #if DEBUG
 #Preview("Mixer Workspace") {
     @Previewable @State var selectedTrackID: TrackPreview.ID? = 4
+    @Previewable @State var selectedRegionID: TimelineRegion.ID?
     @Previewable @State var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
     let fixture = PreviewFixtures.mixerWorkspace()
 
@@ -890,6 +903,7 @@ private struct OutputLevelView: View {
         project: fixture.project,
         annotationStore: fixture.annotationStore,
         selectedTrackID: $selectedTrackID,
+        selectedRegionID: $selectedRegionID,
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
@@ -910,6 +924,7 @@ private struct OutputLevelView: View {
 
 #Preview("Mixer Workspace - Compact") {
     @Previewable @State var selectedTrackID: TrackPreview.ID?
+    @Previewable @State var selectedRegionID: TimelineRegion.ID?
     @Previewable @State var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
     let fixture = PreviewFixtures.compactWorkspace()
 
@@ -917,6 +932,7 @@ private struct OutputLevelView: View {
         project: fixture.project,
         annotationStore: fixture.annotationStore,
         selectedTrackID: $selectedTrackID,
+        selectedRegionID: $selectedRegionID,
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,
@@ -934,6 +950,7 @@ private struct OutputLevelView: View {
 
 #Preview("Mixer Workspace - Edited") {
     @Previewable @State var selectedTrackID: TrackPreview.ID? = 3
+    @Previewable @State var selectedRegionID: TimelineRegion.ID?
     @Previewable @State var selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID] = [:]
     let fixture = PreviewFixtures.editedWorkspace()
 
@@ -941,6 +958,7 @@ private struct OutputLevelView: View {
         project: fixture.project,
         annotationStore: fixture.annotationStore,
         selectedTrackID: $selectedTrackID,
+        selectedRegionID: $selectedRegionID,
         playbackController: fixture.playbackController,
         mixState: fixture.mixState,
         selectedVirtualTrackIDs: $selectedVirtualTrackIDs,

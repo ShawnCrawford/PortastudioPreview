@@ -35,18 +35,18 @@ The app is designed for safe inspection, annotation, and stereo preview playback
 
 ## Current Architecture Snapshot
 
-The app is now organized around a source library plus a focused selected-song mixer workspace.
+The app is organized around a source library and a selected-song workspace whose first view is a scrollable track timeline. The timeline places audio regions against song time so users can see gaps and later starts across tracks.
 
 - `ContentView` owns the source-library shell and routes selection to either `ProjectOpenView`, `SourceSelectedView`, or `ProjectDetailView`.
 - `SourceLibraryStore` handles remembered source/song hydration, add/open flows, relocate/forget, fingerprints, and missing-location state.
 - `ProjectPreviewBuilder` assembles the read-only `PortastudioProject` by scanning WAV inventory, parsing `song.sys` and `edltable.sys`, assigning EDL file-list positions to tracks, creating virtual-take options, and inferring timeline regions.
 - `PortastudioProject.tracks` keeps full parser scope (physical tracks), while `visibleMixerChannels` filters to displayable recorded channels for the UI mixer.
-- `ProjectDetailView` owns selected-track state, inspector visibility, `PreviewPlaybackController`, `PreviewMixState`, and selected virtual-take IDs for the loaded song.
-- `ProjectWorkspaceView` is the primary song UI: a cohesive utility header plus a horizontal mixer deck where selected channels receive subtle native emphasis and fader/meter controls remain the primary visual focus.
+- `ProjectDetailView` owns selected-track and selected-region state, inspector visibility, `PreviewPlaybackController`, `PreviewMixState`, and selected virtual-take IDs for the loaded song.
+- `ProjectWorkspaceView` presents a time-aligned track map first, with zoom and horizontal/vertical scrolling. The mixer deck remains below the timeline for preview adjustments.
 - `TrackRegionInspectorView` is the native right-side inspector for song summary, selected-track identity/audio/mix values, app-owned track labels, audio file list, Reveal in Finder, and reset selected channel, with parser-level data under a collapsed Technical Details disclosure.
 - `PreviewMixState` persists app-owned preview overrides in SwiftData through `MixOverrideRecord`; source folders remain read-only.
 - `PreviewPlaybackController` and `StereoPreviewEngine` own playback lifecycle, live mixer updates, selected virtual-take playback, elapsed time, per-track/output meters, and error state.
-- `TimelineVisualizationBuilder` and `WaveformPeakBuilder` remain pure/read-only services for waveform and timeline presentation data. Keep waveform data in memory; do not write waveform caches next to Portastudio files.
+- `TimelineVisualizationBuilder` maps each track's selected virtual take to its timeline region and keeps files without a supported track assignment in explicitly unassigned rows. Timeline bars show file names, start/length, and evidence; no waveform is drawn and no timeline seeking/editing is provided. `WaveformPeakBuilder` remains unused by the visible UI. Keep all analysis read-only and never write caches beside Portastudio files.
 
 ## Build and Test
 
@@ -93,21 +93,20 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
 - Evidence labels follow research-repo conventions exactly: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, `Rejected`. No evidence is promoted beyond levels already encoded in current models.
 - The inspector remains read-only toward Portastudio files. Phase 7 annotation edits are app-owned SwiftData writes only; no sidecar files or source-folder mutations are created.
 
-### Waveform and Timeline Visualization (Phase 15)
+### Track Timeline (Phase 15; waveform deferred)
 
-- Detailed handoff plan: `Plans/Phase15WaveformAndTimelineVisualization.md`.
-- Phase 15 currently has the read-only model/service foundation in the app source, while the visible selected-song workspace is mixer-first.
-- **Timeline data**: `TimelineVisualizationBuilder` converts `PortastudioProject` plus playback-plan suppression into `TimelineVisualizationModel`, including lane order, extents, ruler ticks, zoom helpers, selection flags, and suppressed/missing/ambiguous states.
-- **Waveform peaks**: `WaveformPeakBuilder` derives in-memory peak summaries from source WAVs with AVFoundation. No waveform caches or sidecar files are written to source folders.
-- **Playback controller refactor**: `PreviewPlaybackController` (`@Observable @MainActor`) owns the `StereoPreviewEngine` instance and exposes playback state, elapsed seconds, errors, output meters, and track meters to the mixer workspace.
-- **Live mix edits**: Level, pan, mute, and solo-derived mute changes are pushed to the live preview engine, so resumed or running playback reflects current app-owned mix state.
-- **UI status**: SwiftUI timeline/waveform views are not present in the current app source. Future agents implementing them should reuse the existing builders instead of duplicating timeline math or WAV peak extraction.
-- **Tests added**:
-  - `WaveformPeakBuilderTests` (7 tests): silent WAV → zero peaks, non-silent → non-zero, bucket count capped, single frame, unreadable file throws, metadata correctness, read-only safety.
+- `TimelineVisualizationView` is the first section in the selected-song workspace. It shows one row per physical track, with bars positioned by region start and length, plus zoom, fit, and horizontal/vertical scrolling.
+- The visible bar follows the track's selected virtual take. Files without a supported track association appear in separate `Unassigned` rows; file-list order is never presented as track identity.
+- Bars represent parsed WAV regions and their inferred start/length. The app does not analyze silence inside a WAV, so a long WAV containing quiet gaps appears as one continuous region.
+- Current parsing provides one selected WAV region per physical track; virtual-take alternatives are choices rather than simultaneous clips. Multiple non-contiguous regions on the same track need additional evidence-backed parser work.
+- Selecting a bar selects its track and region for the inspector. Bars include the filename, approximate timing, and evidence label for accessibility.
+- Timing remains evidence-scoped. If all regions overlap at zero because start timing is unresolved, the timeline says so instead of implying distinct positions.
+- Waveform peak analysis exists as a read-only service, but waveform drawing is deferred. There is no timeline seeking or editing.
+- Detailed scope: `Plans/Phase15WaveformAndTimelineVisualization.md`.
 
 ### Song Detail Workspace (Current)
 
-- `ProjectDetailView` presents a focused selected-song workspace: song header, read-only playback controls, live output/track meters, horizontal mixer, and native inspector.
+- `ProjectDetailView` presents the selected-song workspace: song header, read-only playback controls, scrollable track timeline, mixer deck, and native inspector.
 - The mixer uses one clear channel identity, concise audio status, grouped controls, and fader-dominant layout hierarchy, with virtual-take picker when multiple takes are available and reset-all mix access.
 - Empty/unresolved channels are hidden from the main mixer surface. For stereo pairs (`9/10` through `31/32`), a single pair row appears when either side has resolved audio, and includes only active member tracks.
 - Mix overrides are app-owned SwiftData records (`MixOverrideRecord`) keyed by exact song fingerprint context. They include level, pan, mute, solo, and selected virtual take.
