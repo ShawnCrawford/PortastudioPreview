@@ -8,13 +8,14 @@ import Foundation
 struct TimelineRegionPresentation: Sendable, Equatable, Identifiable {
     let id: String
     let sourceFilename: String
-    let startSample: Int
+    let startSample: Int?
     let lengthSample: Int?
     let evidenceLevel: EvidenceLevel
     let isSelected: Bool
 
     var endSample: Int? {
         guard let lengthSample else { return nil }
+        guard let startSample else { return nil }
         return startSample + lengthSample
     }
 }
@@ -41,6 +42,10 @@ struct TimelineVisualizationModel: Sendable, Equatable {
 
     var isEmpty: Bool {
         !lanes.contains { !$0.regions.isEmpty }
+    }
+
+    var hasResolvedTiming: Bool {
+        lanes.contains { lane in lane.regions.contains { $0.startSample != nil } }
     }
 
     static let empty = TimelineVisualizationModel(

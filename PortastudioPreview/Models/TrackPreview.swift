@@ -13,6 +13,7 @@ struct TrackPreview: Identifiable, Hashable, Sendable {
     let timeline: TrackTimeline?
     let virtualTrackOptions: [VirtualTrackOption]
     let defaultVirtualTrackOptionID: VirtualTrackOption.ID?
+    let assignmentEvidence: EvidenceLevel
 
     init(
         trackNumber: Int,
@@ -21,7 +22,8 @@ struct TrackPreview: Identifiable, Hashable, Sendable {
         track1ActiveTakeCandidate: UInt8?,
         timeline: TrackTimeline?,
         virtualTrackOptions: [VirtualTrackOption] = [],
-        defaultVirtualTrackOptionID: VirtualTrackOption.ID? = nil
+        defaultVirtualTrackOptionID: VirtualTrackOption.ID? = nil,
+        assignmentEvidence: EvidenceLevel = .correlated
     ) {
         self.trackNumber = trackNumber
         self.candidateWAV = candidateWAV
@@ -30,12 +32,13 @@ struct TrackPreview: Identifiable, Hashable, Sendable {
         self.timeline = timeline
         self.virtualTrackOptions = virtualTrackOptions
         self.defaultVirtualTrackOptionID = defaultVirtualTrackOptionID
+        self.assignmentEvidence = assignmentEvidence
     }
 
     var id: Int { trackNumber }
 
     var candidateWAVEvidence: EvidenceLevel {
-        candidateWAV == nil ? .observed : .confirmed
+        candidateWAV == nil ? .observed : assignmentEvidence
     }
 
     var showsVirtualTrackPicker: Bool {
@@ -61,9 +64,8 @@ struct TrackPreview: Identifiable, Hashable, Sendable {
     /// UI-facing activity signal.
     ///
     /// A track is considered active when the preview pipeline found an inferred WAV/timeline
-    /// assignment for it, or when Track 1 exposes a non-zero active-take selector byte.
-    /// The latter keeps virtual-take songs from collapsing to an empty track surface.
+    /// assignment for it. Selector bytes alone do not establish a physical track assignment.
     var isActiveTrackCandidate: Bool {
-        candidateWAV != nil || timeline != nil || !virtualTrackOptions.isEmpty || (track1ActiveTakeCandidate ?? 0) > 0
+        candidateWAV != nil || timeline != nil || !virtualTrackOptions.isEmpty
     }
 }

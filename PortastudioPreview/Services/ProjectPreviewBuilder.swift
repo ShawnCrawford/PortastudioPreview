@@ -49,8 +49,7 @@ struct ProjectPreviewBuilder {
 
         let allRegions = buildUnassignedAudioRegions(
             wavInventory: wavInventory,
-            edlTableSummary: edlTableSummary,
-            edlTableData: edlTableData
+            edlTableSummary: edlTableSummary
         )
 
         let (tracks, unassignedAudioRegions) = buildTracksWithAssignments(
@@ -144,13 +143,8 @@ struct ProjectPreviewBuilder {
 
     // MARK: - Track assignment
 
-    /// Maps EDL file-list positions to physical tracks and builds `TrackTimeline` entries.
-    ///
-    /// Evidence: Confirmed — EDL file-list position index maps to device track number
-    /// (0-based: position 0 → Track 1, position 1 → Track 2, …).
-    ///
-    /// WAVs present in the inventory but absent from the EDL file list remain in
-    /// `unassignedAudioRegions`; they have no evidence-backed track association.
+    /// Assigns a physical channel only for the single-file/single-entry case. Multi-file
+    /// EDL order does not distinguish clips, tracks, stereo pairs, or virtual takes.
     private func buildTracksWithAssignments(
         wavInventory: [WAVInventoryItem],
         allRegions: [TimelineRegion],
@@ -174,7 +168,8 @@ struct ProjectPreviewBuilder {
         var groupedAssignments: [String: [VirtualTrackOption]] = [:]
         var groupedOrder: [String] = []
 
-        for entry in fileListEntries {
+        let canAssignSingleFile = fileListEntries.count == 1 && wavInventory.count == 1
+        for entry in (canAssignSingleFile ? fileListEntries : []) {
             let key = entry.filename.lowercased()
             guard let wav = wavByFilename[key], let region = regionByFilename[key] else {
                 continue
@@ -195,12 +190,10 @@ struct ProjectPreviewBuilder {
                     takeLabel: Self.takeLabel(for: takeNumber),
                     wavItem: wav,
                     timelineRegion: region,
-                    evidenceLevel: .confirmed
+                    evidenceLevel: .correlated
                 )
             )
         }
-
-        let activeTakeNumber = Int((edlTableSummary?.track1ActiveTakeCandidate ?? 0)) + 1
 
         // Build tracks — assigned tracks carry default selected virtual-take WAV/timeline.
         let tracks = (0..<MixerMapOffsets.trackCount).map { trackIndex in
@@ -213,12 +206,14 @@ struct ProjectPreviewBuilder {
                     return $0.takeNumber < $1.takeNumber
                 }
 
-            let defaultOption = options.first(where: { $0.takeNumber == activeTakeNumber }) ?? options.first
+            // The captured selector is Track 1-specific and its mapping remains correlated.
+            // Never apply it as a default to every stem or physical track.
+            let defaultOption = options.count == 1 ? options.first : nil
             let timeline: TrackTimeline? = defaultOption.map { option in
                 TrackTimeline(
                     trackNumber: trackIndex + 1,
                     regions: [option.timelineRegion],
-                    evidenceLevel: .confirmed
+                    evidenceLevel: .correlated
                 )
             }
 
@@ -249,40 +244,21 @@ struct ProjectPreviewBuilder {
 
     private func buildUnassignedAudioRegions(
         wavInventory: [WAVInventoryItem],
-        edlTableSummary: EdlTableSummary?,
-        edlTableData: Data?
+        edlTableSummary: EdlTableSummary?
     ) -> [TimelineRegion] {
         let orderedWAVs = orderedUnassignedWAVs(wavInventory: wavInventory, edlTableSummary: edlTableSummary)
-        var startSamples = Self.inferredStartSamples(
-            wavCount: orderedWAVs.count,
-            timelineAnchors: edlTableSummary?.timelineAnchors ?? []
-        )
-
-        // Fallback: when no timeline anchors resolve positions and multiple WAVs are present,
-        // attempt a sequential layout (each clip placed immediately after the previous one).
-        // Each clip's length is the WAV sample count minus the device's 441-sample trim.
-        // Stereo pairs (ZZxxxx_2.wav alongside ZZxxxx_1.wav) share the same start position.
-        // Evidence: Confirmed — staircase values matching trimmed WAV lengths are used
-        // when edltable.sys does not carry explicit Type A position records.
-        if startSamples.allSatisfy({ $0 == 0 }), orderedWAVs.count > 1,
-           let sequential = Self.sequentialStartSamplesIfConfirmed(
-               orderedWAVs: orderedWAVs,
-               edlData: edlTableData
-           ) {
-            startSamples = sequential
-        }
-
-        return orderedWAVs.enumerated().map { index, wav in
-            let startSample = startSamples[index]
+        // Scanned EDL words do not yet have a validated relationship to individual WAVs.
+        // Keep timing unresolved rather than assigning starts by count or file duration.
+        return orderedWAVs.map { wav in
             let lengthSample = wavSampleLength(for: wav.url)
 
             return TimelineRegion(
-                startSample: startSample,
-                endSample: lengthSample.map { startSample + $0 },
+                startSample: nil,
+                endSample: nil,
                 lengthSample: lengthSample,
                 sourceFilename: wav.rawFilename,
                 sourceURL: wav.url,
-                evidenceLevel: .confirmed
+                evidenceLevel: .hypothesis
             )
         }
     }

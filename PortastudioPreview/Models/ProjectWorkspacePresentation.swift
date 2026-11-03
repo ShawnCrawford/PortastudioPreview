@@ -31,7 +31,7 @@ struct ProjectHeaderSummary: Equatable {
         folderPath = summary.folderPath
         deviceContext = "Song"
         formatLabel = "\(Int(SampleTimeFormatter.standardSampleRate / 1_000)) kHz"
-        trackCountLabel = "\(summary.trackCount) Track\(summary.trackCount == 1 ? "" : "s")"
+        trackCountLabel = "\(summary.trackCount) Mixer Channel\(summary.trackCount == 1 ? "" : "s")"
         wavCountLabel = "\(summary.wavCount) Audio File\(summary.wavCount == 1 ? "" : "s")"
         durationLabel = Self.durationLabel(for: project)
         metadataLine = "\(trackCountLabel) · \(wavCountLabel) · \(durationLabel)"
@@ -44,7 +44,7 @@ struct ProjectHeaderSummary: Equatable {
             issueLabel = "\(summary.validationIssueCount) warning\(summary.validationIssueCount == 1 ? "" : "s")"
         }
 
-        previewUnavailableLabel = summary.previewAvailable ? nil : "Preview unavailable"
+        previewUnavailableLabel = summary.previewAvailable ? nil : project.playbackLimitation ?? "Preview unavailable"
     }
 
     private static func durationLabel(for project: PortastudioProject) -> String {
@@ -58,10 +58,11 @@ struct ProjectHeaderSummary: Equatable {
             if let endSample = region.endSample {
                 return endSample
             }
-            guard let length = region.resolvedLengthSample else {
+            guard let startSample = region.startSample,
+                  let length = region.resolvedLengthSample else {
                 return nil
             }
-            return region.startSample + length
+            return startSample + length
         }
         .max()
 
@@ -128,10 +129,13 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
             channelSubtitle = nil
         }
         let resolvedWAV = selectedVirtualTrack?.wavItem ?? track?.candidateWAV
-        candidateWAVLabel = resolvedWAV?.rawFilename ?? "No Audio File"
+        candidateWAVLabel = resolvedWAV?.rawFilename
+            ?? (channel.hasUnassignedAudio ? "Unassigned audio" : "No Audio File")
         hasResolvedAudio = resolvedWAV != nil
         if hasResolvedAudio {
             audioStatusLabel = "Audio assigned"
+        } else if channel.hasUnassignedAudio {
+            audioStatusLabel = "Track mapping unresolved"
         } else if track?.isActiveTrackCandidate == true {
             audioStatusLabel = "Missing audio"
         } else {
@@ -164,7 +168,7 @@ struct TrackMixerStripPresentation: Identifiable, Equatable {
         isMuted = muteOverride ?? ((track?.mixerSetting?.mute?.primaryByte ?? 0) != 0)
         isSoloed = soloOverride ?? false
         self.isEffectivelyMuted = isEffectivelyMuted ?? isMuted
-        muteLabel = isMuted ? "Muted" : "Live"
+        muteLabel = track?.mixerSetting?.mute == nil ? "Unknown" : (isMuted ? "Muted" : "Live")
         soloLabel = isSoloed ? "Solo" : "Not soloed"
         self.isSelected = isSelected
         colorIndex = (channel.id - 1) % Self.paletteCount

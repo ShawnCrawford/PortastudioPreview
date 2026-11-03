@@ -226,6 +226,7 @@ private struct HeaderIssueStatusView: View {
                 if let unavailable = summary.previewUnavailableLabel {
                     Label(unavailable, systemImage: "waveform.slash")
                         .foregroundStyle(.secondary)
+                        .help(unavailable)
                 }
             }
         }

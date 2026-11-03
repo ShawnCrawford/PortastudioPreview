@@ -75,10 +75,12 @@ enum MixerChannelLayout {
 struct MixerChannel: Identifiable, Hashable, Sendable {
     let id: Int
     let memberTracks: [TrackPreview]
+    let hasUnassignedAudio: Bool
 
-    init(leadingTrackNumber: Int, memberTracks: [TrackPreview]) {
+    init(leadingTrackNumber: Int, memberTracks: [TrackPreview], hasUnassignedAudio: Bool = false) {
         id = leadingTrackNumber
         self.memberTracks = memberTracks.sorted { $0.trackNumber < $1.trackNumber }
+        self.hasUnassignedAudio = hasUnassignedAudio
     }
 
     var annotationTrackNumber: Int { id }

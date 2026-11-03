@@ -31,7 +31,8 @@ struct TimelineVisualizationView: View {
     }
 
     private var ticks: [TimelineTimeRulerTick] {
-        TimelineVisualizationBuilder.rulerTicks(totalSampleExtent: model.totalSampleExtent)
+        guard model.hasResolvedTiming else { return [] }
+        return TimelineVisualizationBuilder.rulerTicks(totalSampleExtent: model.totalSampleExtent)
     }
 
     var body: some View {
@@ -48,7 +49,7 @@ struct TimelineVisualizationView: View {
             } else {
                 if model.hasUnresolvedTiming {
                     Label(
-                        "Region start times are unresolved; the files overlap at the beginning of the timeline.",
+                        "Available EDL candidates are not yet linked to individual files. Unresolved files are labeled Unplaced.",
                         systemImage: "exclamationmark.triangle"
                     )
                     .font(.caption)
@@ -204,7 +205,7 @@ struct TimelineVisualizationView: View {
 
             ForEach(lane.regions) { region in
                 let x = TimelineVisualizationBuilder.sampleToX(
-                    sample: region.startSample,
+                    sample: region.startSample ?? 0,
                     totalExtent: model.totalSampleExtent,
                     width: chartWidth
                 )
@@ -229,7 +230,7 @@ struct TimelineVisualizationView: View {
                             }
                         }
                         .overlay(alignment: .leading) {
-                            Text(region.sourceFilename)
+                            Text(region.startSample == nil ? "Unplaced · \(region.sourceFilename)" : region.sourceFilename)
                                 .font(.caption2)
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
@@ -257,8 +258,8 @@ struct TimelineVisualizationView: View {
     }
 
     private func regionAccessibilityDescription(_ region: TimelineRegionPresentation) -> String {
-        let start = SampleTimeFormatter.displayString(samples: region.startSample)
+        let start = region.startSample.map { SampleTimeFormatter.displayString(samples: $0) } ?? "placement unresolved"
         let length = region.lengthSample.map { SampleTimeFormatter.displayString(samples: $0) } ?? "unknown length"
-        return "\(region.sourceFilename), starts at \(start), length \(length), timing evidence \(region.evidenceLevel.rawValue)"
+        return "\(region.sourceFilename), start \(start), length \(length), timing evidence \(region.evidenceLevel.rawValue)"
     }
 }

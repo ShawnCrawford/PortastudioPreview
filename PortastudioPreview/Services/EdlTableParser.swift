@@ -55,16 +55,27 @@ struct EdlTableParser {
         let matches = regex.matches(in: text, options: [], range: nsRange)
 
         var entries: [EdlFileListEntry] = []
+        var searchStart = labelRange.lowerBound
 
         for (index, match) in matches.enumerated() {
             guard let range = Range(match.range, in: text) else {
                 continue
             }
 
+            let filename = String(text[range])
+            let rawFilenameRange = data.range(
+                of: Data(filename.utf8),
+                in: searchStart..<end
+            )
+            if let rawFilenameRange {
+                searchStart = rawFilenameRange.upperBound
+            }
+
             entries.append(
                 EdlFileListEntry(
                     fileID: index,
-                    filename: String(text[range]),
+                    byteOffset: rawFilenameRange.map { data.distance(from: data.startIndex, to: $0.lowerBound) },
+                    filename: filename,
                     evidenceLevel: .confirmed
                 )
             )

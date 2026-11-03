@@ -13,7 +13,7 @@ struct PortastudioProjectVisibleMixerChannelsTests {
         #expect(project.visibleMixerChannels.isEmpty)
     }
 
-    @Test func visibleMixerChannelsIncludeOnlyTracksWithResolvedAudio() {
+    @Test func visibleMixerChannelsKeepRowsWithoutResolvedAudio() {
         let project = makeProject(
             tracks: [
                 makeTrack(trackNumber: 1, assigned: true),
@@ -22,12 +22,13 @@ struct PortastudioProjectVisibleMixerChannelsTests {
             ]
         )
 
-        #expect(project.visibleMixerChannels.map(\.id) == [1, 3])
+        #expect(project.visibleMixerChannels.map(\.id) == [1, 2, 3])
         #expect(project.visibleMixerChannels[0].memberTrackNumbers == [1])
-        #expect(project.visibleMixerChannels[1].memberTrackNumbers == [3])
+        #expect(project.visibleMixerChannels[1].memberTrackNumbers == [2])
+        #expect(project.visibleMixerChannels[2].memberTrackNumbers == [3])
     }
 
-    @Test func stereoPairAppearsWhenEitherSideHasResolvedAudio() {
+    @Test func stereoPairKeepsBothPhysicalTracksVisibleWithoutAssignment() {
         let project = makeProject(
             tracks: [
                 makeTrack(trackNumber: 9, assigned: false),
@@ -38,7 +39,7 @@ struct PortastudioProjectVisibleMixerChannelsTests {
         #expect(project.visibleMixerChannels.count == 1)
         #expect(project.visibleMixerChannels[0].id == 9)
         #expect(project.visibleMixerChannels[0].trackNumberLabel == "9/10")
-        #expect(project.visibleMixerChannels[0].memberTrackNumbers == [10])
+        #expect(project.visibleMixerChannels[0].memberTrackNumbers == [9, 10])
     }
 
     private func makeProject(tracks: [TrackPreview]) -> PortastudioProject {

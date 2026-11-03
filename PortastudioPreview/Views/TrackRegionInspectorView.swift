@@ -48,6 +48,7 @@ struct TrackRegionInspectorView: View {
                     annotationStore: annotationStore,
                     mixState: mixState,
                     selectedVirtualTrackIDs: selectedVirtualTrackIDs,
+                    hasUnassignedAudio: !project.unassignedAudioRegions.isEmpty,
                     isTechnicalDetailsExpanded: $isTechnicalDetailsExpanded
                 )
                 AudioFilesInspectorSection(project: project, selectedRegion: selectedRegion)
@@ -91,6 +92,7 @@ private struct SelectedTrackInspectorSection: View {
     let annotationStore: TrackAnnotationStore
     let mixState: PreviewMixState
     let selectedVirtualTrackIDs: [Int: VirtualTrackOption.ID]
+    let hasUnassignedAudio: Bool
     @Binding var isTechnicalDetailsExpanded: Bool
 
     var body: some View {
@@ -112,7 +114,7 @@ private struct SelectedTrackInspectorSection: View {
                 InspectorSubheading("Audio Source")
                 InspectorInfoRow(
                     label: "Filename",
-                    value: selectedWAV?.rawFilename ?? "No audio file",
+                    value: selectedWAV?.rawFilename ?? (hasUnassignedAudio ? "Unassigned audio" : "No audio file"),
                     valueStyle: selectedWAV == nil ? .secondary : .primary
                 )
                 InspectorInfoRow(label: "Take", value: selectedVirtualTrack?.takeLabel ?? track.defaultVirtualTrackOption?.takeLabel ?? "Default")
@@ -133,11 +135,11 @@ private struct SelectedTrackInspectorSection: View {
                     VStack(alignment: .leading, spacing: 8) {
                         InspectorInfoRow(label: "Parsed Level", value: levelValue(for: track), valueStyle: .secondary)
                         InspectorInfoRow(label: "Parsed Pan", value: panValue(for: track), valueStyle: .secondary)
-                        InspectorInfoRow(label: "Parsed Mute", value: isMuted(track) ? "On" : "Off", valueStyle: .secondary)
+                        InspectorInfoRow(label: "Parsed Mute", value: parsedMuteValue(track), valueStyle: .secondary)
                         InspectorInfoRow(label: "Raw Bytes", value: rawBytes(for: track), valueStyle: .secondary)
                         if let activeTakeByte = track.track1ActiveTakeCandidate {
                             InspectorInfoRow(
-                                label: "Active Take",
+                                label: "Track 1 Selector",
                                 value: "\(HexFormatter.offset(EdlTableParser.track1ActiveTakeCandidateOffset))=\(HexFormatter.byte(activeTakeByte))",
                                 valueStyle: .secondary
                             )
@@ -167,6 +169,9 @@ private struct SelectedTrackInspectorSection: View {
         if selectedWAV != nil {
             return "Audio assigned"
         }
+        if hasUnassignedAudio {
+            return "Project audio is present; track mapping is unresolved"
+        }
         return track.isActiveTrackCandidate ? "Missing audio" : "No audio"
     }
 
@@ -182,6 +187,11 @@ private struct SelectedTrackInspectorSection: View {
 
     private func isMuted(_ track: TrackPreview) -> Bool {
         (track.mixerSetting?.mute?.primaryByte ?? 0) != 0
+    }
+
+    private func parsedMuteValue(_ track: TrackPreview) -> String {
+        guard let mute = track.mixerSetting?.mute else { return "Unknown" }
+        return mute.primaryByte == 0 ? "Off" : "On"
     }
 
     private func selectedVirtualTrack(for track: TrackPreview) -> VirtualTrackOption? {
@@ -220,10 +230,24 @@ private struct AudioFilesInspectorSection: View {
                     .foregroundStyle(.secondary)
 
                 InspectorInfoRow(label: "Filename", value: selectedRegion.sourceFilename ?? "Unknown")
-                InspectorInfoRow(label: "Start", value: SampleTimeFormatter.displayString(samples: selectedRegion.startSample))
+                if let filename = selectedRegion.sourceFilename,
+                   let entry = project.edlTableSummary?.fileListEntries.first(where: {
+                       $0.filename.localizedCaseInsensitiveCompare(filename) == .orderedSame
+                   }) {
+                    InspectorInfoRow(
+                        label: "EDL Entry",
+                        value: "#\(entry.fileID) · \(entry.byteOffset.map(HexFormatter.offset) ?? "offset unavailable")",
+                        valueStyle: .secondary
+                    )
+                }
+                InspectorInfoRow(
+                    label: "Start",
+                    value: selectedRegion.startSample.map { SampleTimeFormatter.displayString(samples: $0) } ?? "Unresolved"
+                )
+                InspectorInfoRow(label: "Placement Evidence", value: selectedRegion.evidenceLevel.rawValue, valueStyle: .secondary)
 
                 if let length = selectedRegion.resolvedLengthSample {
-                    InspectorInfoRow(label: "Length", value: SampleTimeFormatter.displayString(samples: length))
+                    InspectorInfoRow(label: "File Length", value: SampleTimeFormatter.displayString(samples: length))
                 }
             }
 

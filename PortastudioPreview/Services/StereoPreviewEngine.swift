@@ -252,9 +252,9 @@ final class StereoPreviewEngine {
     }
 
     static func timelineStartSamples(for tracks: [TrackPreview]) -> [Int: Int] {
-        Dictionary(uniqueKeysWithValues: tracks.map { track in
-            let startSample = max(track.timeline?.regions.first?.startSample ?? 0, 0)
-            return (track.trackNumber, startSample)
+        Dictionary(uniqueKeysWithValues: tracks.compactMap { track in
+            guard let startSample = track.timeline?.regions.first?.startSample else { return nil }
+            return (track.trackNumber, max(startSample, 0))
         })
     }
 
@@ -307,6 +307,7 @@ final class StereoPreviewEngine {
         includeMutedAssignedTracks: Bool = true,
         selectedVirtualTrackOptionIDs: [Int: VirtualTrackOption.ID] = [:]
     ) -> [PlayableRegion] {
+        guard project.playbackLimitation == nil else { return [] }
         var result: [PlayableRegion] = []
 
         // Assigned tracks with known timelines use their mixer settings directly.
@@ -322,13 +323,14 @@ final class StereoPreviewEngine {
             let isMuted = trackMuteOverrides[channelTrackNumber] ?? isMuted(track)
             guard let sourceURL,
                   let firstRegion,
+                  let startSample = firstRegion.startSample,
                   includeMutedAssignedTracks || !isMuted else {
                 continue
             }
             result.append(PlayableRegion(
                 channelTrackNumber: channelTrackNumber,
                 url: sourceURL,
-                startSample: max(firstRegion.startSample, 0),
+                startSample: max(startSample, 0),
                 volume: approximateVolume(
                     for: track,
                     overrideLevelPosition: trackVolumeOverrides[channelTrackNumber]
@@ -341,22 +343,8 @@ final class StereoPreviewEngine {
             ))
         }
 
-        // Unassigned regions go through the planner for virtual-take filtering and
-        // any evidence-backed mute suppression that still applies.
-        if !project.unassignedAudioRegions.isEmpty {
-            let plan = PreviewPlaybackPlanner.plan(for: project)
-            result.append(contentsOf: plan.playableRegions.map { scheduled in
-                PlayableRegion(
-                    channelTrackNumber: nil,
-                    url: scheduled.url,
-                    startSample: scheduled.startSample,
-                    volume: scheduled.volume,
-                    pan: scheduled.pan,
-                    isMuted: false
-                )
-            })
-        }
-
+        // Unassigned regions are intentionally withheld from reconstructed playback:
+        // their track/take mapping, saved mute state, and placement are not established.
         return result
     }
 

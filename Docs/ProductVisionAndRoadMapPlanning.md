@@ -93,7 +93,9 @@ Show audio-region start and length along song time in track-aligned rows, with z
 
 Deferred from this phase: waveform drawing, playhead synchronization, scrubbing/seeking, timeline editing, backup/export, media browsing, AudioDepot workflows, and restore.
 
-Status: `TimelineVisualizationModel`, `TimelineVisualizationBuilder`, and `TimelineVisualizationView` now present the track-first overview. The builder uses each track's selected take and keeps unassigned WAV regions separate. The visible UI does not draw waveforms; the existing in-memory `WaveformPeakBuilder` is not used by this view. Selecting a region is wired to the inspector. Build verification remains pending.
+Status: `TimelineVisualizationModel`, `TimelineVisualizationBuilder`, and `TimelineVisualizationView` present the track-first overview. After the November 3 capture review, unknown starts are kept unresolved and shown as unplaced; EDL candidates are no longer paired to WAVs by count, and the sequential WAV-length fallback is removed from the builder. Multi-file entries are not assigned to physical tracks or automatically played. The visible UI does not draw waveforms; the existing in-memory `WaveformPeakBuilder` is not used by this view. Selecting a region is wired to the inspector.
+
+Playback status update (November 3, 2026): `StereoPreviewEngine` now refuses reconstructed playback unless the project has a single supported file mapping, a confirmed region start, and a known non-mismatched mute setting. The available captures do not yet satisfy this full gate. This is a conservative interim behavior pending independent audio exports and stronger track/take/timeline evidence.
 
 ### Current Mixer Workspace and Preview Overrides
 

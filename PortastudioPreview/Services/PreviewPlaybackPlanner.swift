@@ -16,6 +16,9 @@ import Foundation
 struct PreviewPlaybackPlanner {
 
     static func plan(for project: PortastudioProject) -> PlaybackPlan {
+        guard project.playbackLimitation == nil else {
+            return PlaybackPlan(playableRegions: [], suppressedEntries: [])
+        }
         let allRegions = project.unassignedAudioRegions
 
         guard !allRegions.isEmpty else {
@@ -40,10 +43,11 @@ struct PreviewPlaybackPlanner {
             guard let url = region.sourceURL, let filename = region.sourceFilename else {
                 return nil
             }
+            guard let startSample = region.startSample else { return nil }
             return ScheduledPlaybackRegion(
                 filename: filename,
                 url: url,
-                startSample: max(region.startSample, 0),
+                startSample: max(startSample, 0),
                 volume: 1.0,
                 pan: 0.0
             )

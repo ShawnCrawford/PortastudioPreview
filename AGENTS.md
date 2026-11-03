@@ -117,7 +117,7 @@ The user values agents that keep momentum, inspect the repo before deciding, mak
 
 ### Project Structure & Module Organization
 
-This is a separate macOS SwiftUI app repo for a read-only TASCAM DP-32SD preview prototype. Keep reverse-engineering evidence in the sibling research repo at `/Users/shawn/Projects/SwiftUI/PortastudioResearch`; do not copy large project samples or derived binary dumps into this app repo unless there is a deliberate fixture need.
+This is a separate macOS SwiftUI app repo for a read-only TASCAM DP-32SD preview prototype. Keep reverse-engineering evidence in the sibling research repo at `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch`; do not copy large project samples or derived binary dumps into this app repo unless there is a deliberate fixture need.
 
 The app target lives in `PortastudioPreview/`, Swift Testing coverage in `PortastudioPreviewTests/`, and UI tests in `PortastudioPreviewUITests/`. Keep source split by responsibility: `App/` for the `@main` entry point and app commands, `Models/` for parsed project and track value types, `Services/` for folder loading, `song.sys`, `edltable.sys`, WAV inventory, and audio-preview code, `Views/` for SwiftUI surfaces, and `Support/` for byte, pan, and level mapping helpers.
 
@@ -129,7 +129,7 @@ Current high-traffic files:
 - `PortastudioPreview/Views/ProjectWorkspaceView.swift`: focused mixer-deck workspace, header transport, meters, faders, pan/mute/solo, and virtual-take picker UI.
 - `PortastudioPreview/Views/TrackRegionInspectorView.swift`: right-side inspector for song, selected track, audio files, diagnostics, app-owned track labels, reveal/reset actions.
 - `PortastudioPreview/Models/PreviewMixState.swift`: app-owned persisted level/pan/mute/solo/virtual-take overrides keyed by song annotation context.
-- `PortastudioPreview/Models/PortastudioProject.swift`: keep `tracks` at full parser scope; `visibleMixerChannels` should stay UI-facing and include only tracks with resolved assigned audio (candidate WAV or virtual-take options).
+- `PortastudioPreview/Models/PortastudioProject.swift`: keep `tracks` at full parser scope; `visibleMixerChannels` should expose the full logical mixer layout even when WAV assignment is unresolved. Show assignment status separately; never infer playback routing from visibility.
 - `PortastudioPreview/Services/ProjectPreviewBuilder.swift`: read-only project model assembly, EDL-to-track assignment, virtual-take options, timeline-region inference.
 - `PortastudioPreview/Services/PreviewPlaybackController.swift` and `StereoPreviewEngine.swift`: playback lifecycle, live mixer updates, meters, and AVFoundation scheduling.
 - `PortastudioPreview/Services/TimelineVisualizationBuilder.swift` and `WaveformPeakBuilder.swift`: pure timeline/waveform data builders; keep them read-only and test-heavy.
@@ -142,7 +142,7 @@ Use `Docs/PortastudioResearchReferences.md` as the local index into the research
 - `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/song.sys.md`
 - `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/edltable.sys.md`
 
-Treat copied sample folders under `PortastudioResearch/Docs/TestProjects/` as read-only. Use evidence labels exactly as written in the research repo: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, and `Rejected`. Do not promote a parser behavior beyond the evidence level documented there.
+Treat copied sample folders under `PortastudioResearch/Docs/TestProjects/` as read-only. Use evidence labels exactly as written in the research repo: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, and `Rejected`. Do not promote a parser behavior beyond the evidence level documented there. See `Research/Review-2026-11-03/output/DP32SD_Playback_Timeline_Findings.md` for the latest local review. Multi-file EDL order, WAV length, and the Track 1 selector do not by themselves establish physical track, active-take, or region placement; unknown mute must remain distinct from unmuted.
 
 ### Build, Test, and Development Commands
 
@@ -156,7 +156,7 @@ Run targeted tests by adding `-only-testing:PortastudioPreviewTests/<TestType>/<
 
 Use SwiftUI for app structure and AVFoundation for audio preview playback. Keep parsers read-only and deterministic: accept `URL` or `Data`, return typed models, and avoid UI dependencies in parser services. Keep byte offsets hexadecimal in comments and test names when they refer to research findings, such as `0x00C4` for the track 1 level-like byte.
 
-The approximate stereo preview is intentionally conservative. Track-to-WAV assignment via EDL file-list position is `Confirmed` for V1 behavior in this app. Virtual-take selection remains evidence-scoped: same-stem alternatives and the Track 1 active-take byte are `Correlated` where documented. Raw fader `0x00` maps to minimum gain through `LevelMapper`; do not treat it as unity unless new research and tests justify that change.
+The approximate stereo preview is intentionally conservative. The November 3 review found counterexamples to assigning multi-file EDL positions as tracks or using the Track 1 selector across groups. Keep multi-file entries unassigned, starts unresolved unless independently confirmed, and withhold reconstructed playback while required state is unknown. Raw fader `0x00` maps to minimum gain through `LevelMapper`; do not treat it as unity unless new research and tests justify that change.
 
 Mix edits in the app are app-owned preview overrides. Level, pan, mute, solo, and selected virtual take persist through `MixOverrideRecord` only when the selected song has an editable exact fingerprint context. These settings must never be written back into `song.sys`, `edltable.sys`, WAV metadata, or sidecar files in the source folder.
 

@@ -10,8 +10,8 @@ The app is designed for safe inspection, annotation, and stereo preview playback
 - Open an individual DP-32SD song folder.
 - Classify selected folders conservatively as media roots, backup roots, or song folders.
 - Parse `song.sys` and `edltable.sys` with evidence-scoped behavior.
-- Show only recorded/resolved channels in the mixer (assigned WAV or virtual-take options), with musician-facing track info first and parser diagnostics in expandable technical details.
-- Provide read-only stereo preview playback using confirmed track-to-WAV, timeline, mute, pan, and level mapping.
+- Show the full 20-channel mixer layout, distinguishing assigned audio from songs whose files remain unassigned, with musician-facing track info first and parser diagnostics in expandable technical details.
+- Provide read-only stereo preview only when file identity, region placement, and the applicable saved mute state are resolved. Withhold playback for ambiguous multi-file projects rather than playing inactive takes or invented placements.
 - Adjust preview-only mix settings with app-owned level, pan, mute, solo, and virtual-take overrides.
 - Remember opened sources and songs using SwiftData and security-scoped bookmarks.
 - Show missing remembered locations as muted rows with Relocate and Forget affordances.
@@ -39,14 +39,20 @@ The app is organized around a source library and a selected-song workspace whose
 
 - `ContentView` owns the source-library shell and routes selection to either `ProjectOpenView`, `SourceSelectedView`, or `ProjectDetailView`.
 - `SourceLibraryStore` handles remembered source/song hydration, add/open flows, relocate/forget, fingerprints, and missing-location state.
-- `ProjectPreviewBuilder` assembles the read-only `PortastudioProject` by scanning WAV inventory, parsing `song.sys` and `edltable.sys`, assigning EDL file-list positions to tracks, creating virtual-take options, and inferring timeline regions.
-- `PortastudioProject.tracks` keeps full parser scope (physical tracks), while `visibleMixerChannels` filters to displayable recorded channels for the UI mixer.
+- `ProjectPreviewBuilder` assembles the read-only `PortastudioProject` by scanning WAV inventory and parsing `song.sys` and `edltable.sys`. It retains a correlated single-file assignment only for the one-entry/one-WAV case; multi-file order does not establish track, take, or region identity.
+- `PortastudioProject.tracks` keeps full parser scope (physical tracks), and `visibleMixerChannels` exposes the full 20-channel mixer layout (mono tracks 1–8 plus stereo pairs 9/10–31/32). Channels without a supported WAV assignment remain visible and report no assigned audio.
 - `ProjectDetailView` owns selected-track and selected-region state, inspector visibility, `PreviewPlaybackController`, `PreviewMixState`, and selected virtual-take IDs for the loaded song.
 - `ProjectWorkspaceView` presents a time-aligned track map first, with zoom and horizontal/vertical scrolling. The mixer deck remains below the timeline for preview adjustments.
 - `TrackRegionInspectorView` is the native right-side inspector for song summary, selected-track identity/audio/mix values, app-owned track labels, audio file list, Reveal in Finder, and reset selected channel, with parser-level data under a collapsed Technical Details disclosure.
 - `PreviewMixState` persists app-owned preview overrides in SwiftData through `MixOverrideRecord`; source folders remain read-only.
 - `PreviewPlaybackController` and `StereoPreviewEngine` own playback lifecycle, live mixer updates, selected virtual-take playback, elapsed time, per-track/output meters, and error state.
-- `TimelineVisualizationBuilder` maps each track's selected virtual take to its timeline region and keeps files without a supported track assignment in explicitly unassigned rows. Timeline bars show file names, start/length, and evidence; no waveform is drawn and no timeline seeking/editing is provided. `WaveformPeakBuilder` remains unused by the visible UI. Keep all analysis read-only and never write caches beside Portastudio files.
+- `TimelineVisualizationBuilder` keeps files with unresolved assignment or placement in explicitly unplaced rows. EDL scan candidates are not paired to WAVs by count, and no sequential WAV-length fallback is used. Unresolved starts are not plotted as song-time positions; no waveform is drawn and no timeline seeking/editing is provided. `WaveformPeakBuilder` remains unused by the visible UI. Keep all analysis read-only and never write caches beside Portastudio files.
+
+### Playback and timeline evidence update (November 3, 2026)
+
+Review findings are recorded in `Research/Review-2026-11-03/output/DP32SD_Playback_Timeline_Findings.md`. The app no longer applies the Track 1 selector to unrelated file groups, treats multi-file EDL ordering as physical channel assignment, or schedules unassigned files at unity/center. Starts from the EDL scan and WAV lengths are not enough to identify region placement, so those starts remain unresolved. Automatic playback is withheld until file assignment, region start, and mute state have supported evidence. Missing mute data displays as Unknown; app-owned mute overrides remain distinct from parsed device state.
+
+The capture review found no independent AudioDepot/per-track exports to validate a full mix or exact region placement. Several mute-byte comparisons support the parser within their documented capture scope, but they do not resolve general multi-clip or active-take mapping.
 
 ## Build and Test
 

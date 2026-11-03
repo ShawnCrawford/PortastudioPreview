@@ -2,30 +2,32 @@
 
 This app repo depends on the sibling research repo for format evidence:
 
-`/Users/shawn/Projects/SwiftUI/PortastudioResearch`
+`/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch`
 
 ## Canonical Entry Points
 
 | Purpose | Path |
 | --- | --- |
-| Research overview | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Overview.md` |
-| MVP review gate and diff index | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/BinaryDiffLog.md` |
-| Controlled capture matrix | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/ControlledTestMatrix.md` |
-| MVP testing plan | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/MVPBinaryTestingPlan.md` |
-| Preview sample audit | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/BinaryDiffs/DP-32SD/AUDIT-PREVIEW-SAMPLE-001/preview-sample-audit.md` |
-| `song.sys` parser evidence | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/song.sys.md` |
-| `edltable.sys` parser evidence | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/edltable.sys.md` |
-| Open claims and hypotheses | `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Notes/DiscoveriesAndHypotheses.md` |
+| Research overview | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Overview.md` |
+| MVP review gate and diff index | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/BinaryDiffLog.md` |
+| Controlled capture matrix | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/ControlledTestMatrix.md` |
+| MVP testing plan | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/MVPBinaryTestingPlan.md` |
+| Preview sample audit | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/BinaryDiffs/DP-32SD/AUDIT-PREVIEW-SAMPLE-001/preview-sample-audit.md` |
+| `song.sys` parser evidence | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/song.sys.md` |
+| `edltable.sys` parser evidence | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/edltable.sys.md` |
+| Open claims and hypotheses | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Notes/DiscoveriesAndHypotheses.md` |
+
+The November 3, 2026 app-capture review and reproducible analysis are stored in `Research/Review-2026-11-03/`; start with `output/DP32SD_Playback_Timeline_Findings.md`.
 
 ## Local Sample Sources
 
 Copied hardware projects are read-only local development inputs:
 
-`/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/TestProjects/DP-32SD`
+`/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/TestProjects/DP-32SD`
 
 The DP-32SD capture set from `Docs/DeviceCaptureWorksheet.md` is kept read-only in this app repo:
 
-`/Users/shawn/Projects/SwiftUI/PortastudioPreview/Docs/TEST-SONGS`
+`Docs/TEST-SONGS`
 
 All worksheet rows are checked and all `Actual song` cells are blank, so the expected song IDs `SONG_0059`-`SONG_0091` are treated as the actual copied project IDs. No matching capture folders were found under the sibling research repo at the time of the audit.
 
@@ -79,7 +81,7 @@ Current app impact:
 | Mute, T9/T10–T19/T20 (mirror bank) | `song.sys` | `0x0A35`–`0x0A40`, one entry per pair | **Correlated** (SONG_0093) |
 | Mute, T21–T32 (mirror bank) | `song.sys` | `0x0A41`–`0x0A4C` | **Rejected** — these were `0x00` even with T21–T32 muted (SONG_0093 stopped at T18 in low bank, T20 in mirror) |
 | Track 1 active-take candidate | `edltable.sys` | `0x00B01A38` | **Correlated** |
-| EDL position → physical track | `edltable.sys` / `song.sys` | position 0 = T1, 1 = T2, 2 = T3, continuing sequentially | **Confirmed** for V1 track-to-WAV assignment |
+| EDL position → physical track | `edltable.sys` / `song.sys` | Single-file cases correlate position 0 with T1; multi-file/clip/take identity unresolved | **Correlated** for the reviewed app capture set |
 | Track-type field (stereo/mono) | `song.sys` | `0x09F0 + pairIndex` | **Strong hypothesis** (SONG_0095, T27 stereo→mono changed byte `0x09F9` from `0x02` to `0x01`) |
 
 ### Level scale (Confirmed, SONG_0092)
@@ -129,13 +131,13 @@ The low-bank mute byte table at `0x0268` covers physical channels up to T18 in t
 
 The mirror-bank mute table at `0x0A2D` covers 20 logical tracks (8 mono + 12 stereo pairs) in SONG_0093. Entries `0x0A41`–`0x0A4C` (logical T21–T32) remained `0x00` even with all device-accessible tracks muted.
 
-### EDL position–to–track mapping (SONG_0094 update)
+### EDL position–to-track mapping (reviewed November 3, 2026)
 
-Muting only Track 3 from the three-track capture SONG_0086 produced `song.sys` byte `0x026A = 0x01` (T3 mute low bank) and `0x0A2F = 0x01` (T3 mute mirror). The WAV at EDL position 2 was the one excluded from the expected playback set. Current V1 evidence confirms the sequential EDL-position-to-physical-track pattern used by the app.
+The `SONG_0094` mute capture correlates EDL position 2 with Track 3 for that three-track example. It does not generalize across multi-clip, record-over, take, and stereo-pair captures. `SONG_0077`/`0078` place multiple entries on Track 1, and `SONG_0084` contains three Track 1 takes. The app now retains EDL entry IDs and byte offsets, but leaves multi-file entries unassigned until those relationships are resolved.
 
 ### Pre-existing notes on WAV / EDL evidence
 
-Track-to-WAV assignment is confirmed from EDL file-list position to physical track. Sorted filename-to-track assignment remains `Rejected`.
+Sorted filename-to-track assignment remains `Rejected`. EDL file-list order preserves source ordering, but reviewed captures do not support interpreting each entry as one physical track in general.
 
 `AUDIT-PREVIEW-SAMPLE-001` observes that populated samples' `edltable.sys` file-list entries match folder WAV inventory as a set, while the EDL order often differs from filename sort.
 
@@ -144,24 +146,21 @@ Track-to-WAV assignment is confirmed from EDL file-list position to physical tra
 Additional capture findings:
 
 - Multiple WAVs / regions are `Observed`: multi-clip and record-over captures create multiple WAVs and matching EDL file-list entries, without proving general physical-track playback assignment.
-- Timeline offsets are `Confirmed`: delayed captures expose 44,100 Hz sample-domain values near `0x41898`–`0x42C10`, including about 10 seconds as `441000`/`441600`, 20 seconds as `882000`, and 60 seconds as `2646655`/`2646656`. Region lengths appear trimmed by about `441` samples.
-- Track 1 active virtual take is `Correlated` at `edltable.sys` byte `0x00B01A38`: `0x00` for take 1 active (`SONG_0083`, `SONG_0085`) and `0x01` for take 2 active (`SONG_0084`).
-- Active-take selection is not encoded reliably by the WAV filename suffix. See `SONG_0084` notes for the EDL file-list selector pattern.
+- Delayed captures contain sample-domain candidates near expected offsets, but count-pairing or sequential WAV-length placement produces counterexamples in `SONG_0080–0082` and `SONG_0086`. Keep candidate words separate from region starts until record structure and audio alignment are corroborated.
+- Track 1 active virtual take is `Correlated` at `edltable.sys` byte `0x00B01A38`: `0x00` for take 1 active (`SONG_0083`, `SONG_0085`) and `0x01` for take 2 active (`SONG_0084`). Do not apply this selector to other tracks or infer activity from WAV suffixes.
 - Stereo-pair track type field is `Strong hypothesis` at `0x09F0`: repeated `0x02` (stereo) entries, one per pair; converting T27/T28 to mono changed entry index 9 from `0x02` to `0x01` (SONG_0095).
 
 ## Preview Playback Notes
 
 The stereo preview is read-only. It opens assigned WAV files with AVFoundation and applies confirmed mute, pan, and level handling without modifying source files or metadata.
 
-Current playback assumptions:
+Current playback behavior after the November 3 review:
 
-- Physical track-to-WAV mapping is applied from confirmed EDL file-list order. Remaining unassigned WAV regions are previewed with neutral center pan and unity gain after active virtual-take filtering.
-- Track 1 active virtual-take filtering is applied in two narrow cases: same-stem filename alternatives such as `ZZ0003_1.wav` / `ZZ0003_2.wav`, and the `SONG_0084`-backed EDL file-list selector where byte `0x00B01A38 == 0x01` selects `ZZ0002_1.wav`. Do not extend this behavior to Track 2+ until more captures identify the selector stride/order.
-- Mute bytes are read and suppressed through the confirmed EDL-position-to-track mapping. Mute parsing currently covers the app's supported low-bank and mirror-bank ranges.
-- Pan byte `0x40` is confirmed center; `0x01` is confirmed hard left; `0x7F` is confirmed hard right. Playback uses these confirmed anchors and linear interpolation for intermediate values.
-- Level byte `0x00` maps to minimum gain. Playback applies the same level scale shown in the mixer UI.
-- Timeline candidates extracted from `edltable.sys` are confirmed delayed placements. Pair starts to WAV regions only when counts make the pairing unambiguous.
-- Preview scheduling normalizes the earliest inferred region to playback time zero while preserving relative offsets.
+- Automatic reconstructed playback is withheld when track/take identity, region placement, or mute state is unresolved. Current corpus projects with multiple WAVs are intentionally withheld.
+- Track 1 selector, candidate timeline words, and WAV suffixes are not used to select files or assign placement globally.
+- Missing mute data is displayed as `Unknown`, separately from the app-owned preview mute override and from parsed `Off`.
+- EDL file-list order and byte offsets remain available for diagnostics; file position is not used as a general physical-track identity rule.
+- The evidence review found no AudioDepot or per-track exports that independently verify exact arrangement or saved mix content.
 
 ## Playback Troubleshooting
 

@@ -7,8 +7,16 @@ import Foundation
 
 struct EdlFileListEntry: Equatable, Hashable, Sendable {
     let fileID: Int
+    let byteOffset: Int?
     let filename: String
     let evidenceLevel: EvidenceLevel
+
+    init(fileID: Int, byteOffset: Int? = nil, filename: String, evidenceLevel: EvidenceLevel) {
+        self.fileID = fileID
+        self.byteOffset = byteOffset
+        self.filename = filename
+        self.evidenceLevel = evidenceLevel
+    }
 }
 
 struct EdlTimelineCandidate: Equatable, Hashable, Sendable {
@@ -18,7 +26,7 @@ struct EdlTimelineCandidate: Equatable, Hashable, Sendable {
 }
 
 struct TimelineRegion: Equatable, Hashable, Identifiable, Sendable {
-    let startSample: Int
+    let startSample: Int?
     let endSample: Int?
     let lengthSample: Int?
     let sourceFilename: String?
@@ -27,7 +35,7 @@ struct TimelineRegion: Equatable, Hashable, Identifiable, Sendable {
 
     var id: String {
         let source = sourceFilename ?? "unknown"
-        return "\(startSample)-\(endSample ?? -1)-\(source)"
+        return "\(startSample.map { String($0) } ?? "unresolved")-\(endSample ?? -1)-\(source)"
     }
 
     var resolvedLengthSample: Int? {
@@ -39,6 +47,7 @@ struct TimelineRegion: Equatable, Hashable, Identifiable, Sendable {
             return nil
         }
 
+        guard let startSample else { return nil }
         return max(endSample - startSample, 0)
     }
 }

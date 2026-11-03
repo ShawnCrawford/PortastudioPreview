@@ -51,10 +51,8 @@ enum TimelineVisualizationBuilder {
         guard !allRegions.isEmpty else { return .empty }
 
         let maxEnd = allRegions.compactMap(\.endSample).max() ?? 0
-        let maxStart = allRegions.map(\.startSample).max() ?? 0
-        let unassignedRegions = project.unassignedAudioRegions
-        let hasUnresolvedTiming = unassignedRegions.count > 1
-            && unassignedRegions.allSatisfy { $0.startSample == 0 }
+        let maxStart = allRegions.compactMap(\.startSample).max() ?? 0
+        let hasUnresolvedTiming = allRegions.contains { $0.startSample == nil }
 
         return TimelineVisualizationModel(
             lanes: lanes,
@@ -106,8 +104,8 @@ enum TimelineVisualizationBuilder {
         TimelineRegionPresentation(
             id: region.id,
             sourceFilename: region.sourceFilename ?? "Audio file",
-            startSample: max(region.startSample, 0),
-            lengthSample: region.resolvedLengthSample,
+            startSample: region.startSample.map { max($0, 0) },
+            lengthSample: region.startSample == nil ? nil : region.resolvedLengthSample,
             evidenceLevel: region.evidenceLevel,
             isSelected: region.id == selectedRegionID
         )
