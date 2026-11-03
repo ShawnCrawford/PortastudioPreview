@@ -1,1 +1,21 @@
 *.wav
+
+# Xcode and macOS local state
+DerivedData/
+*.xcresult
+*.xcuserstate
+xcuserdata/
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# Local research environments, caches, and reproducible machine output
+Research/**/.derivedData/
+Research/**/.venv/
+Research/**/cache/
+Research/Review-*/output/*.json
+
+# Local firmware research inputs, third-party tools, and generated app projects.
+/Research/Firmware/Inputs/
+/Research/Firmware/Tools/
+/Research/Firmware/Craft-Anything-dp-32sd030/

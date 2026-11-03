@@ -494,10 +494,10 @@ struct TrackMixerDeckView: View {
 }
 
 private enum MixerDeckMetrics {
-    static let edgePadding: CGFloat = 28
-    static let channelVerticalPadding: CGFloat = 18
-    static let stripSpacing: CGFloat = 12
-    static let stripWidth: CGFloat = 182
+    static let edgePadding: CGFloat = 16
+    static let channelVerticalPadding: CGFloat = 12
+    static let stripSpacing: CGFloat = 8
+    static let stripWidth: CGFloat = 148
     static let minimumStripHeight: CGFloat = 390
     static let compactMinimumStripHeight: CGFloat = 300
 }
@@ -557,10 +557,10 @@ private struct TrackMixerStripView: View {
             .accessibilityHidden(true)
             .accessibilityIdentifier("mixer-strip-select-\(presentation.trackNumber)")
 
-            VStack(spacing: 10) {
+            VStack(spacing: 7) {
                 VStack(spacing: 2) {
                     Button(action: selectAction) {
-                        VStack(spacing: 3) {
+                        VStack(spacing: 2) {
                             Text(presentation.channelTitle)
                                 .font(.callout.weight(.semibold))
                                 .foregroundStyle(presentation.isSelected ? Color.primary : Color.primary.opacity(0.9))
@@ -573,7 +573,7 @@ private struct TrackMixerStripView: View {
                                     .lineLimit(1)
                             }
                         }
-                        .frame(height: 40)
+                        .frame(height: 34)
                     }
                     .buttonStyle(.plain)
 
@@ -608,7 +608,7 @@ private struct TrackMixerStripView: View {
                 Divider()
                     .opacity(0.4)
 
-                HStack(spacing: 8) {
+                HStack(spacing: 5) {
                     VStack(spacing: 4) {
                         Text(presentation.panDisplayLabel)
                             .font(.caption2)
@@ -625,7 +625,7 @@ private struct TrackMixerStripView: View {
 
                     Spacer(minLength: 0)
 
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         Toggle(
                             isOn: Binding(
                                 get: { presentation.isMuted },
@@ -644,7 +644,7 @@ private struct TrackMixerStripView: View {
                         .controlSize(.small)
                         .labelStyle(.iconOnly)
                         .tint(.orange)
-                        .frame(width: 28, height: 24)
+                        .frame(width: 23, height: 22)
                         .help(presentation.isMuted ? "Unmute track" : "Mute track")
                         .accessibilityValue(presentation.isMuted ? "On" : "Off")
                         .accessibilityIdentifier("mixer-strip-mute-\(presentation.trackNumber)")
@@ -667,7 +667,7 @@ private struct TrackMixerStripView: View {
                         .controlSize(.small)
                         .labelStyle(.iconOnly)
                         .tint(.yellow)
-                        .frame(width: 28, height: 24)
+                        .frame(width: 23, height: 22)
                         .help(presentation.isSoloed ? "Clear solo" : "Solo track")
                         .accessibilityValue(presentation.isSoloed ? "On" : "Off")
                         .accessibilityIdentifier("mixer-strip-solo-\(presentation.trackNumber)")
@@ -700,8 +700,8 @@ private struct TrackMixerStripView: View {
                     .background(Color.primary.opacity(presentation.isSelected ? 0.13 : 0.07), in: .rect(cornerRadius: 5))
                     .accessibilityIdentifier("mixer-strip-level-label-\(presentation.trackNumber)")
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 11)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 8)
             .frame(width: MixerDeckMetrics.stripWidth)
             .frame(maxHeight: .infinity)
         }
@@ -768,7 +768,7 @@ private struct PanControlView: View {
                     }
             )
         }
-        .frame(width: 72, height: 16)
+        .frame(width: 58, height: 16)
         .onHover { hovering in
             isHovered = hovering
         }
