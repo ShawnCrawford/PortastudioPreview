@@ -8,7 +8,7 @@ PortastudioPreview can show the WAV inventory, mixer values supported by the doc
 
 The highest-value next step is to expose uncertainty and remove unsupported placement and take-selection assumptions. General multi-region reconstruction requires controlled device comparisons that identify the records linking physical tracks and virtual tracks to source WAV segments.
 
-**Research limitation:** The canonical research repository was unavailable at `/Users/shawn/Projects/SwiftUI/PortastudioResearch` and at the checked alternate volume path. The original `BinaryDiffLog.md`, specifications, captures, and firmware details could not be independently inspected. Local evidence below is attributed to [PortastudioResearchReferences.md](PortastudioResearchReferences.md), which summarizes those findings. Its labels are preserved, but the original observations and their full scope could not be audited. No source folders or device files were modified during this research.
+**Research limitation:** The separate canonical research repository was unavailable during this review, so its original `BinaryDiffLog.md`, specifications, captures, and firmware details could not be independently inspected. Local evidence below is attributed to [PortastudioResearchReferences.md](PortastudioResearchReferences.md), which summarizes those findings. Its labels are preserved, but the original observations and their full scope could not be audited. No source folders or device files were modified during this research.
 
 ## Evidence table
 

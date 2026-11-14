@@ -1,37 +1,27 @@
 # Portastudio Research References
 
-This app repo depends on the sibling research repo for format evidence:
-
-`/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch`
+The app can be built and tested without the separate PortastudioResearch project. This document is a repository-local index of the evidence summaries used by the app. The source captures and full research corpus are intentionally not included.
 
 ## Canonical Entry Points
 
 | Purpose | Path |
 | --- | --- |
-| Research overview | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Overview.md` |
-| MVP review gate and diff index | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/BinaryDiffLog.md` |
-| Controlled capture matrix | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/ControlledTestMatrix.md` |
-| MVP testing plan | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/MVPBinaryTestingPlan.md` |
-| Preview sample audit | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/BinaryDiffs/DP-32SD/AUDIT-PREVIEW-SAMPLE-001/preview-sample-audit.md` |
-| `song.sys` parser evidence | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/song.sys.md` |
-| `edltable.sys` parser evidence | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/edltable.sys.md` |
-| Open claims and hypotheses | `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Notes/DiscoveriesAndHypotheses.md` |
+| Research overview | `PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Overview.md` |
+| MVP review gate and diff index | `PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/BinaryDiffLog.md` |
+| Controlled capture matrix | `PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/ControlledTestMatrix.md` |
+| MVP testing plan | `PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/MVPBinaryTestingPlan.md` |
+| Preview sample audit | `PortastudioResearch/Docs/BinaryDiffs/DP-32SD/AUDIT-PREVIEW-SAMPLE-001/preview-sample-audit.md` |
+| `song.sys` parser evidence | `PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/song.sys.md` |
+| `edltable.sys` parser evidence | `PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/edltable.sys.md` |
+| Open claims and hypotheses | `PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Notes/DiscoveriesAndHypotheses.md` |
 
 The November 3, 2026 app-capture review and reproducible analysis are stored in `Research/Review-2026-11-03/`; start with `output/DP32SD_Playback_Timeline_Findings.md`.
 
-## Local Sample Sources
+## Source Captures
 
-Copied hardware projects are read-only local development inputs:
+Device captures used during research are local-only inputs and are not distributed in this repository. Test targets use synthetic data so they do not depend on private capture folders or another checkout. The worksheet records the capture procedure and reported results; those results retain the evidence labels and scope limits documented below.
 
-`/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch/Docs/TestProjects/DP-32SD`
-
-The DP-32SD capture set from `Docs/DeviceCaptureWorksheet.md` is kept read-only in this app repo:
-
-`Docs/TEST-SONGS`
-
-All worksheet rows are checked and all `Actual song` cells are blank, so the expected song IDs `SONG_0059`-`SONG_0091` are treated as the actual copied project IDs. No matching capture folders were found under the sibling research repo at the time of the audit.
-
-Useful MVP folders:
+Useful MVP samples in the separate, non-distributed research project:
 
 - `MVP-BASE-001`: populated baseline with five WAV files.
 - `MVP-TAKE-001`: active-take variant with unchanged WAV inventory.
@@ -141,7 +131,7 @@ Sorted filename-to-track assignment remains `Rejected`. EDL file-list order pres
 
 `AUDIT-PREVIEW-SAMPLE-001` observes that populated samples' `edltable.sys` file-list entries match folder WAV inventory as a set, while the EDL order often differs from filename sort.
 
-`Docs/TEST-SONGS` adds stronger negative evidence for sorted filename-to-track assignment. Single-track captures mostly reused `ZZ0000_1.wav` regardless of physical track, `SONG_0063` unexpectedly contains two WAVs for the Track 4-only action, and `SONG_0084`, `SONG_0085`, `SONG_0086`, `SONG_0090`, and `SONG_0091` show EDL file-list order can differ from sorted filename order.
+The local device-capture set adds stronger negative evidence for sorted filename-to-track assignment. Single-track captures mostly reused `ZZ0000_1.wav` regardless of physical track, `SONG_0063` unexpectedly contains two WAVs for the Track 4-only action, and `SONG_0084`, `SONG_0085`, `SONG_0086`, `SONG_0090`, and `SONG_0091` show EDL file-list order can differ from sorted filename order. The capture files themselves are not distributed here.
 
 Additional capture findings:
 

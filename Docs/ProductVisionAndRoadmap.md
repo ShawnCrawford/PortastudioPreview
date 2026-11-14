@@ -380,7 +380,7 @@ The hardest UI pieces are waveforms, DAW-style timeline behavior, and polished m
 
 ## Manual-Derived Research
 
-Research source: `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/ArchitectureAndDataModel.md`, which summarizes the DP-32SD owner's manual, DP-32 owner's manual, release notes, and service documentation. Evidence level here is `Observed` for documented device behavior, not byte-level parser semantics.
+Research source: the separate PortastudioResearch project, which summarizes the DP-32SD owner's manual, DP-32 owner's manual, release notes, and service documentation. The research project is not required to build or run this app. Evidence level here is `Observed` for documented device behavior, not byte-level parser semantics.
 
 Manual findings with product impact:
 

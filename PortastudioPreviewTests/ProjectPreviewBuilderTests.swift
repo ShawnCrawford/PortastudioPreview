@@ -213,42 +213,6 @@ struct ProjectPreviewBuilderTests {
         #expect(!ProjectPreviewBuilder.anyBoundaryFoundInEdl([252399], data: data))
     }
 
-    // MARK: - Local integration: PONG_0096 sequential start times
-
-    @Test func pong0096SequentialStartTimesAreAppliedWhenBinaryConfirmed() throws {
-        let captureRoot = URL(fileURLWithPath: "/Users/shawn/Projects/SwiftUI/PortastudioPreview/Docs/TEST-SONGS")
-        let songURL = captureRoot.appendingPathComponent("PONG_0096")
-
-        guard FileManager.default.fileExists(atPath: songURL.appendingPathComponent("edltable.sys").path),
-              FileManager.default.fileExists(atPath: songURL.appendingPathComponent("ZZ0000_1.wav").path) else {
-            return
-        }
-
-        let project = try ProjectPreviewBuilder().build(folderURL: songURL)
-
-        // Collect all regions from both assigned tracks and unassigned regions.
-        let allRegions: [TimelineRegion] =
-            project.tracks.compactMap { $0.timeline?.regions.first } +
-            project.unassignedAudioRegions
-
-        // ZZ0000_1 should start at 0 and ZZ0001_1 should start after it.
-        #expect(!allRegions.isEmpty)
-
-        let zz0000 = allRegions.first(where: { $0.sourceFilename == "ZZ0000_1.wav" })
-        let zz0001 = allRegions.first(where: { $0.sourceFilename == "ZZ0001_1.wav" })
-        #expect(zz0000?.startSample == 0)
-        // ZZ0001_1 must start after ZZ0000_1 ends (sequential layout).
-        let zz0000End = zz0000?.endSample ?? 0
-        #expect((zz0001?.startSample ?? 0) >= zz0000End - 442)
-
-        // Stereo pairs share their primary file's start position.
-        let zz0008_1 = allRegions.first(where: { $0.sourceFilename == "ZZ0008_1.wav" })
-        let zz0008_2 = allRegions.first(where: { $0.sourceFilename == "ZZ0008_2.wav" })
-        if let s1 = zz0008_1?.startSample, let s2 = zz0008_2?.startSample {
-            #expect(s1 == s2)
-        }
-    }
-
     private func writeEdlTable(
         fileList: [String],
         timelineAnchors: [UInt32] = [],

@@ -5,7 +5,7 @@ Create Xcode canvas previews for the mixer workspace and tweakable mixer control
 ## Scope
 
 - In: Mixer deck previews, individual track strip previews, pan/fader/meter control previews, inspector/detail preview states, synthetic preview fixtures, build validation.
-- Out: Parser changes, playback engine behavior changes, real song-folder mutation, third-party preview tooling, or previews that read `Docs/TEST-SONGS`.
+- Out: Parser changes, playback engine behavior changes, real song-folder mutation, third-party preview tooling, or previews that read private device captures.
 
 ## Decisions
 

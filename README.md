@@ -2,6 +2,8 @@
 
 PortastudioPreview is a macOS SwiftUI prototype for read-only preview of TASCAM DP-32SD song folders, with an app-owned source library that remembers opened SD card roots, backup roots, and individual songs across relaunches.
 
+This is an independent project and is not affiliated with or endorsed by TASCAM or TEAC Corporation. TASCAM and DP-32SD are trademarks of their respective owner.
+
 The app is designed for safe inspection, annotation, and stereo preview playback of validated DP-32SD project mappings. It does not write to project folders.
 
 ## Goals
@@ -55,6 +57,8 @@ Review findings are recorded in `Research/Review-2026-11-03/output/DP32SD_Playba
 The capture review found no independent AudioDepot/per-track exports to validate a full mix or exact region placement. Several mute-byte comparisons support the parser within their documented capture scope, but they do not resolve general multi-clip or active-take mapping.
 
 ## Build and Test
+
+Requires macOS 26.4 or later and Xcode with the macOS 26.4 SDK.
 
 ```bash
 xcodebuild -list -project PortastudioPreview.xcodeproj
@@ -168,41 +172,17 @@ xcodebuild -scheme PortastudioPreview -project PortastudioPreview.xcodeproj -des
   -only-testing:PortastudioPreviewTests/StereoPreviewEngineTests
 ```
 
-## Playback Behavior (Current)
+## Playback Behavior
 
-Preview playback is read-only and evidence-scoped.
+Playback is read-only and deliberately limited to mappings supported by current evidence. Audio is withheld when file identity, region placement, or saved mute state is unresolved. EDL order, WAV length, and the Track 1 selector do not independently establish physical track, active take, or region placement. Unknown mute remains distinct from unmuted. Preview level, pan, mute, solo, and take selections are app-owned overrides; they are never written into Portastudio project files.
 
-- Track-to-WAV mapping is confirmed from EDL file-list position to physical track.
-- Track rows show mixer evidence, assigned WAVs, and active virtual-take options where available.
-- The selected-song mixer lets the user choose available virtual takes. If changed during playback, playback reloads while preserving position.
-- Level, pan, mute, solo, and selected virtual take are persisted as app-owned preview overrides only when the song annotation context is editable (`Exact match` fingerprint).
-- Remaining unassigned regions use EDL file-list order when available, neutral center pan, and unity gain.
-- Track 1 active virtual-take playback is applied where current captures support it. `edltable.sys` byte `0x00B01A38` is correlated with Track 1 active take; `SONG_0084` uses `0x01` and previews only `ZZ0002_1.wav`, even though all three WAV filenames end in `_1.wav`.
-- Filename suffixes such as `_1` and `_2` are not sufficient active-take evidence. Current playback first handles same-stem take alternatives, then falls back to the `SONG_0084` EDL file-list pattern for Track 1 VT2.
-- Mute, pan, and level playback uses the confirmed mixer byte mappings currently implemented by the app. Raw fader `0x00` is not treated as unity; it maps to minimum gain.
-- Mix changes made while playback is paused are applied to the live engine before resume; idle changes remain stored only as pending overrides until playback starts.
-- Timeline offsets parsed from `edltable.sys` are confirmed 44.1k sample-domain positions.
-- Playback start normalization is applied so the earliest scheduled region starts at preview time zero while preserving relative offsets between tracks.
+## Evidence and Research
 
-This avoids long initial silence when inferred anchors are far from zero (for example delayed clips around the 50-second region).
-
-## Research Dependency
-
-Canonical reverse-engineering evidence lives in the sibling repo:
-
-- `/Users/shawn/Projects/SwiftUI/PortastudioResearch`
-
-Use `Docs/PortastudioResearchReferences.md` in this repo as the local index.
-
-For a read-only manual audit of current fader bytes, EDL file-list order, and WAV inventory/lengths, run:
-
-```bash
-/Users/shawn/Projects/SwiftUI/PortastudioResearch/Scripts/Prototypes/preview_sample_audit.py --generated-date 2026-05-06
-```
+Build and run the app without any sibling repository or device-capture files. The evidence summaries included here are indexed in [Docs/PortastudioResearchReferences.md](Docs/PortastudioResearchReferences.md). Raw device captures and the separate research corpus are intentionally not distributed with this app repository.
 
 ## Evidence Discipline
 
-Use the evidence labels exactly as defined in the research repo:
+Use the evidence labels recorded in the research summaries:
 
 - `Observed`
 - `Correlated`
@@ -210,4 +190,8 @@ Use the evidence labels exactly as defined in the research repo:
 - `Hypothesis`
 - `Rejected`
 
-Do not promote parser or playback behavior above the evidence level currently supported by tests and research artifacts.
+Do not promote parser or playback behavior above the evidence level supported by tests and the documented research summaries.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

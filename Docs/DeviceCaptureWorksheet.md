@@ -167,7 +167,7 @@ After all captures are complete:
 
 | Done | Item | Notes |
 | --- | --- | --- |
-| [x] | Copy all project folders from the SD card to the Mac. | `/Docs/TEST-SONGS` |
+| [x] | Copy all project folders from the SD card to a local, read-only capture folder. | Local capture path intentionally omitted from this repository. |
 | [x] | Preserve original copied project folders unchanged. |  |
 | [x] | Include this completed worksheet with the copied folders. |  |
 | [x] | Note any skipped tests or device behavior that differed from the plan. |  |

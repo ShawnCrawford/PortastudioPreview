@@ -117,7 +117,7 @@ The user values agents that keep momentum, inspect the repo before deciding, mak
 
 ### Project Structure & Module Organization
 
-This is a separate macOS SwiftUI app repo for a read-only TASCAM DP-32SD preview prototype. Keep reverse-engineering evidence in the sibling research repo at `/Volumes/Secondary SSD/Projects/Experiments/PortastudioResearch`; do not copy large project samples or derived binary dumps into this app repo unless there is a deliberate fixture need.
+This is a macOS SwiftUI app repo for a read-only TASCAM DP-32SD preview prototype. Keep reverse-engineering source material in the separate research project; do not copy device captures, large project samples, or derived binary dumps into this repository. Use small synthetic fixtures for tests.
 
 The app target lives in `PortastudioPreview/`, Swift Testing coverage in `PortastudioPreviewTests/`, and UI tests in `PortastudioPreviewUITests/`. Keep source split by responsibility: `App/` for the `@main` entry point and app commands, `Models/` for parsed project and track value types, `Services/` for folder loading, `song.sys`, `edltable.sys`, WAV inventory, and audio-preview code, `Views/` for SwiftUI surfaces, and `Support/` for byte, pan, and level mapping helpers.
 
@@ -136,13 +136,9 @@ Current high-traffic files:
 
 ### Research References
 
-Use `Docs/PortastudioResearchReferences.md` as the local index into the research repo. Canonical evidence lives in:
+Use `Docs/PortastudioResearchReferences.md` for the local evidence index and source-relative references into the separate research project. That project and its capture folders are optional and are not required to build or test this app.
 
-- `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Methodology/BinaryDiffLog.md`
-- `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/song.sys.md`
-- `/Users/shawn/Projects/SwiftUI/PortastudioResearch/Docs/ReverseEngineering/Tascam-Portastudio-DPxxSD/Specs/edltable.sys.md`
-
-Treat copied sample folders under `PortastudioResearch/Docs/TestProjects/` as read-only. Use evidence labels exactly as written in the research repo: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, and `Rejected`. Do not promote a parser behavior beyond the evidence level documented there. See `Research/Review-2026-11-03/output/DP32SD_Playback_Timeline_Findings.md` for the latest local review. Multi-file EDL order, WAV length, and the Track 1 selector do not by themselves establish physical track, active-take, or region placement; unknown mute must remain distinct from unmuted.
+Treat any research sample folders as read-only. Use evidence labels exactly as written in the research notes: `Observed`, `Correlated`, `Confirmed`, `Hypothesis`, and `Rejected`. Do not promote a parser behavior beyond its documented evidence level. See `Research/Review-2026-11-03/output/DP32SD_Playback_Timeline_Findings.md` for the latest local review. Multi-file EDL order, WAV length, and the Track 1 selector do not by themselves establish physical track, active-take, or region placement; unknown mute must remain distinct from unmuted.
 
 ### Build, Test, and Development Commands
 

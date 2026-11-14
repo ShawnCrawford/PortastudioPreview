@@ -1,7 +1,10 @@
 *.wav
 
+# Local device captures are excluded; parser tests use synthetic data.
+/Docs/TEST-SONGS/
+
 # Xcode and macOS local state
-DerivedData/
+/DerivedData/
 *.xcresult
 *.xcuserstate
 xcuserdata/
